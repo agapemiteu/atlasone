@@ -21,7 +21,9 @@ ATLAS_ONE_BASE_URL={{BASE_URL}}
 ATLAS_ONE_API_KEY=<project key from atlas_bind_project's claim link>
 ```
 
-Add the same names with empty values to `.env.example` so teammates know they exist.
+Add the same names with empty values to `.env.example` so teammates know they exist. Projects made
+with `create-next-app` ignore every `.env*` file, so also add `!.env.example` to `.gitignore`, then
+check `git check-ignore .env.local` still reports it as ignored.
 
 ## 2. Dependency
 
