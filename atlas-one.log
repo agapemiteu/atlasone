@@ -1,0 +1,51 @@
+ATLAS ONE — PERSISTENT BUILD LOG
+================================
+Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
+
+[2026-10-11] SETUP — Project initialised in C:\Users\USER\Documents\atlasone (empty, no git yet).
+[2026-10-11] SPEC — PRD v0.1 saved to docs/PRD.md (NAIC 2026, PS1 Developer Infrastructure).
+[2026-10-11] RULE — Never add Claude/AI as collaborator or contributor: no Co-Authored-By, no AI attribution in commits/PRs, no bot collaborators on GitHub.
+[2026-10-11] RULE — Maintain this .log file for the whole build.
+[2026-10-11] RULE — Use gstack (Garry Tan) skills for workflow and gbrain for persistent memory (page: projects/atlas-one).
+[2026-10-11] RULE — Do not overbuild; MVP scope only (PRD §11).
+[2026-10-11] RULE — Distinguished-engineer quality bar.
+[2026-10-11] RULE — Keep a memory context updated as the session progresses (Claude memory + gbrain + this log).
+[2026-10-11] PLAN — After build: simple one-page usage site, likely on Vercel.
+[2026-10-11] NEXT — Phase A (prove genuine N-ATLAS inference) is the gating step; nothing else counts as operational until it works.
+[2026-10-11] FACT — HF gated access to NCAIR1/N-ATLaS granted. Llama-3 8B, BF16, 8k ctx, revision e294476928aca9030e924ca27bb8e085e8581273. Licence: "Powered by Awarri" attribution, 1,000 active-user cap.
+[2026-10-11] BLOCKER — Cached HF token on this machine returns 401; user must create a new read token.
+[2026-10-11] DECISION — Compute: Modal serverless GPU (L4, vLLM 0.21.0, scale-to-zero) on the free $30/mo Starter credit (~37 L4-hours). No local GPU. Rejected Colab/Kaggle free tiers: T4 16GB can't hold BF16 8B without quantisation, sessions disconnect, no stable URL, Colab free ToS restricts serving.
+[2026-10-11] BUILD — inference/serve.py (Modal + vLLM, upstream --api-key) and scripts/smoke.mjs (Phase A proof: request id, model, latency, real output).
+[2026-10-11] DECISION — Cold-start UX: never look idle. Show phased progress with elapsed time (connecting -> cold: starting GPU -> loading weights (est.) -> preparing (est.) -> slow warning). Observed phases are facts, later ones labelled estimates. Warm-up time reported separately from inference latency. Same phases will drive MCP progress notifications in atlas_test/atlas_discover (backend state: cold | warming | ready) and a BACKEND_WARMING result with retry guidance if a tool call would time out.
+[2026-10-11] BUILD — scripts/smoke.mjs now polls /health with live progress before inference. Added .gitignore (.env*, node_modules).
+[2026-10-11] INCIDENT — Upgrading huggingface_hub to 2.2.0 broke global transformers/tokenizers pins; restored to 0.36.2 (pip check clean). Lesson: don't upgrade shared global Python packages; use a project venv for Python tooling.
+[2026-10-11] SETUP — Created gitignored .env.local (HF_TOKEN to be pasted by user, ATLAS_UPSTREAM_KEY auto-generated) and .env.example. CLI HF login did not persist on this machine (stored token still 401), so the token goes via .env.local.
+[2026-10-11] VERIFIED — HF token in .env.local reads gated NCAIR1/N-ATLaS at pinned revision (HTTP 200).
+[2026-10-11] DECISION — Modal dropped as primary: needs a payment method to unlock more than $1 of credit. Primary compute is now Kaggle free GPUs (2x T4, ~30 GPU-h/week, no card, phone verification). Runtime: llama.cpp, full F16 (no quantisation) split across both T4s, OpenAI-compatible, Cloudflare quick tunnel for a public HTTPS URL. Trade-off: the URL changes every session, and the 12h session cap means it's not always on (disclosed per PRD §7). Colab rejected (free tier forbids serving). Modal code kept as inference/modal_serve.py (untested) for when a card or credits are available.
+[2026-10-11] ARCH — The gateway treats the upstream as any OpenAI-compatible URL + key (ATLAS_UPSTREAM_URL/KEY), so the runtime can be swapped (Kaggle -> Modal -> NCAIR/organiser GPU) without code changes.
+[2026-10-11] BUILD — inference/kaggle_serve.py (one-cell Kaggle server). smoke.mjs warm-up phases now come only from observed signals (llama.cpp /health 503 = loading); explicit gateway errors past 60s -> MODEL_OFFLINE.
+[2026-10-11] SETUP — Kaggle account (agapemiteu) phone-verified; opening a new notebook to run inference/kaggle_serve.py.
+[2026-10-11] FIX — Kaggle source build of llama.cpp failed (CMake: CUDA::cuda_driver target not found; Kaggle image lacks libcuda link stub). Switched to pinned prebuilt release b11552 (ubuntu-cuda-12.8-x64 + cudart), with a GPU-visibility check before the 16 GB download.
+[2026-10-11] PROGRESS — Kaggle: both T4s detected by llama.cpp b11552 (CUDA0/CUDA1, 14.9 GB each). N-ATLaS@e2944769 downloaded (16.1 GB in ~1 min). F16 GGUF conversion running.
+[2026-10-11] MILESTONE — PHASE A EXIT MET: genuine N-ATLaS inference verified end to end (PRD Test 1 at upstream level).
+    runtime: Kaggle 2x T4, llama.cpp b11552, F16 GGUF of NCAIR1/N-ATLaS@e294476928aca9030e924ca27bb8e085e8581273, served as n-atlas-8b via Cloudflare quick tunnel.
+    smoke.mjs: status ok, request_id chatcmpl-khKUf9yqPSkt94Cke71I8NkiI3PUSpJ8, first request 18.8s (CUDA warm-up), 70 completion tokens, Hausa output.
+    warm request: "Menene babban birnin Najeriya?" -> "Babban birnin Najeriya Abuja ne." in 1.5s total, 16.7 tok/s generation, 292 tok/s prompt.
+    security: no key -> 401, wrong key -> 401.
+[2026-10-11] OBSERVATION — Without a Hausa system prompt, the model replied in Hausa that it "can't understand Hausa" and offered English. The Next.js recipe should set a language-specific system prompt; never claim multilingual correctness beyond what we test (PRD §8).
+[2026-10-11] OBSERVATION — The first request after load is slow (~19s, CUDA warm-up). The server script should send one warm-up request before printing READY.
+[2026-10-11] NEXT — Phase B: gateway (OpenAI-compatible, project-scoped keys, rate limits, request metadata) + Phase C MCP tools. Run /plan-eng-review on the architecture before coding.
+[2026-10-11] REVIEW — /plan-eng-review started on docs/ARCHITECTURE.md (one Next.js app on Vercel: gateway + MCP + consent; Supabase Postgres + Auth).
+[2026-10-11] DECISION D1 — MCP sign-in: OAuth 2.1 Connect (Supabase OAuth server + DCR, GitHub sign-in, consent page). Verified: Supabase OAuth 2.1 server supports MCP DCR; mcp-handler 2.1 withMcpAuth; Cursor supports OAuth + static headers.
+[2026-10-11] DECISION D2 — Project key delivered via one-time claim link; secret never enters LLM context.
+[2026-10-11] DECISION D3 — Kaggle self-registers its tunnel URL (admin secret, https, host allowlist, health check).
+[2026-10-11] DECISION D4 — Licence cap disclosed + per-project quotas (30 req/min, daily cap).
+[2026-10-11] RULE — Build for ALL MCP agents (user directive): spec-only transport/auth, no client-specific code, core primitives only. Release-gate matrix: Claude Code, Cursor, Codex, VS Code.
+[2026-10-11] DECISIONS D5-D9 — PAT fallback for headless clients; recipe via tool + resource; single inference core; MCP SDK-client conformance E2E + 4-client matrix; 10s cached backend state.
+[2026-10-11] OUTSIDE VOICE — Codex (codex-cli 0.159.2) reviewed the plan: 8 findings. Accepted as D10 (thin slice first, PRD Test 6 early, seed script), D11 (nonce-bound app verification), D12 (atomic quota counter), D13 (owner-bound claim links), D14 (beta test windows, 4 slots x 4k, BACKEND_BUSY), D15 (invite-only GitHub allowlist). Kaggle register call folded into T3.
+[2026-10-11] MILESTONE — /plan-eng-review CLEAR: docs/ARCHITECTURE.md locked, 15 decisions, 0 unresolved, 0 critical gaps. Next: T1 (schema, credentials, errors, quota, seed).
+[2026-10-11] UX — User wants MCP sign-in to behave like Claude/Codex connectors: client shows Connect/Authenticate -> browser opens -> sign in -> consent "X wants access to Atlas One" -> approve -> back in the agent. This is exactly D1 (MCP OAuth 2.1 spec flow).
+[2026-10-11] VISION — User: make Atlas One very easy for devs, integrate anything, always with permission; request access when connecting or setting up.
+[2026-10-11] DECISION D16 — Scoped OAuth consent (atlas:read/test/projects) + human approval for sensitive tool actions via MCP elicitation, confirmation-code fallback; tool annotations.
+[2026-10-11] DECISION D17 — Recipes: nextjs (tested) + generic (any OpenAI client). No SDKs.
+[2026-10-11] SETUP — GitHub repo agapemiteu/atlasone (PUBLIC) created by user; gh CLI already authenticated as agapemiteu. Secrets must never be committed (.env* gitignored).
