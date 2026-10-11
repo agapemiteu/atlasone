@@ -1,252 +1,224 @@
-// Home page. Shows the product instead of describing it: a replay of a real session (real request ids
-// from atlas-one.log), copy-paste setup per client, live backend state, and real numbers. English and
-// Hausa (?lang=ha). Server-rendered, no frameworks, no tracking.
+// Home page. Shows instead of tells: an animated replay of a real run (agent on the left, the app it
+// built answering on the right), one-URL setup, use cases with copyable instructions, live backend state.
+// Every model output shown is verbatim from the 11 Oct 2026 run (atlas-one.log, docs/NATLAS-INTEGRATION.md).
 
 import { esc } from "./html.ts";
 import { ICONS } from "./icons.ts";
 import { type PublicStatus, statusWidget } from "./status.ts";
+import { clientSnippets, codeTabs, REPO, shell } from "./theme.ts";
 
 type Lang = "en" | "ha";
 
 const T = {
   en: {
-    sub: "Connect any coding agent. Ask for a Hausa, Igbo or Yoruba feature. Get it built and verified on genuine N-ATLaS.",
+    h1: "Nigerian languages in your app, one instruction away.",
+    sub: "Connect your coding agent to Atlas One. Ask for a Hausa, Igbo or Yoruba feature. It is built, tested and verified on genuine N-ATLaS.",
     connect: "Connect your agent",
-    playground: "Try the playground",
-    steps: [
-      ["plug", "Connect", "One URL in any MCP client."],
-      ["chat", "Ask", "Describe the feature in plain words."],
-      ["verified", "Verified", "Real N-ATLaS output, proven on your route."],
-    ],
-    setup: "Connect in one step",
-    live: "Live",
-    app: "Your app calls a standard API",
-    replay: "Replay of real runs on 11 October 2026. Request ids and timings are from the live logs.",
+    docs: "Read the docs",
+    cases: "What developers build",
+    setup: "Add one URL. That is the setup.",
+    setupNote: "Your client opens a sign-in. Approve the permissions, sign in with GitHub, then ask for a feature.",
+    perClient: "Exact command per client",
+    live: "Measured, not promised",
   },
   ha: {
-    sub: "Haɗa kowane wakilin coding. Nemi fasali da Hausa, Igbo ko Yarbanci. A gina shi kuma a tabbatar da shi da N-ATLaS na gaske.",
+    h1: "Harsunan Najeriya a manhajarka, umarni ɗaya kawai.",
+    sub: "Haɗa wakilin coding ɗinka da Atlas One. Nemi fasali da Hausa, Igbo ko Yarbanci. Za a gina shi, a gwada shi, a tabbatar da shi da N-ATLaS na gaske.",
     connect: "Haɗa wakilinka",
-    playground: "Gwada a nan",
-    steps: [
-      ["plug", "Haɗa", "Adireshi ɗaya a kowane MCP client."],
-      ["chat", "Tambaya", "Faɗi abin da kake so da sauƙi."],
-      ["verified", "An tabbatar", "Amsar N-ATLaS ta gaske, a kan hanyarka."],
-    ],
-    setup: "Haɗa a mataki ɗaya",
-    live: "Kai tsaye",
-    app: "Manhajarka tana amfani da API na yau da kullum",
-    replay: "Maimaicin aiki na gaske, 11 Oktoba 2026. Lambobin buƙata daga bayanan gaske ne.",
+    docs: "Karanta bayani",
+    cases: "Abin da masu haɓakawa ke ginawa",
+    setup: "Ƙara adireshi ɗaya. Shi ke nan.",
+    setupNote: "Manhajarka za ta buɗe shiga. Amince da izini, shiga da GitHub, sannan ka nemi fasali.",
+    perClient: "Umarni na kowane client",
+    live: "An auna, ba alkawari ba",
   },
 } as const;
 
-function clients(mcp: string): [string, string][] {
-  return [
-    ["Claude Code", `claude mcp add --transport http atlas-one ${mcp}`],
-    ["Codex", `codex mcp add atlas-one --url ${mcp}`],
-    ["Cursor", `{ "mcpServers": { "atlas-one": { "url": "${mcp}" } } }`],
-    ["VS Code", `{ "servers": { "atlas-one": { "type": "http", "url": "${mcp}" } } }`],
-    ["Windsurf", `{ "mcpServers": { "atlas-one": { "serverUrl": "${mcp}" } } }`],
-    ["Gemini CLI", `{ "mcpServers": { "atlas-one": { "httpUrl": "${mcp}" } } }`],
-    ["Any other MCP client", `${mcp}
+// Verbatim from the live run: question sent to the demo app's /api/support, and N-ATLaS's answer.
+const INSTRUCTION = "Add a Hausa customer-support route powered by N-ATLaS, and test it.";
+const QUESTION = "Kuna kai kaya zuwa Abuja? Kuma za a iya biya idan an kawo?";
+const ANSWER =
+  "Eh, muna bayar da isarwa ga dukkan jihohi 36 cikin sa'o'i uku zuwa biyar na aiki. Don biyan kuɗi akan isarwa, " +
+  'don Allah a tabbata kun zaɓi "Biya Lokacin Karɓa" a matsayin hanyar biyan kuɗi lokacin yin odar ku ta kan layi.';
 
-# Streamable HTTP + OAuth. Add it as a remote server; your client opens the sign-in.`],
-  ];
-}
+const STEPS: [title: string, detail: string][] = [
+  ["Read the N-ATLaS recipe", "atlas_discover · backend ready"],
+  ["Create the project", "atlas_bind_project · you confirm the key in your browser"],
+  ["Write the integration", "lib/atlas.ts · app/api/support/route.ts · +3 files"],
+  ["Test N-ATLaS", "“Babban birnin Najeriya Abuja ne.” · 1,110 ms · req_91d6bec6fdbd…"],
+  ["Verify the app route", "verified: true · req_714d166c7015…"],
+];
 
-function appCode(api: string): [string, string][] {
-  return [
-    [
-      "curl",
-      `curl ${api}/chat/completions \\
-  -H "authorization: Bearer $ATLAS_ONE_API_KEY" \\
-  -d '{"model":"n-atlas-8b","messages":[
-        {"role":"system","content":"Reply in Hausa."},
-        {"role":"user","content":"Menene babban birnin Najeriya?"}]}'`,
-    ],
-    [
-      "TypeScript",
-      `import OpenAI from "openai";
-
-const atlas = new OpenAI({ baseURL: "${api}", apiKey: process.env.ATLAS_ONE_API_KEY });
-const r = await atlas.chat.completions.create({
-  model: "n-atlas-8b",
-  messages: [{ role: "system", content: "Reply in Yoruba." }, { role: "user", content: question }],
-});`,
-    ],
-    [
-      "Python",
-      `import os
-from openai import OpenAI
-
-atlas = OpenAI(base_url="${api}", api_key=os.environ["ATLAS_ONE_API_KEY"])
-r = atlas.chat.completions.create(
-    model="n-atlas-8b",
-    messages=[{"role": "system", "content": "Reply in Igbo."}, {"role": "user", "content": question}],
-)`,
-    ],
-  ];
-}
-
-/** The replay: an actual Claude Code session against Atlas One (atlas-one.log, 2026-10-11). */
-const REPLAY: [kind: "you" | "call" | "out" | "ok", text: string][] = [
-  ["you", "Add a Hausa customer-support route powered by N-ATLaS, and test it."],
-  ["call", 'atlas_discover(recipe: "nextjs")'],
-  ["out", "backend ready · NCAIR1/N-ATLaS@e294476 · llama.cpp b11552"],
-  ["call", 'atlas_bind_project(name: "Hausa Support Demo")'],
-  ["out", "Open the link to confirm your key. The key never passes through the agent."],
-  ["call", "Write lib/atlas.ts, app/api/support/route.ts (+3 files)"],
-  ["call", 'atlas_test(action: "inference", language: "ha")'],
-  ["out", "“Babban birnin Najeriya Abuja ne.” · 1,110 ms · req_91d6bec6fdbd…"],
-  ["call", 'atlas_test(action: "issue_app_nonce")'],
-  ["out", "nonce issued · single use · 10 min"],
-  ["call", "POST /api/support  (with x-atlas-verify)"],
-  ["out", "200 · Hausa answer · req_714d166c7015…"],
-  ["call", 'atlas_test(action: "verify_app")'],
-  ["out", "verified: true · same request id req_714d166c7015…"],
-  ["ok", "Done. Your route reached genuine N-ATLaS. Powered by Awarri."],
+const USE_CASES: [icon: keyof typeof ICONS, title: string, line: string, instruction: string, proven: boolean][] = [
+  ["chat", "Customer support in Hausa", "Answers grounded in your own FAQ, from your own route.", INSTRUCTION, true],
+  ["globe", "Order updates in Yoruba and Igbo", "Turn English notifications into the customer's language at send time.", "Add a function that rewrites our order-status messages in Yoruba or Igbo with N-ATLaS, based on the customer's language setting, and test it.", false],
+  ["bolt", "Advice for farmers in their language", "A chat that explains your guides in Hausa, Igbo or Yoruba.", "Add an Igbo chat endpoint that answers farmers' questions using our crop guide in docs/, powered by N-ATLaS, and verify it.", false],
+  ["shield", "Plain-language forms", "Explain each field of a form before people submit it.", "Add a 'Explain in my language' button to the sign-up form that explains each field in Hausa, Igbo or Yoruba using N-ATLaS.", false],
 ];
 
 const CSS = `
-:root{--bg:#fff;--fg:#0b0b0c;--mute:#5e6470;--faint:#8a8f98;--line:rgba(0,0,0,.08);--soft:#f6f6f7;--acc:#0a8f4e;--term:#0b0b0c;--termfg:#e6e6e8}
-@media(prefers-color-scheme:dark){:root{--bg:#09090b;--fg:#ededef;--mute:#9a9fa8;--faint:#6b7079;--line:rgba(255,255,255,.08);--soft:#111113;--acc:#2bd47d;--term:#111113;--termfg:#e6e6e8}}
-*{box-sizing:border-box;margin:0}html{-webkit-text-size-adjust:100%}
-body{background:var(--bg);color:var(--fg);font:16px/1.6 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-a{color:inherit;text-decoration:none}
-.w{max-width:1080px;margin:0 auto;padding:0 24px}
-.i{width:20px;height:20px;flex:none}
-code,pre,.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-nav{display:flex;align-items:center;justify-content:space-between;height:64px}
-.brand{font-weight:650;letter-spacing:-.01em}
-.navr{display:flex;align-items:center;gap:22px;font-size:14px;color:var(--mute)}.navr a:hover{color:var(--fg)}
-.st{display:inline-flex;align-items:center;gap:8px}.dot{width:7px;height:7px;border-radius:50%;background:var(--faint)}
-.st.ready .dot{background:var(--acc)}.st.waking .dot,.st.loading .dot{background:#d99a1e;animation:b 1.2s infinite}@keyframes b{50%{opacity:.25}}
-.hero{padding:88px 0 40px}
-h1{font-size:clamp(40px,6.2vw,76px);line-height:1.02;letter-spacing:-.04em;font-weight:680;max-width:14ch}
-.sub{margin-top:20px;font-size:clamp(17px,1.6vw,20px);color:var(--mute);max-width:56ch}
-.cta{display:flex;gap:12px;margin-top:32px;flex-wrap:wrap}
-.btn{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 18px;border-radius:10px;font-weight:550;font-size:15px;border:1px solid var(--line);transition:transform .15s,background .15s}
-.btn:hover{transform:translateY(-1px)}.btn.p{background:var(--fg);color:var(--bg);border-color:var(--fg)}.btn .i{width:16px;height:16px}
-.term{margin-top:56px;background:var(--term);color:var(--termfg);border-radius:14px;border:1px solid var(--line);overflow:hidden}
-.th{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.07);font-size:12.5px;color:#8a8f98}
-.th button{all:unset;cursor:pointer;color:#8a8f98}.th button:hover{color:#e6e6e8}
-.tb{padding:20px 22px 24px;font-size:13.5px;line-height:1.75;min-height:430px}
-.ln{display:flex;gap:12px;opacity:0;transform:translateY(4px);transition:opacity .35s,transform .35s}.ln.on{opacity:1;transform:none}
-.ln .m{width:14px;flex:none;color:#6b7079}.ln.you{color:#fff;margin-bottom:10px}.ln.you .m{color:#2bd47d}
-.ln.call .m{color:#2bd47d}.ln.out{color:#8a8f98;padding-left:26px}.ln.ok{margin-top:10px;color:#2bd47d}
-.cap{margin-top:12px;font-size:13px;color:var(--faint)}
-.works{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:40px;color:var(--faint);font-size:14px;font-weight:550;letter-spacing:.01em}
-section{padding:88px 0 0}
-h2{font-size:clamp(26px,3vw,34px);letter-spacing:-.025em;font-weight:650;line-height:1.15}
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.steps>div{background:var(--bg);padding:28px 24px 30px}.steps .i{width:24px;height:24px;color:var(--acc)}
-.steps h3{margin-top:18px;font-size:17px;font-weight:600;letter-spacing:-.01em}.steps p{margin-top:4px;color:var(--mute);font-size:15px}
-.tabs{display:inline-flex;gap:2px;padding:3px;background:var(--soft);border:1px solid var(--line);border-radius:10px;margin-top:24px;flex-wrap:wrap}
-.tabs button{all:unset;cursor:pointer;padding:7px 13px;border-radius:7px;font-size:13.5px;font-weight:550;color:var(--mute)}
-.tabs button[aria-selected=true]{background:var(--bg);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.08)}
-.code{position:relative;margin-top:12px;background:var(--soft);border:1px solid var(--line);border-radius:12px}
-.code pre{padding:18px 56px 18px 18px;font-size:13px;line-height:1.7;overflow-x:auto;white-space:pre}
-.cp{all:unset;cursor:pointer;color:var(--faint);padding:6px;border-radius:6px}.code .cp{position:absolute;top:10px;right:10px}.cp:hover{color:var(--fg)}
-.off{margin-top:20px;font-size:15px;color:var(--mute)}
-.note{margin-top:12px;font-size:14px;color:var(--mute)}
-.nums{display:grid;grid-template-columns:repeat(4,1fr);margin-top:28px;border-top:1px solid var(--line)}
-.nums div{padding:22px 0 0}.nums b{display:block;font-size:clamp(28px,3.4vw,40px);letter-spacing:-.03em;font-weight:650}.nums span{font-size:13.5px;color:var(--mute)}
+.hero{padding:96px 0 0;text-align:center}
+.hero h1{max-width:17ch;margin:0 auto}
+.hero .lead{max-width:60ch;margin:22px auto 0}
+.cta{display:flex;gap:12px;justify-content:center;margin-top:32px;flex-wrap:wrap}
+.demo{margin-top:64px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);border:1px solid var(--line);border-radius:18px;overflow:hidden;text-align:left;background:var(--bg);box-shadow:0 1px 2px rgba(0,0,0,.04),0 30px 70px -30px rgba(15,23,42,.22)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;height:42px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--soft);font-size:12.5px;color:var(--faint)}
+.bar button{all:unset;cursor:pointer;font-weight:550;color:var(--mute)}.bar button:hover{color:var(--fg)}
+.agent{border-right:1px solid var(--line);background:#fcfcfd;display:flex;flex-direction:column}
+.prompt{margin:20px 20px 6px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--bg);font-size:14.5px;min-height:76px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.prompt small{display:block;font-size:11.5px;color:var(--faint);font-weight:550;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px}
+#typed::after{content:"";display:inline-block;width:2px;height:1.1em;background:var(--fg);margin-left:1px;vertical-align:-3px;animation:b 1s steps(1) infinite}
+.demo.typed #typed::after{display:none}
+.tasks{list-style:none;padding:10px 20px 22px;display:grid;gap:2px}
+.tasks li{display:flex;gap:12px;padding:9px 0;opacity:.38;transition:opacity .3s}
+.tasks li.run,.tasks li.done{opacity:1}
+.tasks .ic{width:18px;height:18px;border-radius:50%;border:1.5px solid #c9ccd2;flex:none;margin-top:2px;position:relative}
+.tasks li.run .ic{border-color:#d4d6db;border-top-color:var(--acc);animation:spin .8s linear infinite}
+.tasks li.done .ic{background:var(--acc);border-color:var(--acc)}
+.tasks li.done .ic::after{content:"";position:absolute;left:5px;top:2px;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tasks b{display:block;font-size:14.5px;font-weight:600}
+.tasks small{display:block;font-size:12.5px;color:var(--mute);max-height:0;overflow:hidden;transition:max-height .35s}
+.tasks li.run small,.tasks li.done small{max-height:40px}
+.app{display:flex;flex-direction:column;background:var(--bg)}
+.url{flex:1;max-width:260px;height:24px;border-radius:6px;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--mute)}
+.lights{display:flex;gap:6px}.lights i{width:10px;height:10px;border-radius:50%;background:#e2e3e6}
+.shop{padding:26px 28px 28px;flex:1;position:relative}
+.shop header{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:14px}
+.shop header b{font-size:18px;letter-spacing:-.02em}.shop header span{font-size:13px;color:var(--faint)}
+.faq{margin-top:14px;display:grid;gap:10px;font-size:13.5px;color:var(--mute)}.faq b{color:var(--fg);font-weight:600;display:block}
+.ask{margin-top:18px;border:1px solid var(--line);border-radius:14px;padding:16px;opacity:0;transform:translateY(10px);transition:opacity .5s,transform .5s;box-shadow:0 8px 24px -16px rgba(0,0,0,.2)}
+.ask.in{opacity:1;transform:none}
+.ask label{font-size:13px;font-weight:600}
+.qrow{display:flex;gap:8px;margin-top:10px}
+.q{flex:1;min-height:40px;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:13.5px;background:var(--soft)}
+.qb{height:40px;padding:0 14px;border-radius:9px;background:var(--fg);color:#fff;font-size:13.5px;font-weight:550;display:flex;align-items:center;transition:transform .1s}
+.qb.press{transform:scale(.95);opacity:.8}
+.ans{margin-top:12px;font-size:14px;line-height:1.6;min-height:22px}
+.dots span{display:inline-block;width:6px;height:6px;margin-right:4px;border-radius:50%;background:var(--faint);animation:b 1s infinite}.dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
+.meta{margin-top:8px;font-size:12px;color:var(--faint);opacity:0;transition:opacity .4s}.meta.in{opacity:1}
+.vf{position:absolute;left:28px;right:28px;bottom:20px;display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:12px;background:var(--accbg);color:var(--acc);font-size:13.5px;font-weight:600;opacity:0;transform:translateY(8px);transition:opacity .5s,transform .5s}
+.vf.in{opacity:1;transform:none}.vf .i{width:18px;height:18px}
+.shop{padding-bottom:84px}
+.cap{margin-top:14px;font-size:13px;color:var(--faint);text-align:center}
+.works{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 30px;margin-top:44px;color:var(--faint);font-size:14px;font-weight:550}
+section{padding-top:120px}
+.sh{display:flex;justify-content:space-between;align-items:end;gap:20px;flex-wrap:wrap}
+.sh a{font-size:15px;font-weight:550;color:var(--acc);display:inline-flex;align-items:center;gap:4px}.sh a .i{width:16px;height:16px}
+.cases{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:36px}
+.case{border:1px solid var(--line);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:10px;transition:box-shadow .2s,border-color .2s}
+.case:hover{border-color:#d6d7db;box-shadow:0 12px 30px -18px rgba(0,0,0,.2)}
+.case>.i{width:24px;height:24px;color:var(--acc)}
+.case p{color:var(--mute);font-size:15px}
+.case .proven{font-size:12.5px;color:var(--acc);font-weight:600;display:flex;align-items:center;gap:5px}.case .proven .i{width:14px;height:14px}
+.instr{margin-top:auto;display:flex;gap:8px;align-items:flex-start;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px 8px 10px 12px;font-size:12.5px;line-height:1.55}
+.instr span{flex:1}
+.urlbox{margin-top:32px;display:flex;align-items:center;gap:12px;max-width:760px;padding:8px 8px 8px 20px;border:1px solid var(--line);border-radius:14px;background:var(--soft);box-shadow:inset 0 1px 2px rgba(0,0,0,.03)}
+.urlbox .mono{flex:1;font-size:clamp(13px,1.6vw,17px);overflow-x:auto;white-space:nowrap}
+.urlbox .cpy{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 16px;border-radius:10px;background:var(--fg);color:#fff;font-size:14px;font-weight:550}
+.urlbox .cpy .i{width:16px;height:16px}
+.note{margin-top:14px;font-size:15px;color:var(--mute)}
+details{margin-top:28px}summary{cursor:pointer;font-size:15px;font-weight:550;color:var(--mute);list-style:none;display:inline-flex;align-items:center;gap:6px}
+summary::-webkit-details-marker{display:none}summary .i{width:16px;height:16px;transition:transform .2s}details[open] summary .i{transform:rotate(90deg)}
+details .tabs{margin-top:16px}
+.nums{display:grid;grid-template-columns:repeat(4,1fr);margin-top:36px;border-top:1px solid var(--line)}
+.nums div{padding:24px 16px 0 0}.nums b{display:block;font-size:clamp(30px,3.6vw,44px);letter-spacing:-.035em;font-weight:660}.nums span{font-size:14px;color:var(--mute)}
+.off{margin-top:24px;font-size:15px;color:var(--mute)}
 #wake{margin-top:28px}#wake-steps{list-style:none;padding:0;display:grid;gap:6px;font-size:14.5px}
 #wake-steps li{display:flex;gap:10px;align-items:center;color:var(--faint)}#wake-steps li::before{content:"";width:8px;height:8px;border-radius:50%;border:1.5px solid var(--faint);flex:none}
 #wake-steps li.done{color:var(--fg)}#wake-steps li.done::before{background:var(--acc);border-color:var(--acc)}
-#wake-steps li.current{color:var(--fg);font-weight:550}#wake-steps li.current::before{border-color:#d99a1e;background:#d99a1e;animation:b 1.2s infinite}
+#wake-steps li.current{color:var(--fg);font-weight:550}#wake-steps li.current::before{border-color:var(--warn);background:var(--warn);animation:b 1.2s infinite}
 #wake-elapsed{font-size:13px;color:var(--faint);margin-top:8px}
-footer{margin-top:112px;padding:32px 0 48px;border-top:1px solid var(--line);font-size:13.5px;color:var(--faint)}
-footer .row{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}footer a:hover{color:var(--fg)}
-footer .links{display:flex;gap:20px}
-@media(max-width:760px){.steps{grid-template-columns:1fr}.nums{grid-template-columns:repeat(2,1fr);row-gap:8px}.navr .hide{display:none}.hero{padding-top:56px}.tb{font-size:12.5px;min-height:520px}}
-@media(prefers-reduced-motion:reduce){.ln{opacity:1;transform:none;transition:none}}
+@media(max-width:860px){.demo{grid-template-columns:1fr}.agent{border-right:0;border-bottom:1px solid var(--line)}.cases{grid-template-columns:1fr}.nums{grid-template-columns:repeat(2,1fr);row-gap:8px}.hero{padding-top:64px}section{padding-top:88px}}
+@media(max-width:520px){.shop{padding:20px 18px 84px}.vf{left:18px;right:18px}.urlbox{padding-left:14px}.urlbox .cpy span{display:none}}
 `;
 
-const JS = `
-document.querySelectorAll("[data-tabs]").forEach(function(g){
-  var btns=g.querySelectorAll("[role=tab]"), panes=document.querySelectorAll('[data-pane="'+g.dataset.tabs+'"]');
-  btns.forEach(function(b,i){b.addEventListener("click",function(){
-    btns.forEach(function(x){x.setAttribute("aria-selected","false")}); b.setAttribute("aria-selected","true");
-    panes.forEach(function(p,j){p.hidden=j!==i});
-  })});
-});
-document.querySelectorAll(".cp").forEach(function(c){c.addEventListener("click",function(){
-  var pre=c.parentElement.querySelector("pre:not([hidden])")||c.parentElement.querySelector("pre");
-  navigator.clipboard.writeText(pre.textContent); var t=c.innerHTML; c.innerHTML=${JSON.stringify(ICONS.tick)}; setTimeout(function(){c.innerHTML=t},1200);
-})});
+const SCRIPT = `
 (function(){
-  var lines=document.querySelectorAll(".ln"), reduce=matchMedia("(prefers-reduced-motion: reduce)").matches, timer;
-  function play(){
-    clearTimeout(timer); lines.forEach(function(l){l.classList.remove("on")});
-    if(reduce){lines.forEach(function(l){l.classList.add("on")});return}
-    var i=0;(function next(){ if(i>=lines.length)return; var l=lines[i++]; l.classList.add("on");
-      timer=setTimeout(next, l.classList.contains("you")?900:l.classList.contains("call")?650:900); })();
+  var demo=document.getElementById("demo"); if(!demo) return;
+  var INS=${JSON.stringify(INSTRUCTION)}, Q=${JSON.stringify(QUESTION)}, A=${JSON.stringify(ANSWER)};
+  var $=function(id){return document.getElementById(id)}, steps=demo.querySelectorAll(".tasks li"), run=0;
+  var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function wait(ms,id){return new Promise(function(ok,stop){setTimeout(function(){id===run?ok():stop()},ms)})}
+  async function type(el,text,ms,id){for(var i=1;i<=text.length;i++){el.textContent=text.slice(0,i);await wait(ms,id)}}
+  function mark(i,c){steps[i].className=c}
+  function reset(){demo.classList.remove("typed");$("typed").textContent="";$("q").textContent="";$("ans").innerHTML="";
+    steps.forEach(function(s){s.className=""});["ask","meta","vf"].forEach(function(k){$(k).classList.remove("in")})}
+  function final(){reset();demo.classList.add("typed");$("typed").textContent=INS;steps.forEach(function(s){s.className="done"});
+    $("q").textContent=Q;$("ans").textContent=A;["ask","meta","vf"].forEach(function(k){$(k).classList.add("in")})}
+  async function play(){
+    var id=++run; reset(); if(reduce){final();return}
+    try{
+      await wait(500,id); await type($("typed"),INS,26,id); demo.classList.add("typed"); await wait(450,id);
+      var dur=[900,1300,1700];
+      for(var i=0;i<3;i++){mark(i,"run");await wait(dur[i],id);mark(i,"done")}
+      $("ask").classList.add("in"); await wait(500,id);
+      mark(3,"run"); await wait(1110,id); mark(3,"done");
+      mark(4,"run"); await wait(400,id); await type($("q"),Q,32,id); await wait(300,id);
+      $("qb").classList.add("press"); await wait(160,id); $("qb").classList.remove("press");
+      $("ans").innerHTML='<span class="dots"><span></span><span></span><span></span></span>'; await wait(1400,id);
+      var words=A.split(" "); $("ans").textContent="";
+      for(var w=0;w<words.length;w++){$("ans").textContent+=(w?" ":"")+words[w];await wait(55,id)}
+      $("meta").classList.add("in"); await wait(500,id); mark(4,"done"); $("vf").classList.add("in");
+    }catch(e){}
   }
-  var io=new IntersectionObserver(function(e){if(e[0].isIntersecting){play();io.disconnect()}},{threshold:.3});
-  io.observe(document.querySelector(".term"));
-  document.getElementById("replay").addEventListener("click",play);
+  var io=new IntersectionObserver(function(e){if(e[0].isIntersecting){play();io.disconnect()}},{threshold:.35});
+  io.observe(demo); $("replay").addEventListener("click",play);
 })();
 `;
 
 export function homePage(origin: string, status: PublicStatus, lang: Lang = "en"): Response {
   const t = T[lang];
   const mcp = `${origin}/mcp`;
-  const api = `${origin}/v1`;
   const stateText = { ready: "N-ATLaS is online", waking: "Waking N-ATLaS", loading: "N-ATLaS is starting", offline: "N-ATLaS is asleep" }[status.backend];
-  const tab = (group: string, items: [string, string][]) =>
-    `<div class="tabs" role="tablist" data-tabs="${group}">${items
-      .map(([name], i) => `<button role="tab" aria-selected="${i === 0}">${esc(name)}</button>`)
-      .join("")}</div>
-    <div class="code"><button class="cp" aria-label="Copy">${ICONS.copy}</button>${items
-      .map(([, code], i) => `<pre data-pane="${group}"${i ? " hidden" : ""}>${esc(code)}</pre>`)
-      .join("")}</div>`;
 
-  const html = `<!doctype html><html lang="${lang}"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Atlas One · N-ATLaS, one instruction away</title>
-<meta name="description" content="Connect any coding agent to genuine N-ATLaS. Ask for a Hausa, Igbo or Yoruba feature; get it built and verified.">
-<meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)"><meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650;680&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>${CSS}</style></head><body>
-<div class="w">
-<nav>
-  <a class="brand" href="/">Atlas One</a>
-  <div class="navr">
-    <span class="st ${status.backend}" id="status-line"><span class="dot"></span><span id="status-pill">${esc(stateText)}</span></span>
-    <a class="hide" href="/playground">Playground</a>
-    <a class="hide" href="https://github.com/agapemiteu/atlasone">GitHub</a>
-    <a href="${lang === "en" ? "/?lang=ha" : "/"}" aria-label="Language">${lang === "en" ? "Hausa" : "English"}</a>
-  </div>
-</nav>
-
+  const body = `<main class="w">
 <header class="hero">
-  <h1>N-ATLaS, one instruction away.</h1>
-  <p class="sub">${esc(t.sub)}</p>
-  <div class="cta">
-    <a class="btn p" href="#connect">${esc(t.connect)} ${ICONS.arrow}</a>
-    <a class="btn" href="/playground">${esc(t.playground)}</a>
-  </div>
-  <div class="term" role="img" aria-label="Replay of a coding agent integrating N-ATLaS through Atlas One">
-    <div class="th"><span class="mono">claude · atlas-demo-shop</span><button id="replay" type="button">Replay</button></div>
-    <div class="tb mono">${REPLAY.map(
-      ([kind, text]) => `<div class="ln ${kind}"><span class="m">${kind === "you" ? "›" : kind === "call" ? "⏺" : kind === "ok" ? "✓" : "⎿"}</span><span>${esc(text)}</span></div>`,
-    ).join("")}</div>
-  </div>
-  <p class="cap">${esc(t.replay)}</p>
-  <div class="works"><span>Claude Code</span><span>Codex</span><span>Cursor</span><span>VS Code</span><span>Windsurf</span><span>Gemini CLI</span><span>any MCP client</span></div>
-</header>
+  <h1>${esc(t.h1)}</h1>
+  <p class="lead">${esc(t.sub)}</p>
+  <div class="cta"><a class="btn p" href="#connect">${esc(t.connect)} ${ICONS.arrow}</a><a class="btn" href="/docs">${esc(t.docs)}</a></div>
 
-<section>
-  <div class="steps">${t.steps
-    .map(([icon, title, line]) => `<div>${ICONS[icon as keyof typeof ICONS]}<h3>${esc(title)}</h3><p>${esc(line)}</p></div>`)
-    .join("")}</div>
-</section>
+  <div class="demo" id="demo" role="img" aria-label="A coding agent adds a Hausa support route through Atlas One; the app then answers a customer in Hausa and the route is verified.">
+    <div class="agent">
+      <div class="bar"><span class="mono">your coding agent</span><button id="replay" type="button">Replay</button></div>
+      <div class="prompt"><small>You</small><span id="typed"></span></div>
+      <ol class="tasks">${STEPS.map(([title, detail]) => `<li><span class="ic"></span><div><b>${esc(title)}</b><small class="mono">${esc(detail)}</small></div></li>`).join("")}</ol>
+    </div>
+    <div class="app">
+      <div class="bar"><span class="lights"><i></i><i></i><i></i></span><span class="url mono">localhost:3000</span><span style="width:42px"></span></div>
+      <div class="shop">
+        <header><b>Kano Fabrics</b><span>Customer support</span></header>
+        <div class="faq"><p><b>Do you deliver outside Kano?</b>Yes. We deliver to all 36 states within 3 to 5 working days.</p><p><b>Can I pay on delivery?</b>Pay on delivery is available in Kano, Abuja and Lagos.</p></div>
+        <div class="ask" id="ask">
+          <label>Tambayi mataimakinmu</label>
+          <div class="qrow"><div class="q" id="q"></div><span class="qb" id="qb">Tambaya</span></div>
+          <div class="ans" id="ans"></div>
+          <div class="meta mono" id="meta">Powered by Awarri · req_714d166c70154f5ba50b47d5</div>
+        </div>
+        <div class="vf" id="vf">${ICONS.verified}<span>verified: true · this answer came from genuine N-ATLaS</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="cap">Real run, sped up. The question, the Hausa answer and the request ids are verbatim from 11 October 2026.</p>
+  <div class="works"><span>Claude Code</span><span>Codex</span><span>Cursor</span><span>VS Code</span><span>Windsurf</span><span>Gemini CLI</span><span>Any MCP client</span></div>
+</header>
 
 <section id="connect">
   <h2>${esc(t.setup)}</h2>
-  ${tab("clients", clients(mcp))}
-  <p class="note">Approve the permissions, sign in with GitHub. Invite-only during the NAIC 2026 beta.</p>
+  <div class="urlbox"><span class="mono" id="mcp-url">${esc(mcp)}</span><button class="cpy cp" data-copy="mcp-url" aria-label="Copy URL">${ICONS.copy}<span>Copy</span></button></div>
+  <p class="note">${esc(t.setupNote)} Invite-only during the NAIC 2026 beta.</p>
+  <details><summary>${ICONS.arrow}${esc(t.perClient)}</summary>${codeTabs("clients", clientSnippets(mcp))}</details>
+</section>
+
+<section id="use-cases">
+  <div class="sh"><h2>${esc(t.cases)}</h2><a href="/docs">Docs ${ICONS.arrow}</a></div>
+  <div class="cases">${USE_CASES.map(
+    ([icon, title, line, instruction, proven], i) => `<article class="case">${ICONS[icon]}
+      <h3>${esc(title)}</h3><p>${esc(line)}</p>
+      ${proven ? `<span class="proven">${ICONS.tick}Built and verified live, shown above</span>` : ""}
+      <div class="instr mono"><span id="uc${i}">${esc(instruction)}</span><button class="cp" data-copy="uc${i}" aria-label="Copy instruction">${ICONS.copy}</button></div>
+    </article>`,
+  ).join("")}</div>
 </section>
 
 <section>
@@ -255,36 +227,22 @@ export function homePage(origin: string, status: PublicStatus, lang: Lang = "en"
     <div><b>~4 min</b><span>asleep to online, on demand</span></div>
     <div><b>1.1 s</b><span>Hausa answer, warm</span></div>
     <div><b>4</b><span>languages: en, ha, ig, yo</span></div>
-    <div><b>true</b><span>verify_app on a real route</span></div>
+    <div><b>true</b><span>verify_app on a real app route</span></div>
   </div>
-  ${status.backend === "offline" ? `<p class="off">Asleep to save GPU hours. It wakes automatically on your first request, and you see each stage; until then you get a clear error, never a fake answer.</p>` : ""}
+  ${status.backend === "offline" ? `<p class="off">N-ATLaS is asleep to save GPU hours. It wakes automatically on your first request, and you see each stage. Until then you get a clear error, never a fake answer.</p>` : ""}
   ${statusWidget(status)}
 </section>
+</main>`;
 
-<section>
-  <h2>${esc(t.app)}</h2>
-  ${tab("app", appCode(api))}
-  <p class="note">Every response carries <code>x-atlas-request-id</code> and the exact N-ATLaS revision. Keys stay server-side.</p>
-</section>
-
-<footer><div class="row">
-  <span>N-ATLaS is an initiative of the Federal Ministry of Communications, Innovation and Digital Economy, and powered by Awarri Technologies.</span>
-  <span class="links"><a href="https://huggingface.co/NCAIR1/N-ATLaS">Licence</a><a href="/tokens">Tokens</a><a href="https://github.com/agapemiteu/atlasone">GitHub</a><span>NAIC 2026 · PS1</span></span>
-</div></footer>
-</div>
-<script>${JS}</script>
-</body></html>`;
-
-  return new Response(html, {
-    headers: {
-      "content-type": "text/html; charset=utf-8",
-      "cache-control": "no-store",
-      "content-security-policy":
-        "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; " +
-        "script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'",
-      "x-frame-options": "DENY",
-      "referrer-policy": "no-referrer",
-      "x-content-type-options": "nosniff",
-    },
+  return shell({
+    lang,
+    title: "Atlas One · N-ATLaS, one instruction away",
+    description: "Connect any coding agent to genuine N-ATLaS. Ask for a Hausa, Igbo or Yoruba feature; get it built, tested and verified.",
+    navRight: `<span class="st ${status.backend}" id="status-line"><span class="dot"></span><span id="status-pill">${esc(stateText)}</span></span>
+      <a class="hide" href="#use-cases">Use cases</a><a href="/docs">Docs</a><a class="hide" href="/playground">Playground</a>
+      <a class="hide" href="${REPO}">GitHub</a><a href="${lang === "en" ? "/?lang=ha" : "/"}">${lang === "en" ? "Hausa" : "English"}</a>`,
+    body,
+    css: CSS,
+    script: SCRIPT,
   });
 }

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { resetBackendCache } from "../src/lib/backend.ts";
 import { sessionCookie } from "../src/lib/session.ts";
 import { handlePages } from "../src/web/pages.ts";
+import { docsPage } from "../src/web/docs.ts";
 import { homePage } from "../src/web/site.ts";
 import type { PublicStatus } from "../src/web/status.ts";
 
@@ -40,6 +41,18 @@ describe("how-to page", () => {
     expect(html).toContain("N-ATLaS is asleep");
     expect(html).toContain("never a fake answer");
     expect(html).toContain("wakes automatically");
+  });
+});
+
+describe("docs", () => {
+  it("documents setup, the API and every client-facing error code from the live catalog", async () => {
+    const html = await docsPage(ORIGIN).text();
+    expect(html).toContain(`${ORIGIN}/v1`);
+    expect(html).toContain(`${ORIGIN}/mcp`);
+    for (const code of ["MODEL_OFFLINE", "BACKEND_WARMING", "RATE_LIMITED", "INVALID_KEY", "VALIDATION_FAILED"]) expect(html).toContain(code);
+    expect(html).toContain("30 per minute, 500 per day");
+    expect(html).toContain("Federal Ministry of Communications");
+    expect(html).toContain("1,000 active end users");
   });
 });
 

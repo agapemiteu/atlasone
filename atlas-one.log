@@ -116,3 +116,14 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
     live wake step list kept (status widget now unstyled markup; styling lives in site.ts). English/Hausa via ?lang=ha.
   - CSP on / only: fonts.googleapis.com styles + fonts.gstatic.com fonts. No Dicebear/Pexels: no people or photos to show
     honestly. 122 tests pass; deployed.
+
+[2026-10-11 19:30 WAT] Site v2 (owner: light theme, use cases, documentation, shorter setup, real-time "how it works" animation).
+  - Light theme shared by / and /docs (src/web/theme.ts): sticky translucent nav, Inter/JetBrains Mono, Hugeicons.
+  - Hero demo: split view, agent on the left (instruction typed, 5 steps tick off), the Kano Fabrics app on the right
+    (support box appears, the real Hausa question is typed, the real N-ATLaS answer streams in, "verified: true").
+    Every output, id and the 1,110 ms timing are verbatim from the 11 Oct run; captioned "Real run, sped up".
+  - Setup reduced to one URL with a Copy button; per-client commands folded under a disclosure.
+  - Use cases: Hausa support (marked proven live) plus three copyable agent instructions (not presented as results).
+  - /docs: quickstart, flow, tools, API, verification, cold starts, errors, limits, keys, licence. Error table and
+    limits render from ERRORS / LIMITS / MODEL_CARD so docs cannot drift. 123 tests pass; deployed.
+  - Shorter URL needs a custom domain (owner decision).
