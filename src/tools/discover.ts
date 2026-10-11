@@ -42,7 +42,9 @@ export async function discover(deps: ToolDeps, args: { recipe?: RecipeName }) {
     },
     api: {
       base_url: `${deps.origin}/v1`,
-      compatibility: "OpenAI Chat Completions (POST /chat/completions, GET /models), JSON or SSE streaming",
+      compatibility:
+        "Industry-standard Chat Completions (OpenAI-compatible: POST /chat/completions, GET /models), JSON or SSE; " +
+        "any HTTP client or AI framework (OpenAI SDKs, Vercel AI SDK, LangChain, LiteLLM)",
       auth: "Authorization: Bearer <project key>; server-side only",
       env: { ATLAS_ONE_BASE_URL: `${deps.origin}/v1`, ATLAS_ONE_API_KEY: "<project key>" },
     },

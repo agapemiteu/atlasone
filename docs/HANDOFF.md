@@ -18,31 +18,29 @@ Last updated: 2026-10-11 (end of session 1). Read this first when resuming, then
 
 ## Where we are
 
-| Task | State |
-|---|---|
-| Phase A: genuine inference (Kaggle) | Done. Warm Hausa answer 1.5s, 16.7 tok/s |
-| T1 schema, credentials, errors, quotas, seed | Done |
-| T2 OpenAI-compatible gateway `/v1` | Done, live E2E 5/5 with the OpenAI SDK |
-| T3 upstream self-registration | Done (Kaggle script sends a User-Agent now) |
-| T4 MCP server (`atlas_discover`, `atlas_test`) | Done, live in both protocol eras |
-| T6 OAuth Connect, consent, allowlist, `atlas_bind_project`, claim + token pages | Done and deployed; **awaiting first real sign-in** |
-| T5 sample Next.js app + PRD Test 6 (needs Kaggle) | Next after sign-in works |
-| T7 `atlas_inspect` + failure drills (Tests 4, 5) | Todo |
-| T8 conformance in CI + 4-client manual matrix + install snippets | Todo |
-| T9 how-to page (Worker static assets) | Todo |
-| Post-beta | List in the official MCP Registry, then client directories (not GitHub Marketplace) |
+**NAIC deadline: 12 Oct 2026, 23:59 WAT.** The owner handles the team profile, track/endorsement,
+beta testers (add their GitHub logins to `ALLOWED_GITHUB_LOGINS` or the `allowlist` table) and recording
+the video.
 
-Tests: 96/96 (`npx vitest run`). Typecheck: `npx tsc --noEmit`. Latest commits on `main` at github.com/agapemiteu/atlasone.
+| Item | State (2026-10-11 evening) |
+|---|---|
+| Phase A, T1-T4, T6, T7 (all 4 MCP tools), T9 (how-to site + playground) | Done, deployed, 107 tests |
+| Real clients | Claude Code and Codex connected over OAuth (both identify via CIMD) and used the tools; Cursor/VS Code/Windsurf/Gemini CLI documented |
+| T5 sample app `atlas-demo-shop` (sibling folder, own repo) | Integrated; build, key-safety and offline checks done; **live inference + nonce verification pending Kaggle** |
+| Kaggle fast restarts | Private GGUF cache built; first run populates `Agapemiteu/n-atlas-gguf-cache` |
+| Docs | README, TECHNICAL, NATLAS-INTEGRATION (live T5 section pending), BETA-TESTING, VIDEO-SCRIPT |
+| Security | Auth-route rate limit; open redirect, CSRF, XSS, SSRF, owner isolation, quota races covered by tests |
+| Post-beta | List in the official MCP Registry, then client directories (not GitHub Marketplace) |
 
 ## Resume here (exact next steps)
 
-1. Owner restarts Claude Code in this folder (`claude --continue`), runs `/mcp` -> **atlas-one** -> **Authenticate** -> approves the Atlas One consent page -> authorizes on GitHub.
-   - Atlas One was added with `claude mcp add --transport http --scope local atlas-one https://atlas-one.collins-coordinator-worker.workers.dev/mcp` (local to this project).
-   - If anything fails: check `npx wrangler tail` while retrying; consent page = `/authorize`, GitHub callbacks = `/auth/github/mcp` and `/auth/github/web`.
-2. Once connected, use the Atlas One tools from Claude Code: `atlas_discover`, then `atlas_bind_project` (name e.g. "Hausa Support Demo") -> owner opens the claim link -> confirms -> key shown once.
-3. Ask the owner to start Kaggle (paste `inference/kaggle_serve.py` into the notebook cell; it auto-registers), then run `atlas_test` live and the full nonce flow (`node --env-file=.env.local scripts/e2e-mcp.mjs`).
-4. T5: build a small sample Next.js app, integrate via the agent using the `nextjs` recipe, verify with `atlas_test` (inference, issue_app_nonce, verify_app); run PRD Test 6 (conventional vs agent route) and record numbers in the log.
-5. Then T7, T8, T9 per `docs/ARCHITECTURE.md` section 14.
+1. When the owner says Kaggle is ready: `atlas_test` (inference) on `hausa-support-demo`; start the demo
+   app (`npx next start -p 3100` in atlas-demo-shop); `issue_app_nonce`; POST `/api/support` with
+   `x-atlas-verify`; `verify_app`. Run `scripts/e2e-gateway.mjs` and `scripts/e2e-mcp.mjs`. Confirm
+   llama.cpp accepted `repeat_penalty` and `chat_template_kwargs`. Fill section 6 of
+   `docs/NATLAS-INTEGRATION.md` with real ids and timings; record PRD Test 6 numbers.
+2. Collect beta-tester evidence (`atlas_inspect` or D1 `request_logs` per project).
+3. Final pass: README links and the submission checklist.
 
 ## Infrastructure (no secrets here)
 
