@@ -21,6 +21,8 @@
     "ALLOWED_GITHUB_LOGINS": "agapemiteu"
   },
   "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "3dda9cfc00b0490a817ca93ed39694ac" }],
+  // Per-IP limit on sign-in and client-registration routes, so registration floods cannot exhaust KV.
+  "ratelimits": [{ "name": "AUTH_LIMITER", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } }],
   "d1_databases": [
     {
       "binding": "DB",

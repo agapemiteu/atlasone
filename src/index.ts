@@ -120,12 +120,19 @@ function oauthProvider(env: Env): OAuthProvider<Env> {
 }
 
 const ROOT_PRM = "/.well-known/oauth-protected-resource";
+// Sign-in, consent, token and registration endpoints: limited per client IP (wrangler AUTH_LIMITER).
+const AUTH_PATHS = new Set(["/register", "/authorize", "/token", "/login", "/auth/github/mcp", "/auth/github/web"]);
 
 export default {
-  fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     // Clients that skip the WWW-Authenticate hint fall back to the root metadata URL (MCP spec);
     // serve the /mcp resource's document there too, so every client generation can discover sign-in.
     const url = new URL(request.url);
+    if (AUTH_PATHS.has(url.pathname)) {
+      const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+      const { success } = await env.AUTH_LIMITER.limit({ key: ip });
+      if (!success) return toHttpResponse(new AtlasError("RATE_LIMITED", "Too many sign-in requests. Try again in a minute.", { retryAfterS: 60 }));
+    }
     if (url.pathname === ROOT_PRM) {
       url.pathname = `${ROOT_PRM}${MCP_PATH}`;
       return oauthProvider(env).fetch(new Request(url, request), env, ctx);
