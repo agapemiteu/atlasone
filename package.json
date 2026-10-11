@@ -2,7 +2,7 @@
   "name": "atlas-one",
   "version": "0.1.0",
   "private": true,
-  "description": "The MCP server for N-ATLaS: give your coding agent Nigerian languages.",
+  "description": "Connect the world to N-ATLaS: the MCP server and gateway to Nigeria's AI.",
   "type": "module",
   "engines": {
     "node": ">=22.18"

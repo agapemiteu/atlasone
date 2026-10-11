@@ -16,11 +16,13 @@ const home = (s: PublicStatus | null, lang: "en" | "ha" = "en") =>
 describe("home", () => {
   it("leads with the product, one MCP URL, and every major client", () => {
     const html = home(status("ready"));
-    expect(html).toContain("The MCP server for N-ATLaS");
+    expect(html).toContain("Connect the world to N-ATLaS.");
+    expect(html).toContain("MCP server");
     expect(html).toContain(`${ORIGIN}/mcp`);
     for (const c of ["Claude Code", "Codex", "Cursor", "VS Code", "Windsurf", "Gemini CLI"]) expect(html).toContain(c);
     expect(html).toContain("Federal Ministry of Communications");
     expect(html).not.toContain("one instruction away");
+    expect(html).not.toContain("Ship in Hausa");
   });
 
   it("shows only verbatim model output from the real run, with attribution", () => {
@@ -39,7 +41,7 @@ describe("home", () => {
   });
 
   it("renders in Hausa", () => {
-    expect(home(status("ready"), "ha")).toContain("Ba wakilinka harsunan Najeriya.");
+    expect(home(status("ready"), "ha")).toContain("Haɗa duniya da N-ATLaS.");
   });
 });
 

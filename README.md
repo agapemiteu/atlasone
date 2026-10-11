@@ -1,6 +1,6 @@
 # Atlas One
 
-**The MCP server for N-ATLaS. Give your agent Nigerian languages.** Connect your coding agent once. Ask it to add a Hausa, Igbo, Yoruba or
+**Connect the world to N-ATLaS.** Atlas One is the MCP server and gateway to Nigeria's AI. Connect your coding agent once. Ask it to add a Hausa, Igbo, Yoruba or
 Nigerian-English AI feature to your app. It integrates genuine N-ATLaS and proves it works.
 
 - **Live:** https://atlas-one.collins-coordinator-worker.workers.dev (home page with live demo and model status, [/docs](https://atlas-one.collins-coordinator-worker.workers.dev/docs), playground)

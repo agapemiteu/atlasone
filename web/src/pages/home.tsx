@@ -22,7 +22,7 @@ export function Home({ origin, lang, autoplay = true, initialStatus }: { origin:
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
         <section className="pt-16 text-center sm:pt-24">
           <p className="text-sm font-medium text-success">{t.eyebrow}</p>
-          <h1 className="mx-auto mt-4 max-w-[16ch] text-[2.6rem] leading-[1.04] font-semibold tracking-[-0.045em] text-balance sm:text-6xl lg:text-7xl">
+          <h1 className="mx-auto mt-4 max-w-[13ch] text-[2.75rem] leading-[1.03] font-semibold tracking-[-0.045em] text-balance sm:text-6xl lg:text-7xl">
             {t.title}
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base text-pretty text-muted-foreground sm:text-lg">{t.sub}</p>
@@ -85,7 +85,7 @@ export function Home({ origin, lang, autoplay = true, initialStatus }: { origin:
         </section>
 
         <section className="pt-24 sm:pt-32">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <h2 className="text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">{t.live}</h2>
             <StatusDot status={status} />
           </div>

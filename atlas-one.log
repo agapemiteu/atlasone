@@ -153,3 +153,11 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   WhatsApp webhook on it); a new account or domain is not worth it for a hackathon, and the page has a Copy button.
   The origin-injection fix stays (good hygiene). Post-change smoke: /, /docs, /health, /api/status 200; /mcp 401 with
   resource_metadata; bad key -> INVALID_KEY; atlas_discover over OAuth from Claude Code OK (backend asleep, wakes on demand).
+
+[2026-10-11 21:05 WAT] Headline (owner chose after copy research: ElevenLabs, Stripe, Vercel, Supabase, Resend, Twilio,
+  Clerk, Linear, Google AI, Microsoft Foundry, OpenRouter, MCP). Pattern: small category line + short outcome headline +
+  one-line mechanism + verb CTAs. Owner rejected language-specific lines ("Ask in English. Ship in Hausa.") as too
+  narrow. Now: eyebrow "The gateway to Nigeria's AI"; H1 "Connect the world to N-ATLaS."; sub "Atlas One is the MCP
+  server that lets every agent build with N-ATLaS: one URL, real model, verified results."; CTAs "Start building" /
+  "Read the docs"; sections "One URL. Every agent." / "What will you ship?" / "Real model. Real numbers.".
+  Same line in README, package.json, video script. Phone + desktop checked; deployed.
