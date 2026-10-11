@@ -68,7 +68,7 @@ for (const [era, mode] of ERAS) {
     it("lists exactly the Atlas tools with honest annotations", async () => {
       const { client } = await world("ok", mode);
       const { tools } = await client.listTools();
-      expect(tools.map((t) => t.name).sort()).toEqual(["atlas_bind_project", "atlas_discover", "atlas_test"]);
+      expect(tools.map((t) => t.name).sort()).toEqual(["atlas_bind_project", "atlas_discover", "atlas_inspect", "atlas_test"]);
       const byName = Object.fromEntries(tools.map((t) => [t.name, t]));
       expect(byName.atlas_discover!.annotations).toMatchObject({ readOnlyHint: true });
       expect(byName.atlas_test!.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false });

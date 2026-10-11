@@ -9,6 +9,7 @@ import { z } from "zod";
 import { bindProject } from "./tools/bind.ts";
 import { requireScope, runTool, type ToolDeps } from "./tools/context.ts";
 import { discover, RECIPES, renderRecipe } from "./tools/discover.ts";
+import { inspect } from "./tools/inspect.ts";
 import { atlasTest } from "./tools/test.ts";
 
 export const MCP_PATH = "/mcp";
@@ -16,7 +17,7 @@ export const MCP_PATH = "/mcp";
 const INSTRUCTIONS = `Atlas One gives you genuine N-ATLaS (Nigerian multilingual LLM: English, Hausa, Igbo, Yoruba).
 Workflow: atlas_discover -> atlas_bind_project (developer confirms the key link in the browser) -> pick a recipe
 (nextjs or generic) -> integrate server-side -> atlas_test (inference) -> atlas_test (issue_app_nonce) -> call the
-app route with x-atlas-verify -> atlas_test (verify_app).
+app route with x-atlas-verify -> atlas_test (verify_app). Use atlas_inspect to diagnose failures.
 Never invent or simulate N-ATLaS output. If a tool reports MODEL_OFFLINE or any error, tell the developer and do
 not claim the integration works. Never ask the developer to paste keys into the chat. Ask before editing env files.`;
 
@@ -97,6 +98,26 @@ export function buildServer(deps: ToolDeps): McpServer {
         return atlasTest(deps, args, progress);
       });
     },
+  );
+
+  server.registerTool(
+    "atlas_inspect",
+    {
+      title: "Inspect project usage and errors",
+      description:
+        "Diagnose an integration: request counts by outcome, success latency p50/p95, the last 10 errors with request " +
+        "ids and whether they are retryable, current quota usage, key state and backend state. Metadata only.",
+      inputSchema: z.object({
+        project: z.string().min(1).describe("Project slug or id (see atlas_discover)."),
+        window_minutes: z.number().int().min(1).max(10080).default(60).describe("Look-back window (default 60, max 7 days)."),
+      }),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async (args) =>
+      runTool(() => {
+        requireScope(deps, "atlas:read");
+        return inspect(deps, args);
+      }),
   );
 
   for (const name of recipeNames) {
