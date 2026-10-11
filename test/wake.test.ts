@@ -5,7 +5,7 @@ import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetBackendCache } from "../src/lib/backend.ts";
 import { createProjectKey } from "../src/lib/credentials.ts";
-import { latestWake, requestWake } from "../src/lib/wake.ts";
+import { kaggleAuth, latestWake, requestWake } from "../src/lib/wake.ts";
 import { handleUpstreamRegister } from "../src/routes/upstream.ts";
 import { handleV1 } from "../src/routes/v1.ts";
 import { ALL_SCOPES } from "../src/tools/context.ts";
@@ -94,6 +94,13 @@ describe("requestWake", () => {
     await requestWake(env.DB, w.fetcher, KAGGLE, "user:1");
     expect(w.kaggleCalls).toHaveLength(1);
     expect(await requestWake(env.DB, w.fetcher, null, "user:1")).toBeNull();
+  });
+});
+
+describe("kaggleAuth", () => {
+  it("uses Bearer for new KGAT_ tokens and Basic for legacy kaggle.json keys", () => {
+    expect(kaggleAuth({ ...KAGGLE, key: "KGAT_abc123" })).toBe("Bearer KGAT_abc123");
+    expect(kaggleAuth(KAGGLE)).toBe(`Basic ${btoa("agapemiteu:kaggle-key-123")}`);
   });
 });
 

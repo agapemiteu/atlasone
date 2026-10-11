@@ -77,6 +77,11 @@ export function serverNotebook(): string {
   });
 }
 
+/** New Kaggle API tokens (KGAT_...) are bearer tokens; legacy kaggle.json keys use Basic username:key. */
+export function kaggleAuth(kaggle: KaggleConfig): string {
+  return kaggle.key.startsWith("KGAT_") ? `Bearer ${kaggle.key}` : `Basic ${btoa(`${kaggle.username}:${kaggle.key}`)}`;
+}
+
 /**
  * Starts the backend unless a wake is already in flight. Returns the wake to report.
  * Kaggle errors are recorded as a failed wake so callers see the truth, not a silent hang.
@@ -108,7 +113,7 @@ export async function requestWake(
     const res = await fetcher("https://api.kaggle.com/v1/kernels.KernelsApiService/SaveKernel", {
       method: "POST",
       headers: {
-        authorization: `Basic ${btoa(`${kaggle.username}:${kaggle.key}`)}`,
+        authorization: kaggleAuth(kaggle),
         "content-type": "application/json",
         "user-agent": "atlas-one",
       },
