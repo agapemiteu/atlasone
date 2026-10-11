@@ -6,10 +6,9 @@ import { createPersonalToken } from "../lib/credentials.ts";
 import { AtlasError } from "../lib/errors.ts";
 import { checkCsrf, csrfToken, readSession, type Session } from "../lib/session.ts";
 import { esc, messagePage, page, secretBlock } from "./html.ts";
+import { playgroundPage, type PlaygroundDeps } from "./playground.ts";
 
-export interface PageDeps {
-  db: D1Database;
-  sessionSecret: string;
+export interface PageDeps extends PlaygroundDeps {
   origin: string;
 }
 
@@ -102,8 +101,9 @@ ${secretBlock("pat", pat.secret)}
 export async function handlePages(request: Request, deps: PageDeps): Promise<Response | null> {
   const url = new URL(request.url);
   const claim = /^\/claim\/(cl_[A-Za-z0-9_-]{43})$/.exec(url.pathname);
-  if (!claim && url.pathname !== "/tokens") return null;
+  if (!claim && url.pathname !== "/tokens" && url.pathname !== "/playground") return null;
   const session = await readSession(request, deps.sessionSecret);
   if (!session) return loginRedirect(url.pathname);
-  return claim ? claimPage(request, deps, claim[1]!, session) : tokensPage(request, deps, session);
+  if (claim) return claimPage(request, deps, claim[1]!, session);
+  return url.pathname === "/playground" ? playgroundPage(request, deps, session) : tokensPage(request, deps, session);
 }

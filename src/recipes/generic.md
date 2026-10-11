@@ -1,7 +1,9 @@
 # Atlas One recipe: N-ATLaS from any stack
 
-Atlas One speaks the OpenAI Chat Completions API. Any server-side code with an OpenAI client or an
-HTTP library can call genuine N-ATLaS. For Next.js, use the `nextjs` recipe instead.
+Atlas One speaks the industry-standard Chat Completions API (the OpenAI-compatible format that most
+model servers and AI frameworks use). Any server-side code with an HTTP library, an OpenAI-compatible
+client, or an AI framework can call genuine N-ATLaS; nothing is tied to OpenAI the company. For Next.js,
+use the `nextjs` recipe instead.
 
 ## Rules
 
@@ -70,6 +72,29 @@ def ask_yoruba(question: str, verify: str | None = None) -> str:
 
 `requests` and `httpx` also work. If you use Python's built-in `urllib`, set a `User-Agent` header:
 Cloudflare rejects urllib's default one (error 1010).
+
+## AI frameworks
+
+Vercel AI SDK (any JS runtime):
+
+```ts
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { generateText } from "ai";
+
+const atlas = createOpenAICompatible({
+  name: "atlas-one",
+  baseURL: process.env.ATLAS_ONE_BASE_URL!,
+  apiKey: process.env.ATLAS_ONE_API_KEY,
+});
+const { text } = await generateText({ model: atlas("n-atlas-8b"), system: "Reply in Igbo.", prompt: "Kedu ka i mere?" });
+```
+
+LangChain (Python):
+
+```python
+from langchain_openai import ChatOpenAI
+llm = ChatOpenAI(model="n-atlas-8b", base_url=os.environ["ATLAS_ONE_BASE_URL"], api_key=os.environ["ATLAS_ONE_API_KEY"])
+```
 
 ## curl
 

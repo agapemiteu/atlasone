@@ -5,10 +5,12 @@ import { createProjectKey, verifyProjectKey } from "../src/lib/credentials.ts";
 import { AtlasError } from "../src/lib/errors.ts";
 import { checkCsrf, csrfToken, readSession, sessionCookie, signValue, verifyValue } from "../src/lib/session.ts";
 import { handlePages } from "../src/web/pages.ts";
+import { fakeUpstream } from "./fake-upstream.ts";
 import { makeProject } from "./helpers.ts";
 
 const SECRET = "test-session-secret-0123456789abcdef";
 const ORIGIN = "https://atlas.test";
+const PAGE_DEPS = { db: env.DB, sessionSecret: SECRET, origin: ORIGIN, fetcher: fakeUpstream("ok").fetcher, upstreamKey: "k", waitUntil: () => {} };
 
 async function code(p: Promise<unknown>) {
   try {
@@ -23,11 +25,7 @@ async function browser(githubId: string, login = "dev") {
   const set = await sessionCookie(SECRET, { githubId, login });
   const cookie = set.split(";")[0]!;
   return (path: string, init: RequestInit = {}) =>
-    handlePages(new Request(`${ORIGIN}${path}`, { ...init, headers: { ...(init.headers ?? {}), cookie } }), {
-      db: env.DB,
-      sessionSecret: SECRET,
-      origin: ORIGIN,
-    });
+    handlePages(new Request(`${ORIGIN}${path}`, { ...init, headers: { ...(init.headers ?? {}), cookie } }), PAGE_DEPS);
 }
 
 describe("claim links (D2, D13)", () => {
@@ -94,11 +92,7 @@ describe("signed sessions and CSRF", () => {
 
 describe("claim and token pages", () => {
   it("send signed-out visitors to GitHub sign-in, keeping the path", async () => {
-    const res = (await handlePages(new Request(`${ORIGIN}/claim/cl_${"a".repeat(43)}`), {
-      db: env.DB,
-      sessionSecret: SECRET,
-      origin: ORIGIN,
-    }))!;
+    const res = (await handlePages(new Request(`${ORIGIN}/claim/cl_${"a".repeat(43)}`), PAGE_DEPS))!;
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe(`/login?next=${encodeURIComponent(`/claim/cl_${"a".repeat(43)}`)}`);
   });

@@ -14,8 +14,9 @@ import { handleUpstreamRegister } from "./routes/upstream.ts";
 import { handleV1 } from "./routes/v1.ts";
 import { ALL_SCOPES } from "./tools/context.ts";
 import { handleAuth } from "./web/auth.ts";
-import { page } from "./web/html.ts";
+import { getBackend } from "./lib/backend.ts";
 import { handlePages } from "./web/pages.ts";
+import { homePage } from "./web/site.ts";
 
 /** What completeAuthorization() stores, and what a personal token resolves to. */
 export interface AtlasProps {
@@ -53,12 +54,18 @@ async function app(request: Request, env: Env, ctx: ExecutionContext): Promise<R
       allowedLogins: env.ALLOWED_GITHUB_LOGINS,
       origin: env.PUBLIC_ORIGIN,
     })) ??
-    (await handlePages(request, { db: env.DB, sessionSecret: env.SESSION_SECRET, origin: env.PUBLIC_ORIGIN }));
+    (await handlePages(request, {
+      db: env.DB,
+      fetcher,
+      upstreamKey: env.ATLAS_UPSTREAM_KEY,
+      waitUntil,
+      sessionSecret: env.SESSION_SECRET,
+      origin: env.PUBLIC_ORIGIN,
+    }));
   if (response) return response;
 
   if (request.method === "GET" && url.pathname === "/") {
-    return page("Atlas One", `<div class="card"><h1>Atlas One</h1><p>Genuine N-ATLaS for any coding agent.</p>
-<p class="muted">MCP endpoint: <code>${env.PUBLIC_ORIGIN}${MCP_PATH}</code></p></div>`);
+    return homePage(env.PUBLIC_ORIGIN, (await getBackend(env.DB, fetcher)).state);
   }
   return toHttpResponse(new AtlasError("NOT_FOUND"));
 }
