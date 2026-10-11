@@ -77,7 +77,7 @@ async function app(request: Request, env: Env, ctx: ExecutionContext): Promise<R
   if (response) return response;
 
   if (request.method === "GET" && url.pathname === "/") {
-    return homePage(env.PUBLIC_ORIGIN, await publicStatus(env.DB, fetcher, kaggle));
+    return homePage(env.PUBLIC_ORIGIN, await publicStatus(env.DB, fetcher, kaggle), url.searchParams.get("lang") === "ha" ? "ha" : "en");
   }
   return toHttpResponse(new AtlasError("NOT_FOUND"));
 }

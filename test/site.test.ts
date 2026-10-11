@@ -21,10 +21,18 @@ describe("how-to page", () => {
       expect(html, client).toContain(client);
     }
     expect(html.match(new RegExp(`${ORIGIN}/mcp`, "g"))!.length).toBeGreaterThanOrEqual(7);
-    expect(html).toContain("A Hausa");
+    expect(html).toContain("Babban birnin Najeriya Abuja ne.");
+    expect(html).toContain("req_714d166c7015");
     expect(html).toContain("Powered by Awarri");
     expect(html).toContain("Federal Ministry of Communications");
     expect(html).toContain("N-ATLaS is online");
+    expect(html).not.toContain("never a fake answer");
+  });
+
+  it("renders in Hausa", async () => {
+    const html = await homePage(ORIGIN, status("ready"), "ha").text();
+    expect(html).toContain('lang="ha"');
+    expect(html).toContain("Haɗa wakilinka");
   });
 
   it("states an outage honestly", async () => {

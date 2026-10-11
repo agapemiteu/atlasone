@@ -50,13 +50,7 @@ export function statusWidget(s: PublicStatus): string {
   const steps = s.stages
     .map((st) => `<li data-stage="${st.id}" class="${st.done ? "done" : st.current ? "current" : ""}">${esc(st.text)}</li>`)
     .join("");
-  return `<style>
-#wake-steps{list-style:none;padding:0;margin:10px 0}#wake-steps li{padding:3px 0 3px 22px;position:relative;color:var(--muted)}
-#wake-steps li::before{content:"○";position:absolute;left:0}#wake-steps li.done{color:var(--fg)}#wake-steps li.done::before{content:"✓";color:var(--accent)}
-#wake-steps li.current{color:var(--fg);font-weight:600}#wake-steps li.current::before{content:"●";color:#b7791f;animation:p 1s infinite}
-@keyframes p{50%{opacity:.3}}
-</style>
-<div id="wake" ${s.backend === "waking" ? "" : 'hidden'}><ol id="wake-steps">${steps}</ol><p class="muted" id="wake-elapsed"></p></div>
+  return `<div id="wake" ${s.backend === "waking" ? "" : 'hidden'}><ol id="wake-steps">${steps}</ol><p id="wake-elapsed"></p></div>
 <script>
 (function(){
   var started=${JSON.stringify(s.wake_started_at)};
@@ -65,8 +59,8 @@ export function statusWidget(s: PublicStatus): string {
       var box=document.getElementById("wake"); var pill=document.getElementById("status-pill");
       if(s.backend==="waking"){box.hidden=false;started=s.wake_started_at;}
       s.stages.forEach(function(st){var li=document.querySelector('#wake-steps li[data-stage="'+st.id+'"]'); if(li) li.className=st.done?"done":st.current?"current":"";});
-      if(pill){pill.textContent="● "+(s.backend==="ready"?"N-ATLaS is online":s.backend==="waking"?"Waking N-ATLaS: "+s.stage_text:s.backend==="loading"?"N-ATLaS is starting":s.last_failure?"Last wake-up failed: "+s.last_failure:"N-ATLaS is asleep");
-        pill.className="pill "+(s.backend==="ready"?"ok":s.backend==="offline"?"off":"warn");}
+      if(pill){pill.textContent=(s.backend==="ready"?"N-ATLaS is online":s.backend==="waking"?"Waking: "+s.stage_text:s.backend==="loading"?"N-ATLaS is starting":s.last_failure?"Last wake-up failed: "+s.last_failure:"N-ATLaS is asleep");
+        var line=document.getElementById("status-line"); if(line) line.className="st "+s.backend;}
       if(s.backend!=="ready") setTimeout(tick,4000); else if(box) setTimeout(function(){box.hidden=true},4000);
     }).catch(function(){setTimeout(tick,8000)});
     if(started){var sec=Math.round((Date.now()-Date.parse(started))/1000);var e=document.getElementById("wake-elapsed");if(e)e.textContent="Started "+sec+"s ago. Cold starts take about 4-5 minutes on free GPUs.";}
