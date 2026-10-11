@@ -147,3 +147,9 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   a domain, shortener (breaks MCP POST + OAuth resource matching) or Vercel proxy (risk before deadline).
   Prep fix: inference/kaggle_serve.py had the Worker URL hard-coded; serverNotebook() now injects PUBLIC_ORIGIN
   into ATLAS_ONE_URL when pushing to Kaggle, so a URL move cannot strand wake-up. Test added; deployed.
+
+[2026-10-11 20:50 WAT] Short-URL idea dropped (owner): keep atlas-one.collins-coordinator-worker.workers.dev. Renaming the
+  account subdomain would have moved 5 other live Workers (corri-live has the API URL baked into its build and a Meta
+  WhatsApp webhook on it); a new account or domain is not worth it for a hackathon, and the page has a Copy button.
+  The origin-injection fix stays (good hygiene). Post-change smoke: /, /docs, /health, /api/status 200; /mcp 401 with
+  resource_metadata; bad key -> INVALID_KEY; atlas_discover over OAuth from Claude Code OK (backend asleep, wakes on demand).
