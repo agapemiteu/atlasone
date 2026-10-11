@@ -7,7 +7,7 @@
 //                                            GPU T4 x2, internet on) ─► stage gpu_requested
 //   model server ─► POST /api/upstream/progress (admin key) ─► notebook_started … warming_up
 //   model server ─► POST /api/upstream/register            ─► ready
-//   model server idle 20 min ─► progress "sleeping" and exits (protects the free GPU quota)
+//   model server idle 40 min ─► progress "sleeping" and exits (protects the free GPU quota)
 //
 // Every stage shown to users is one of these observed events; nothing is estimated.
 

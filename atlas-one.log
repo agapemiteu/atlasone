@@ -161,3 +161,17 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   server that lets every agent build with N-ATLaS: one URL, real model, verified results."; CTAs "Start building" /
   "Read the docs"; sections "One URL. Every agent." / "What will you ship?" / "Real model. Real numbers.".
   Same line in README, package.json, video script. Phone + desktop checked; deployed.
+
+[2026-10-11 21:15 WAT] Beta readiness + evidence (D19). Owner asked how judges will know external testers used it.
+  - Migration 0005 (applied remote): `activity` (sign-ins with MCP client name; every tool call: tool, action, ok,
+    error code, request id, verified, ms) and `feedback` (questionnaire, one per tester, optional anonymity).
+    Metadata only: tests assert model output never reaches the log.
+  - Public /evidence and /evidence.json, computed live: external testers, ran real N-ATLaS, verified app, median minutes
+    from first connect to first inference and to verified app, ratings; team (TEAM_GITHUB_LOGINS) shown but excluded.
+  - /feedback (signed-in, CSRF, validated, upsert). verify_app success now tells the agent to point the developer there.
+  - Consent page discloses the recording and the public page. `npm run invite -- <login>` (input-validated).
+  - Model idle sleep 20 -> 40 min for the beta window. docs/BETA-TESTING.md rewritten for self-serve testers.
+  - Tests: 122 Worker + 5 web pass. LIVE (after deploy): wake from asleep -> online in ~200 s (download 84 s, load ~116 s),
+    progress reached the injected origin; atlas_test req_ed6bdd262cc6432fb142f46b "Babban birnin Najeriya Abuja ne."
+    1,063 ms; e2e-gateway 5/5; e2e-mcp ALL PASSED both eras (verify_app true req_8d9a440a975e43a89566cefa);
+    /evidence recorded all of it as team activity.

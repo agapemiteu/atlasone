@@ -32,7 +32,7 @@ GGUF = f"{WORK}/n-atlas-{MODEL_REVISION[:8]}-f16.gguf"
 RELEASE = f"https://github.com/ggml-org/llama.cpp/releases/download/{LLAMA_TAG}"
 ATLAS_ONE_URL = "https://atlas-one.collins-coordinator-worker.workers.dev"
 SLOTS, SLOT_CTX = 4, 4096
-IDLE_SLEEP_MIN = 20  # stop after this long without any inference, to protect the free GPU quota
+IDLE_SLEEP_MIN = 40  # stop after this long without any inference, to protect the free GPU quota
 
 # Set by Atlas One when it wakes this notebook through Kaggle's API: a single-use, 30-minute token that is
 # traded once for the keys below. Kaggle secrets are unavailable to API-started runs, and notebook versions

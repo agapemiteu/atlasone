@@ -81,7 +81,7 @@ The server reports each stage to `POST /api/upstream/progress` (`notebook_starte
 `downloading_model`, `loading_weights`, `warming_up`, `sleeping`, `failed`) and registration marks it
 `ready`. If no progress arrives, Atlas One asks Kaggle for the run status and records a failure with its
 reason. `GET /api/status` exposes the live state; the home page polls it and renders each stage. The server
-sleeps after 20 minutes without generated tokens (llama.cpp `--metrics`).
+sleeps after 40 minutes without generated tokens (llama.cpp `--metrics`).
 
 ## App API
 

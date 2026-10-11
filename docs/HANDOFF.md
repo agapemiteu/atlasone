@@ -27,9 +27,10 @@ the video.
 | Phase A, T1-T4, T6, T7 (all 4 MCP tools), T9 (site + playground) | Done, deployed. Home + /docs are React + shadcn/ui in `web/` (Worker static assets); 118 Worker + 5 web tests |
 | Real clients | Claude Code and Codex connected over OAuth (both identify via CIMD) and used the tools; Cursor/VS Code/Windsurf/Gemini CLI documented |
 | T5 sample app `atlas-demo-shop` (sibling folder, own repo) | Done: live `verify_app` = true (req_714d166c…); evidence in docs/NATLAS-INTEGRATION.md |
-| Backend | **Wake-on-demand live**: requests wake Kaggle (T4 x2) via API, live stages on `/` and `/api/status`, ~4 min cold start, sleeps after 20 idle min; GGUF cache in `Agapemiteu/n-atlas-gguf-cache`. Nobody starts Kaggle by hand any more |
+| Backend | **Wake-on-demand live**: requests wake Kaggle (T4 x2) via API, live stages on `/` and `/api/status`, ~4 min cold start, sleeps after 40 idle min; GGUF cache in `Agapemiteu/n-atlas-gguf-cache`. Nobody starts Kaggle by hand any more |
 | Docs | README, TECHNICAL, NATLAS-INTEGRATION (live T5 section pending), BETA-TESTING, VIDEO-SCRIPT |
 | Security | Auth-route rate limit; open redirect, CSRF, XSS, SSRF, owner isolation, quota races covered by tests |
+| Beta evidence | `npm run invite -- <login>` adds testers; `/feedback` collects their questionnaire; `/evidence` (+ `.json`) shows live, per-tester proof for the judges (D19). Model idles 40 min before sleeping |
 | Post-beta | List in the official MCP Registry, then client directories (not GitHub Marketplace) |
 
 ## Resume here (exact next steps)

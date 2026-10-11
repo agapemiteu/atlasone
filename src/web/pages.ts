@@ -1,4 +1,4 @@
-// Owner-only pages: confirm a claim link (D13, D16) and manage personal access tokens (D5).
+// Signed-in pages: confirm a claim link (D13, D16), manage personal access tokens (D5), beta feedback.
 // Every POST carries a CSRF token bound to the signed-in session and the purpose.
 
 import { ACTION_TEXT, loadClaim, redeemClaim } from "../lib/claims.ts";
@@ -6,6 +6,7 @@ import { createPersonalToken } from "../lib/credentials.ts";
 import { AtlasError } from "../lib/errors.ts";
 import { checkCsrf, csrfToken, readSession, type Session } from "../lib/session.ts";
 import { esc, messagePage, page, secretBlock } from "./html.ts";
+import { feedbackPage } from "./evidence.ts";
 import { playgroundPage, type PlaygroundDeps } from "./playground.ts";
 
 export interface PageDeps extends PlaygroundDeps {
@@ -101,9 +102,10 @@ ${secretBlock("pat", pat.secret)}
 export async function handlePages(request: Request, deps: PageDeps): Promise<Response | null> {
   const url = new URL(request.url);
   const claim = /^\/claim\/(cl_[A-Za-z0-9_-]{43})$/.exec(url.pathname);
-  if (!claim && url.pathname !== "/tokens" && url.pathname !== "/playground") return null;
+  if (!claim && !["/tokens", "/playground", "/feedback"].includes(url.pathname)) return null;
   const session = await readSession(request, deps.sessionSecret);
   if (!session) return loginRedirect(url.pathname);
   if (claim) return claimPage(request, deps, claim[1]!, session);
+  if (url.pathname === "/feedback") return feedbackPage(request, deps.db, deps.sessionSecret, session);
   return url.pathname === "/playground" ? playgroundPage(request, deps, session) : tokensPage(request, deps, session);
 }

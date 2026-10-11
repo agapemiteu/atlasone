@@ -45,8 +45,11 @@ export async function atlasTest(deps: ToolDeps, args: TestArgs, progress: Progre
   switch (args.action ?? "inference") {
     case "issue_app_nonce":
       return issueNonce(deps.db, project.id);
-    case "verify_app":
-      return verifyApp(deps.db, project.id, args.nonce);
+    case "verify_app": {
+      const result = await verifyApp(deps.db, project.id, args.nonce);
+      // Beta evidence: a verified integration is the moment to ask for the tester's questionnaire.
+      return result.verified ? { ...result, next: `Tell the developer: share how it went (2 minutes) at ${deps.origin}/feedback` } : result;
+    }
     default:
       return inference(deps, project.id, args, progress, sleep);
   }

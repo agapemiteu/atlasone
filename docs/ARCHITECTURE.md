@@ -72,6 +72,7 @@ APIs; nothing in this plan blocks it.
 | D16 | Permission model like Claude/Codex connectors: OAuth scopes on the consent screen (`atlas:read`, `atlas:test`, `atlas:projects`); sensitive tool actions (create project, rotate/revoke key) require human approval via MCP elicitation, or a one-time confirmation code on clients without elicitation; tools carry readOnly/destructive annotations |
 | D17 | Recipes: `nextjs` (deeply tested) + `generic` (any OpenAI client: Node, Python, curl) so agents can integrate any stack; no SDKs |
 | D18 | All on Cloudflare: Worker + D1 + KV + Durable Objects; how-to page served as static assets from the same Worker (replaces Vercel + Supabase). A Vercel front end can be added later as a client of the Worker APIs |
+| D19 | Beta evidence for PRD Test 3/6: an `activity` table records sign-ins (with the MCP client name) and every tool call's outcome (metadata only); a signed-in `/feedback` questionnaire; a public `/evidence` page and `/evidence.json` computed live (time from connect to first real inference and to verified app, per tester; team excluded via `TEAM_GITHUB_LOGINS`). Disclosed on the consent page; testers can be anonymous |
 
 ## 3a. Implementation notes (2026-10-11, after T4/T6)
 

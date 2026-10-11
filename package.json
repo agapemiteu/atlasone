@@ -17,7 +17,8 @@
     "db:migrate:local": "wrangler d1 migrations apply atlas-one --local",
     "db:migrate:remote": "wrangler d1 migrations apply atlas-one --remote",
     "seed": "node scripts/seed.ts",
-    "smoke": "node --env-file=.env.local scripts/smoke.mjs"
+    "smoke": "node --env-file=.env.local scripts/smoke.mjs",
+    "invite": "node scripts/invite.mjs"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.4.0",

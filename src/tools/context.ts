@@ -1,6 +1,7 @@
 // Shared context for MCP tools. Every tool runs as one authenticated owner.
 
 import { AtlasError, toToolError } from "../lib/errors.ts";
+import type { Principal } from "../lib/activity.ts";
 import type { KaggleConfig } from "../lib/wake.ts";
 
 /** OAuth scopes (D16). Shown on the consent screen; personal tokens carry all of them. */
@@ -25,6 +26,8 @@ export interface ToolDeps {
   scopes: readonly string[];
   /** Wake-on-demand config; null or absent disables waking. */
   kaggle?: KaggleConfig | null;
+  /** Who is calling, for the beta-evidence activity log; absent in unit tests that do not need it. */
+  principal?: Principal;
 }
 
 export function requireScope(deps: ToolDeps, scope: Scope): void {

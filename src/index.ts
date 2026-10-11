@@ -14,6 +14,7 @@ import { handleUpstreamRegister } from "./routes/upstream.ts";
 import { handleV1 } from "./routes/v1.ts";
 import { ALL_SCOPES } from "./tools/context.ts";
 import { handleAuth } from "./web/auth.ts";
+import { evidenceResponse } from "./web/evidence.ts";
 import type { KaggleConfig } from "./lib/wake.ts";
 import { handlePages } from "./web/pages.ts";
 import { publicStatus } from "./web/status.ts";
@@ -23,6 +24,8 @@ export interface AtlasProps {
   githubId: string;
   login: string | null;
   scopes: string[];
+  /** MCP client name from the consent page (absent on grants made before beta evidence existed). */
+  client?: string | null;
 }
 
 // workerd's fetch throws "Illegal invocation" when called as a method of another object
@@ -40,6 +43,9 @@ async function app(request: Request, env: Env, ctx: ExecutionContext): Promise<R
   const kaggle = kaggleConfig(env);
   if (request.method === "GET" && url.pathname === "/health") {
     return Response.json({ service: "atlas-one", gateway: "ok" });
+  }
+  if (request.method === "GET" && (url.pathname === "/evidence" || url.pathname === "/evidence.json")) {
+    return evidenceResponse(env.DB, (env.TEAM_GITHUB_LOGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean), url.pathname.endsWith(".json"));
   }
   if (request.method === "GET" && url.pathname === "/api/status") {
     return Response.json(await publicStatus(env.DB, fetcher, kaggle), { headers: { "cache-control": "no-store" } });
@@ -96,6 +102,7 @@ function oauthProvider(env: Env): OAuthProvider<Env> {
             upstreamKey: env.ATLAS_UPSTREAM_KEY,
             waitUntil: (p) => ctx.waitUntil(p),
             owner: props.githubId,
+            principal: { githubId: props.githubId, login: props.login, client: props.client ?? null },
             origin: env.PUBLIC_ORIGIN,
             scopes: props.scopes,
             kaggle: kaggleConfig(env),
@@ -117,7 +124,7 @@ function oauthProvider(env: Env): OAuthProvider<Env> {
     resolveExternalToken: async ({ token, env }) => {
       try {
         const pat = await verifyPersonalToken(env.DB, token);
-        const props: AtlasProps = { githubId: pat.ownerGithubId, login: null, scopes: ALL_SCOPES };
+        const props: AtlasProps = { githubId: pat.ownerGithubId, login: null, scopes: ALL_SCOPES, client: "Personal token" };
         return { props, audience: resource };
       } catch {
         return null;

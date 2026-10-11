@@ -121,7 +121,7 @@ export function Docs({ origin }: { origin: string }) {
             <H2 id="errors">Errors and limits</H2>
             <p>
               Errors look like <C>{'{ "error": { "code", "message", "retryable", "retry_after_s", "request_id" } }'}</C>. Retry only when{" "}
-              <C>retryable</C> is true. N-ATLaS sleeps after 20 idle minutes; the next request wakes it (about 4 minutes) and gets{" "}
+              <C>retryable</C> is true. N-ATLaS sleeps after 40 idle minutes; the next request wakes it (about 4 minutes) and gets{" "}
               <C>BACKEND_WARMING</C> until then. Never fall back to another model.
             </p>
             <Table

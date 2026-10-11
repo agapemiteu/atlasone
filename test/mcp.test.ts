@@ -38,7 +38,12 @@ async function world(scenario: Scenario = "ok", mode?: (typeof ERAS)[number][1],
   const deps = { db: env.DB, fetcher: up.fetcher, upstreamKey: "k", waitUntil: (p: Promise<unknown>) => void pending.push(p) };
   // Authentication is the OAuth provider's job (see oauth.test.ts); here we inject the principal.
   const route = strictFetch(async (input, init) =>
-    serveMcp(new Request(input, init), { ...deps, owner, origin: ORIGIN, scopes }, env, createExecutionContext()),
+    serveMcp(
+      new Request(input, init),
+      { ...deps, owner, origin: ORIGIN, scopes, principal: { githubId: owner, login: `${owner}-login`, client: "Conformance" } },
+      env,
+      createExecutionContext(),
+    ),
   );
   const client = new Client({ name: "conformance", version: "1.0.0" }, mode ? { versionNegotiation: { mode } } : undefined);
   await client.connect(
@@ -163,8 +168,26 @@ for (const [era, mode] of ERAS) {
       await w.settle();
       const ok = (await w.call("atlas_test", { project: w.slug, action: "verify_app", nonce: issued.nonce })).body;
       expect(ok).toMatchObject({ ok: true, verified: true, evidence: { status: 200, source: "app" } });
+      expect(ok.next).toBe(`Tell the developer: share how it went (2 minutes) at ${ORIGIN}/feedback`);
       const again = await w.call("atlas_test", { project: w.slug, action: "verify_app", nonce: issued.nonce });
       expect(again.isError).toBe(true);
+
+      // Beta evidence: every call is recorded with its outcome; the verified one carries the app's request id.
+      await w.settle();
+      const { results } = await env.DB.prepare(
+        "SELECT tool, action, project, ok, error_code, request_id, verified, client FROM activity WHERE github_id = ? ORDER BY id",
+      )
+        .bind(w.owner)
+        .all<Record<string, unknown>>();
+      expect(results.map((r) => [r.action, r.verified, r.ok])).toEqual([
+        ["issue_app_nonce", null, 1],
+        ["verify_app", 0, 1],
+        ["verify_app", 0, 1],
+        ["verify_app", 1, 1],
+        ["verify_app", null, 0],
+      ]);
+      expect(results[3]).toMatchObject({ tool: "atlas_test", project: w.slug, request_id: ok.evidence.request_id, client: "Conformance" });
+      expect(results[4]!.error_code).toBe("VALIDATION_FAILED");
     });
 
     it("atlas_bind_project is idempotent and never returns a key, only an owner-bound link (D2)", async () => {

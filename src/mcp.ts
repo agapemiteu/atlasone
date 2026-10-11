@@ -6,6 +6,7 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { createMcpHandler } from "agents/mcp/server";
 import { z } from "zod";
+import { recordTool } from "./lib/activity.ts";
 import { bindProject } from "./tools/bind.ts";
 import { requireScope, runTool, type ToolDeps } from "./tools/context.ts";
 import { discover, RECIPES, renderRecipe } from "./tools/discover.ts";
@@ -20,6 +21,32 @@ Workflow: atlas_discover -> atlas_bind_project (developer confirms the key link 
 app route with x-atlas-verify -> atlas_test (verify_app). Use atlas_inspect to diagnose failures.
 Never invent or simulate N-ATLaS output. If a tool reports MODEL_OFFLINE or any error, tell the developer and do
 not claim the integration works. Never ask the developer to paste keys into the chat. Ask before editing env files.`;
+
+type ToolResult = Awaited<ReturnType<typeof runTool>>;
+
+/** Records the outcome of a tool call for beta evidence, after the response (metadata only). */
+async function tracked(
+  deps: ToolDeps,
+  tool: string,
+  args: { action?: string; project?: string; name?: string },
+  call: () => Promise<ToolResult>,
+): Promise<ToolResult> {
+  const started = Date.now();
+  const result = await call();
+  if (deps.principal) {
+    const principal = deps.principal;
+    deps.waitUntil(
+      recordTool(deps.db, principal, {
+        tool,
+        action: args.action ?? null,
+        project: args.project ?? args.name ?? null,
+        payload: result.structuredContent,
+        ms: Date.now() - started,
+      }).catch(() => undefined),
+    );
+  }
+  return result;
+}
 
 const recipeNames = Object.keys(RECIPES) as [keyof typeof RECIPES, ...(keyof typeof RECIPES)[]];
 
@@ -40,10 +67,12 @@ export function buildServer(deps: ToolDeps): McpServer {
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (args) =>
-      runTool(() => {
-        requireScope(deps, "atlas:read");
-        return discover(deps, args);
-      }),
+      tracked(deps, "atlas_discover", {}, () =>
+        runTool(() => {
+          requireScope(deps, "atlas:read");
+          return discover(deps, args);
+        }),
+      ),
   );
 
   server.registerTool(
@@ -61,10 +90,12 @@ export function buildServer(deps: ToolDeps): McpServer {
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
     async (args) =>
-      runTool(() => {
-        requireScope(deps, "atlas:projects");
-        return bindProject(deps, args);
-      }),
+      tracked(deps, "atlas_bind_project", args, () =>
+        runTool(() => {
+          requireScope(deps, "atlas:projects");
+          return bindProject(deps, args);
+        }),
+      ),
   );
 
   server.registerTool(
@@ -93,10 +124,12 @@ export function buildServer(deps: ToolDeps): McpServer {
           .notify({ method: "notifications/progress", params: { progressToken: token, progress: step, total: 3, message } })
           .catch(() => undefined);
       };
-      return runTool(() => {
-        requireScope(deps, "atlas:test");
-        return atlasTest(deps, args, progress);
-      });
+      return tracked(deps, "atlas_test", args, () =>
+        runTool(() => {
+          requireScope(deps, "atlas:test");
+          return atlasTest(deps, args, progress);
+        }),
+      );
     },
   );
 
@@ -114,10 +147,12 @@ export function buildServer(deps: ToolDeps): McpServer {
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (args) =>
-      runTool(() => {
-        requireScope(deps, "atlas:read");
-        return inspect(deps, args);
-      }),
+      tracked(deps, "atlas_inspect", args, () =>
+        runTool(() => {
+          requireScope(deps, "atlas:read");
+          return inspect(deps, args);
+        }),
+      ),
   );
 
   for (const name of recipeNames) {

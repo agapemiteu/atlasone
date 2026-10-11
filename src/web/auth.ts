@@ -16,6 +16,7 @@ import {
   type ConsentDescription,
   type OAuthHelpers,
 } from "@cloudflare/workers-oauth-provider";
+import { recordConnected } from "../lib/activity.ts";
 import { type GithubConfig, githubAuthorizeUrl, githubUser, isAllowed, newVerifier } from "../lib/github.ts";
 import {
   clearCookie,
@@ -80,6 +81,8 @@ ${details.redirectIsLoopback ? '<p class="warn">This sends access to an app on y
   <input type="hidden" name="scope" value="atlas:read">
   ${scopes}
   <p class="muted">Next you will sign in with GitHub. Atlas One only reads your GitHub username and id.</p>
+  <p class="muted">Beta: your GitHub username, this app's name and each tool's outcome (never prompts, code or keys)
+  are recorded as test evidence for the NAIC 2026 judges and shown on the <a href="/evidence">evidence page</a>.</p>
   <div class="row"><button class="primary" name="decision" value="approve">Allow and continue with GitHub</button>
   <button name="decision" value="deny">Deny</button></div>
 </form></div>`;
@@ -131,13 +134,18 @@ export async function handleAuth(request: Request, deps: AuthDeps): Promise<Resp
       const user = await githubUser(deps.github, code, resumed.data.verifier, `${deps.origin}${MCP_CALLBACK}`, deps.fetcher);
       if (!(await isAllowed(deps.db, deps.allowedLogins, user.login))) return notInvited(user.login);
       const scopes = resumed.request.scope;
+      const client = await deps.oauth
+        .describeConsent(resumed.request)
+        .then((d) => d.clientName)
+        .catch(() => null);
       const { redirectTo } = await deps.oauth.completeAuthorization({
         request: resumed.request,
         userId: user.id,
         metadata: { login: user.login },
         scope: scopes,
-        props: { githubId: user.id, login: user.login, scopes },
+        props: { githubId: user.id, login: user.login, scopes, client },
       });
+      await recordConnected(deps.db, { githubId: user.id, login: user.login, client });
       resumed.headers.set("location", redirectTo);
       // Also sign the browser in, so claim links the agent hands over open without a second login.
       resumed.headers.append("set-cookie", await sessionCookie(deps.sessionSecret, { githubId: user.id, login: user.login }));
