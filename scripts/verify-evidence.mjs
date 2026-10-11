@@ -107,7 +107,9 @@ async function verifyReceipt(input) {
     if (hit) check(hit.session === claims.session, "same session as the receipt", `${hit.session} != ${claims.session}`);
   }
   console.log(`\n  developer  ${claims.login ? "@" + claims.login : "(not recorded)"} (${claims.sub})`);
-  console.log(`  agent      ${claims.client ?? "?"}   session ${claims.session ?? "?"}`);
+  const unrecorded = "not recorded (connection made before session tracking began)";
+  console.log(`  agent      ${claims.client ?? unrecorded}`);
+  console.log(`  session    ${claims.session ?? unrecorded}`);
   console.log(`  project    ${claims.project?.name} (${claims.project?.slug})`);
   console.log(`  request    ${claims.request_id}`);
   console.log(`  model      ${claims.model}`);

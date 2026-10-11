@@ -222,3 +222,15 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
     (it woke the backend at 22:06 UTC) but was never recorded, because the record was written only after the awaited
     result. tracked() now registers the record with waitUntil before awaiting. Backend idles back to sleep by ~22:46 UTC.
   - Tests 124 + 6 pass; deployed.
+
+[2026-10-11 23:25 WAT] LIVE tester rehearsal on the published starter (owner: "do a live run ... properly stable").
+  Cloned github.com/agapemiteu/atlas-one-starter as a tester; implemented idea 1 (Hausa support) as an agent following
+  the generic recipe (server-side fetch, forwards x-atlas-verify, attribution + credit line); `npm start` worked with no
+  install; .env.local correctly git-ignored. atlas_test inference req_62eaf00226a24ca9a1181e6c 1,036 ms; app route
+  POST /api/support -> 200 Hausa answer grounded in shop.json (quoted the N18,000 Ankara price),
+  req_fe25df746e6b45d3a7105f06; empty question -> 400; verify_app true + signed receipt; ATLAS_VERIFICATION.jwt saved
+  in the app (shown as untracked, ready to commit); verify-evidence on the receipt 5/5 PASS; live trace shows every
+  step. Model quality note (observed again): "sa'o'i" (hours) for delivery time where the facts say working days.
+  Fix: verifier now prints "not recorded (connection made before session tracking began)" instead of "?" for
+  receipts from pre-session grants. Evidence snapshot refreshed: 19 events, ALL CHECKS PASSED. Key-bearing scratch
+  copy deleted.
