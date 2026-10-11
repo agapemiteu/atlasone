@@ -6,7 +6,8 @@
   // global_fetch_strictly_public: required to fetch Client ID Metadata Documents safely (CIMD).
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   // Integration recipes are bundled as text.
-  "rules": [{ "type": "Text", "globs": ["**/*.md"], "fallthrough": true }],
+  // Integration recipes and the model-server script (pushed to Kaggle on wake) are bundled as text.
+  "rules": [{ "type": "Text", "globs": ["**/*.md", "**/*.py"], "fallthrough": true }],
   "observability": { "enabled": true },
   "workers_dev": true,
   "preview_urls": false,
@@ -18,7 +19,11 @@
     "UPSTREAM_HOSTS": "*.trycloudflare.com",
     "GITHUB_CLIENT_ID": "Ov23liEjUtXPbExZAqVJ",
     // Invite-only beta (D15): GitHub logins allowed to sign in, plus rows in the allowlist table.
-    "ALLOWED_GITHUB_LOGINS": "agapemiteu"
+    "ALLOWED_GITHUB_LOGINS": "agapemiteu",
+    // Wake-on-demand (KAGGLE_KEY is a secret). The notebook must have the HF_TOKEN, ATLAS_UPSTREAM_KEY
+    // and ATLAS_ADMIN_KEY Kaggle secrets attached.
+    "KAGGLE_USERNAME": "agapemiteu",
+    "KAGGLE_KERNEL": "notebookf585471141"
   },
   "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "3dda9cfc00b0490a817ca93ed39694ac" }],
   // Per-IP limit on sign-in and client-registration routes, so registration floods cannot exhaust KV.

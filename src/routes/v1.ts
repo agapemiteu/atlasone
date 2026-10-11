@@ -6,12 +6,15 @@ import { MODEL_CARD, MODEL_ID, parseChatRequest } from "../lib/chat.ts";
 import { bearer, sha256Hex, verifyProjectKey } from "../lib/credentials.ts";
 import { AtlasError, toHttpResponse } from "../lib/errors.ts";
 import { newRequestId, runInference } from "../lib/inference.ts";
+import { type KaggleConfig, requestWake } from "../lib/wake.ts";
 
 export interface GatewayDeps {
   db: D1Database;
   fetcher: typeof fetch;
   upstreamKey: string;
   waitUntil: (promise: Promise<unknown>) => void;
+  /** Wake-on-demand config; null disables waking (backend stays MODEL_OFFLINE until started). */
+  kaggle?: KaggleConfig | null;
 }
 
 const NONCE = /^[A-Za-z0-9_-]{16,128}$/;
@@ -56,6 +59,7 @@ export async function handleV1(request: Request, deps: GatewayDeps): Promise<Res
     const result = await runInference(
       {
         ...deps,
+        wake: () => requestWake(deps.db, deps.fetcher, deps.kaggle ?? null, `project:${key.projectId}`),
         projectId: key.projectId,
         keyId: key.keyId,
         source: "app",

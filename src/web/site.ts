@@ -1,19 +1,25 @@
 // The one-page "how to use Atlas One" site (CLAUDE.md rule 7), in English and Hausa, with copy-paste
 // setup for every major MCP client and live backend status. Server-rendered; no tracking, no assets.
 
-import type { BackendState } from "../lib/backend.ts";
 import { MODEL_CARD } from "../lib/chat.ts";
 import { esc, page } from "./html.ts";
+import { type PublicStatus, statusWidget } from "./status.ts";
 
-const STATUS: Record<BackendState, { label: string; tone: string; detail: string }> = {
+const STATUS: Record<PublicStatus["backend"], { label: string; tone: string; detail: string }> = {
   ready: { label: "N-ATLaS is online", tone: "ok", detail: "Genuine N-ATLaS inference is available now." },
   loading: { label: "N-ATLaS is starting", tone: "warn", detail: "The model is loading onto the GPU; try again in a minute." },
+  waking: {
+    label: "Waking N-ATLaS",
+    tone: "warn",
+    detail: "Someone asked for N-ATLaS, so it is starting on a free GPU. Each step below is reported live by the model server.",
+  },
   offline: {
-    label: "N-ATLaS is offline right now",
+    label: "N-ATLaS is asleep",
     tone: "off",
     detail:
-      "During the beta the model runs on free GPUs in scheduled windows. Connecting and setup still work; " +
-      "model calls return MODEL_OFFLINE (never fake answers) until it is back.",
+      "N-ATLaS sleeps when idle to save free GPU time. It wakes automatically the first time your agent, app or the " +
+      "playground calls it (about 4-5 minutes on free GPUs), with live progress here. Calls made while it wakes get an " +
+      "honest BACKEND_WARMING reply with a retry time, never a fake answer.",
   },
 };
 
@@ -29,10 +35,10 @@ function clients(mcp: string) {
   ] as const;
 }
 
-export function homePage(origin: string, state: BackendState): Response {
+export function homePage(origin: string, status: PublicStatus): Response {
   const mcp = `${origin}/mcp`;
   const api = `${origin}/v1`;
-  const s = STATUS[state];
+  const s = STATUS[status.backend];
   const clientBlocks = clients(mcp)
     .map(([name, code, note]) => `<details><summary><strong>${esc(name)}</strong></summary><pre>${esc(code)}</pre><p class="muted">${esc(note)}</p></details>`)
     .join("");
@@ -50,8 +56,9 @@ details{border-top:1px solid var(--line);padding:8px 0}summary{cursor:pointer}
   <p class="lang muted"><a href="#en">English</a><a href="#ha">Hausa</a></p>
   <h1>N-ATLaS, one instruction away.</h1>
   <p class="lead">Connect your coding agent once. Ask it to add a Hausa, Igbo, Yoruba or Nigerian-English AI feature to your app. It integrates genuine N-ATLaS and proves it works.</p>
-  <p><span class="pill ${s.tone}">● ${esc(s.label)}</span></p>
+  <p><span id="status-pill" class="pill ${s.tone}">● ${esc(s.label)}</span></p>
   <p class="muted">${esc(s.detail)}</p>
+  ${statusWidget(status)}
 </div>
 
 <section id="en" class="card">

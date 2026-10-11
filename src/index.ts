@@ -14,9 +14,10 @@ import { handleUpstreamRegister } from "./routes/upstream.ts";
 import { handleV1 } from "./routes/v1.ts";
 import { ALL_SCOPES } from "./tools/context.ts";
 import { handleAuth } from "./web/auth.ts";
-import { getBackend } from "./lib/backend.ts";
+import type { KaggleConfig } from "./lib/wake.ts";
 import { handlePages } from "./web/pages.ts";
 import { homePage } from "./web/site.ts";
+import { publicStatus } from "./web/status.ts";
 
 /** What completeAuthorization() stores, and what a personal token resolves to. */
 export interface AtlasProps {
@@ -29,15 +30,24 @@ export interface AtlasProps {
 // (e.g. deps.fetcher(...)). Wrap it once so every injected fetcher is safe to call either way.
 const fetcher: typeof fetch = (input, init) => fetch(input, init);
 
+/** Wake-on-demand is on only when the Kaggle key secret is set. */
+function kaggleConfig(env: Env): KaggleConfig | null {
+  return env.KAGGLE_KEY ? { username: env.KAGGLE_USERNAME, key: env.KAGGLE_KEY, kernelSlug: env.KAGGLE_KERNEL } : null;
+}
+
 async function app(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const waitUntil = (p: Promise<unknown>) => ctx.waitUntil(p);
+  const kaggle = kaggleConfig(env);
   if (request.method === "GET" && url.pathname === "/health") {
     return Response.json({ service: "atlas-one", gateway: "ok" });
   }
+  if (request.method === "GET" && url.pathname === "/api/status") {
+    return Response.json(await publicStatus(env.DB, fetcher), { headers: { "cache-control": "no-store" } });
+  }
 
   const response =
-    (await handleV1(request, { db: env.DB, fetcher, upstreamKey: env.ATLAS_UPSTREAM_KEY, waitUntil })) ??
+    (await handleV1(request, { db: env.DB, fetcher, upstreamKey: env.ATLAS_UPSTREAM_KEY, waitUntil, kaggle })) ??
     (await handleUpstreamRegister(request, {
       db: env.DB,
       fetcher,
@@ -61,11 +71,12 @@ async function app(request: Request, env: Env, ctx: ExecutionContext): Promise<R
       waitUntil,
       sessionSecret: env.SESSION_SECRET,
       origin: env.PUBLIC_ORIGIN,
+      kaggle,
     }));
   if (response) return response;
 
   if (request.method === "GET" && url.pathname === "/") {
-    return homePage(env.PUBLIC_ORIGIN, (await getBackend(env.DB, fetcher)).state);
+    return homePage(env.PUBLIC_ORIGIN, await publicStatus(env.DB, fetcher));
   }
   return toHttpResponse(new AtlasError("NOT_FOUND"));
 }
@@ -90,6 +101,7 @@ function oauthProvider(env: Env): OAuthProvider<Env> {
             owner: props.githubId,
             origin: env.PUBLIC_ORIGIN,
             scopes: props.scopes,
+            kaggle: kaggleConfig(env),
           },
           env,
           ctx,

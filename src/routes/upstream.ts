@@ -11,6 +11,7 @@ import { probe, resetBackendCache, type Upstream } from "../lib/backend.ts";
 import { MODEL_ID } from "../lib/chat.ts";
 import { bearer, sha256Hex } from "../lib/credentials.ts";
 import { AtlasError, toHttpResponse } from "../lib/errors.ts";
+import { recordStage, type WakeStage } from "../lib/wake.ts";
 
 export interface UpstreamDeps {
   db: D1Database;
@@ -73,13 +74,49 @@ async function servesOurModel(origin: string, deps: UpstreamDeps): Promise<boole
   }
 }
 
+/** Stages the model server may report about itself (registration reports "ready"). */
+const REPORTABLE: readonly WakeStage[] = [
+  "notebook_started",
+  "fetching_runtime",
+  "downloading_model",
+  "loading_weights",
+  "warming_up",
+  "sleeping",
+  "failed",
+];
+
+async function requireAdmin(request: Request, deps: UpstreamDeps) {
+  if (request.method !== "POST") throw new AtlasError("NOT_FOUND");
+  const token = bearer(request.headers.get("authorization"));
+  if (!token || !deps.adminKey || !(await sameSecret(token, deps.adminKey))) throw new AtlasError("AUTH_REQUIRED");
+}
+
+/** POST /api/upstream/progress: the model server reports a real startup or shutdown stage. */
+async function handleProgress(request: Request, deps: UpstreamDeps): Promise<Response> {
+  await requireAdmin(request, deps);
+  const body = (await request.json().catch(() => null)) as { stage?: unknown; detail?: unknown } | null;
+  const stage = body?.stage;
+  if (typeof stage !== "string" || !(REPORTABLE as readonly string[]).includes(stage)) {
+    throw new AtlasError("VALIDATION_FAILED", `'stage' must be one of: ${REPORTABLE.join(", ")}.`);
+  }
+  const detail = typeof body?.detail === "string" ? body.detail.slice(0, 200) : null;
+  await recordStage(deps.db, stage as WakeStage, detail);
+  if (stage === "sleeping" || stage === "failed") resetBackendCache();
+  return Response.json({ ok: true, stage });
+}
+
 export async function handleUpstreamRegister(request: Request, deps: UpstreamDeps): Promise<Response | null> {
   const { pathname } = new URL(request.url);
+  if (pathname === "/api/upstream/progress") {
+    try {
+      return await handleProgress(request, deps);
+    } catch (err) {
+      return toHttpResponse(err);
+    }
+  }
   if (pathname !== "/api/upstream/register") return null;
   try {
-    if (request.method !== "POST") throw new AtlasError("NOT_FOUND");
-    const token = bearer(request.headers.get("authorization"));
-    if (!token || !deps.adminKey || !(await sameSecret(token, deps.adminKey))) throw new AtlasError("AUTH_REQUIRED");
+    await requireAdmin(request, deps);
 
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
     const origin = parseUpstreamUrl(body?.url, deps.allowedHosts);
@@ -113,6 +150,7 @@ export async function handleUpstreamRegister(request: Request, deps: UpstreamDep
         .bind(upstream.id, upstream.url, upstream.model_id, upstream.model_revision, upstream.runtime, Date.now()),
     ]);
     resetBackendCache();
+    await recordStage(deps.db, "ready", origin);
     return Response.json({ ok: true, upstream_id: upstream.id, url: origin, state });
   } catch (err) {
     return toHttpResponse(err);

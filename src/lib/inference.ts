@@ -20,6 +20,7 @@ import { type Backend, getBackend, markState, type Upstream } from "./backend.ts
 import { type ChatRequest, MODEL_ID } from "./chat.ts";
 import { AtlasError, ERRORS } from "./errors.ts";
 import { consumeQuota } from "./quota.ts";
+import { retryAfterFor, STAGE_TEXT, type Wake } from "./wake.ts";
 
 const INFERENCE_TIMEOUT_MS = 120_000;
 const WARMING_RETRY_S = 15;
@@ -30,6 +31,8 @@ export interface InferenceContext {
   db: D1Database;
   fetcher: typeof fetch;
   upstreamKey: string;
+  /** Wake-on-demand: starts the sleeping backend for this caller (see lib/wake.ts). Optional. */
+  wake?: () => Promise<Wake | null>;
   waitUntil: (promise: Promise<unknown>) => void;
   projectId: string;
   keyId: string | null;
@@ -69,6 +72,7 @@ export async function runInference(ctx: InferenceContext, req: ChatRequest): Pro
   let upstreamMs: number | null = null;
   try {
     const backend = await getBackend(ctx.db, ctx.fetcher);
+    if (backend.state === "offline" && ctx.wake) await throwWaking(await ctx.wake());
     const upstream = requireReady(backend);
     await consumeQuota(ctx.db, ctx.projectId);
 
@@ -109,6 +113,14 @@ export async function runInference(ctx: InferenceContext, req: ChatRequest): Pro
     log(ctx, t0, now, ERRORS[e.code].status, e.code, upstreamMs, {});
     throw e;
   }
+}
+
+/** The backend is asleep and a wake is in flight: say so honestly, with the observed stage. */
+async function throwWaking(w: Wake | null): Promise<void> {
+  if (!w || w.stage === "failed" || w.stage === "ready") return; // fall through to MODEL_OFFLINE
+  throw new AtlasError("BACKEND_WARMING", `N-ATLaS is waking up: ${STAGE_TEXT[w.stage]}. Retry shortly.`, {
+    retryAfterS: retryAfterFor(w),
+  });
 }
 
 function requireReady(backend: Backend): Upstream {

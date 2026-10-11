@@ -24,7 +24,8 @@ table{width:100%;border-collapse:collapse;font-size:.92rem}td,th{text-align:left
 const SECURITY_HEADERS = {
   "content-type": "text/html; charset=utf-8",
   "cache-control": "no-store",
-  "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'",
+  "content-security-policy":
+    "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
   "x-frame-options": "DENY",
   "referrer-policy": "no-referrer",
   "x-content-type-options": "nosniff",

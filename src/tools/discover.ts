@@ -5,6 +5,7 @@ import { getBackend } from "../lib/backend.ts";
 import { DEFAULT_MAX_TOKENS, MAX_BODY_BYTES, MAX_TOKENS_CAP, MODEL_CARD, MODEL_ID } from "../lib/chat.ts";
 import { listProjects } from "../lib/projects.ts";
 import { LIMITS } from "../lib/quota.ts";
+import { latestWake, STAGE_TEXT, wakeInFlight } from "../lib/wake.ts";
 import generic from "../recipes/generic.md";
 import nextjs from "../recipes/nextjs.md";
 import type { ToolDeps } from "./context.ts";
@@ -20,18 +21,26 @@ const BACKEND_MEANING = {
   ready: "Genuine N-ATLaS inference is available now.",
   loading: "The model server is starting; retry in about 15 seconds.",
   offline:
-    "No N-ATLaS backend is reachable right now. Free GPU capacity runs in scheduled windows. Do not simulate output; tell the developer and retry later.",
+    "N-ATLaS is asleep or unreachable. atlas_test (or any app request) wakes it automatically when wake-on-demand is on; a cold start takes about 4-5 minutes. Do not simulate output.",
 } as const;
 
 export async function discover(deps: ToolDeps, args: { recipe?: RecipeName }) {
-  const [backend, projects] = await Promise.all([
+  const [backend, projects, wake] = await Promise.all([
     getBackend(deps.db, deps.fetcher, { fresh: true }),
     listProjects(deps.db, deps.owner),
+    latestWake(deps.db),
   ]);
+  const waking = backend.state !== "ready" && wakeInFlight(wake) ? wake : null;
   return {
     product: "Atlas One: N-ATLaS, one instruction away.",
     gateway: "ok",
-    backend: { state: backend.state, meaning: BACKEND_MEANING[backend.state] },
+    backend: {
+      state: waking ? "waking" : backend.state,
+      meaning: waking
+        ? `N-ATLaS is waking up: ${STAGE_TEXT[waking.stage]}. Cold starts take about 4-5 minutes.`
+        : BACKEND_MEANING[backend.state],
+      wakes_on_demand: Boolean(deps.kaggle),
+    },
     model: {
       id: MODEL_ID,
       weights: backend.upstream ? `${backend.upstream.model_id}@${backend.upstream.model_revision}` : "NCAIR1/N-ATLaS",

@@ -4,6 +4,11 @@ import { resetBackendCache } from "../src/lib/backend.ts";
 import { sessionCookie } from "../src/lib/session.ts";
 import { handlePages } from "../src/web/pages.ts";
 import { homePage } from "../src/web/site.ts";
+import type { PublicStatus } from "../src/web/status.ts";
+
+function status(backend: PublicStatus["backend"]): PublicStatus {
+  return { gateway: "ok", backend, stage: null, stage_text: null, detail: null, wake_started_at: null, updated_at: null, stages: [] };
+}
 import { fakeUpstream, type Scenario, UPSTREAM_URL } from "./fake-upstream.ts";
 
 const SECRET = "test-session-secret-0123456789abcdef";
@@ -11,7 +16,7 @@ const ORIGIN = "https://atlas.test";
 
 describe("how-to page", () => {
   it("gives every major client a setup snippet pointing at the same MCP URL, in English and Hausa", async () => {
-    const html = await homePage(ORIGIN, "ready").text();
+    const html = await homePage(ORIGIN, status("ready")).text();
     for (const client of ["Claude Code", "Codex", "Cursor", "VS Code", "Windsurf", "Gemini CLI", "Any other MCP client"]) {
       expect(html, client).toContain(client);
     }
@@ -23,9 +28,10 @@ describe("how-to page", () => {
   });
 
   it("states an outage honestly", async () => {
-    const html = await homePage(ORIGIN, "offline").text();
-    expect(html).toContain("N-ATLaS is offline right now");
-    expect(html).toContain("never fake answers");
+    const html = await homePage(ORIGIN, status("offline")).text();
+    expect(html).toContain("N-ATLaS is asleep");
+    expect(html).toContain("never a fake answer");
+    expect(html).toContain("wakes automatically");
   });
 });
 
