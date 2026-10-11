@@ -16,7 +16,7 @@
   "vars": {
     "PUBLIC_ORIGIN": "https://atlas-one.collins-coordinator-worker.workers.dev",
     "UPSTREAM_HOSTS": "*.trycloudflare.com",
-    "GITHUB_CLIENT_ID": "SET_AFTER_GITHUB_OAUTH_APP_IS_CREATED",
+    "GITHUB_CLIENT_ID": "Ov23liEjUtXPbExZAqVJ",
     // Invite-only beta (D15): GitHub logins allowed to sign in, plus rows in the allowlist table.
     "ALLOWED_GITHUB_LOGINS": "agapemiteu"
   },
