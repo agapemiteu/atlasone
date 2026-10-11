@@ -12,6 +12,11 @@
 // Every stage shown to users is one of these observed events; nothing is estimated.
 
 import serverScript from "../../inference/kaggle_serve.py";
+import { sha256Hex } from "./credentials.ts";
+
+function b64url(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
 
 export const WAKE_STAGES = [
   "gpu_requested",
@@ -64,10 +69,19 @@ export async function latestWake(db: D1Database): Promise<Wake | null> {
     .first<Wake>();
 }
 
-/** The Kaggle notebook that runs the model server: one code cell holding inference/kaggle_serve.py. */
-export function serverNotebook(): string {
+export const BOOTSTRAP_TTL_MS = 30 * 60_000;
+const BOOTSTRAP_LINE = "BOOTSTRAP_TOKEN = None";
+
+/**
+ * The Kaggle notebook that runs the model server: one code cell holding inference/kaggle_serve.py with a
+ * single-use bootstrap token. Kaggle secrets are unavailable to API-started runs, and notebook versions
+ * are kept forever, so the notebook never contains long-lived keys: it trades this token once for them.
+ */
+export function serverNotebook(bootstrapToken: string): string {
+  if (!serverScript.includes(BOOTSTRAP_LINE)) throw new Error("server script is missing the bootstrap placeholder");
+  const source = serverScript.replace(BOOTSTRAP_LINE, `BOOTSTRAP_TOKEN = ${JSON.stringify(bootstrapToken)}`);
   return JSON.stringify({
-    cells: [{ cell_type: "code", execution_count: null, metadata: {}, outputs: [], source: serverScript }],
+    cells: [{ cell_type: "code", execution_count: null, metadata: {}, outputs: [], source }],
     metadata: {
       kernelspec: { display_name: "Python 3", language: "python", name: "python3" },
       language_info: { name: "python" },
@@ -98,14 +112,15 @@ export async function requestWake(
   if (wakeInFlight(current, now)) return current;
 
   const id = crypto.randomUUID();
+  const bootstrap = "bt_" + b64url(crypto.getRandomValues(new Uint8Array(32)));
   // Claim the wake first so concurrent requests do not all start Kaggle runs.
   const claimed = await db
     .prepare(
-      `INSERT INTO backend_wakes (id, requested_at, requested_by, stage, detail, updated_at)
-       SELECT ?1, ?2, ?3, 'gpu_requested', NULL, ?2
+      `INSERT INTO backend_wakes (id, requested_at, requested_by, stage, detail, updated_at, bootstrap_hash)
+       SELECT ?1, ?2, ?3, 'gpu_requested', NULL, ?2, ?5
         WHERE NOT EXISTS (SELECT 1 FROM backend_wakes WHERE requested_at > ?4 AND stage NOT IN ('ready', 'sleeping', 'failed'))`,
     )
-    .bind(id, now, requestedBy, now - WAKE_TIMEOUT_MS)
+    .bind(id, now, requestedBy, now - WAKE_TIMEOUT_MS, await sha256Hex(bootstrap))
     .run();
   if (claimed.meta.changes !== 1) return latestWake(db);
 
@@ -120,13 +135,15 @@ export async function requestWake(
       body: JSON.stringify({
         slug: `${kaggle.username}/${kaggle.kernelSlug}`,
         newTitle: kaggle.kernelSlug,
-        text: serverNotebook(),
+        text: serverNotebook(bootstrap),
         language: "python",
         kernelType: "notebook",
         isPrivate: true,
         enableGpu: true,
         enableInternet: true,
         machineShape: "NvidiaTeslaT4", // GPU T4 x2 (Kaggle docs); one 16 GB GPU cannot hold N-ATLaS F16
+        // Without this Kaggle may only save the notebook; we need a new version that actually runs.
+        kernelExecutionType: "SAVE_AND_RUN_ALL",
         datasetDataSources: [],
         kernelDataSources: [],
         competitionDataSources: [],
@@ -134,8 +151,13 @@ export async function requestWake(
         categoryIds: [],
       }),
     });
-    const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+    const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string; versionNumber?: number; url?: string };
     if (!res.ok || body.error) throw new Error(body.error ?? body.message ?? `HTTP ${res.status}`);
+    // Evidence that Kaggle accepted a run: the new notebook version number.
+    await db
+      .prepare("UPDATE backend_wakes SET detail = ? WHERE id = ?")
+      .bind(`Kaggle accepted run (notebook version ${body.versionNumber ?? "?"})`, id)
+      .run();
   } catch (err) {
     await recordStage(db, "failed", `Kaggle did not start the server: ${String(err).slice(0, 200)}`, id);
   }
@@ -160,4 +182,55 @@ export async function recordStage(db: D1Database, stage: WakeStage, detail: stri
 export function retryAfterFor(w: Wake | null): number {
   const i = w ? WAKE_STAGES.indexOf(w.stage as (typeof WAKE_STAGES)[number]) : -1;
   return i >= 4 ? 20 : i >= 1 ? 60 : 90;
+}
+
+/**
+ * Trades a wake's bootstrap token for the model server's keys, exactly once, within its TTL.
+ * Returns null for unknown, used or expired tokens.
+ */
+export async function redeemBootstrap(db: D1Database, token: string, now = Date.now()): Promise<{ wakeId: string } | null> {
+  if (!/^bt_[A-Za-z0-9_-]{43}$/.test(token)) return null;
+  const row = await db
+    .prepare(
+      `UPDATE backend_wakes SET bootstrap_used_at = ?1
+        WHERE bootstrap_hash = ?2 AND bootstrap_used_at IS NULL AND requested_at > ?3
+        RETURNING id`,
+    )
+    .bind(now, await sha256Hex(token), now - BOOTSTRAP_TTL_MS)
+    .first<{ id: string }>();
+  return row ? { wakeId: row.id } : null;
+}
+
+let lastKaggleCheck = 0;
+const KAGGLE_CHECK_EVERY_MS = 30_000;
+const NO_PROGRESS_GRACE_MS = 45_000;
+
+/**
+ * If a wake shows no progress from the model server, ask Kaggle how the run is doing (throttled) and
+ * record a failure Kaggle reports, so nobody is told "waking" about a run that already died.
+ */
+export async function checkKaggleRun(db: D1Database, fetcher: typeof fetch, kaggle: KaggleConfig | null, now = Date.now()) {
+  if (!kaggle || now - lastKaggleCheck < KAGGLE_CHECK_EVERY_MS) return;
+  const wake = await latestWake(db);
+  if (!wake || !wakeInFlight(wake, now) || wake.stage !== "gpu_requested" || now - wake.updated_at < NO_PROGRESS_GRACE_MS) return;
+  lastKaggleCheck = now;
+  try {
+    const res = await fetcher("https://api.kaggle.com/v1/kernels.KernelsApiService/GetKernelSessionStatus", {
+      method: "POST",
+      headers: { authorization: kaggleAuth(kaggle), "content-type": "application/json", "user-agent": "atlas-one" },
+      body: JSON.stringify({ userName: kaggle.username, kernelSlug: kaggle.kernelSlug }),
+    });
+    const body = (await res.json()) as { status?: string; failureMessage?: string };
+    const status = body.status ?? "QUEUED"; // Kaggle omits the default value
+    if (/ERROR|CANCEL|COMPLETE/.test(status)) {
+      await recordStage(db, "failed", `Kaggle reports the run ${status.toLowerCase()}${body.failureMessage ? `: ${body.failureMessage}` : ""}`, wake.id, now);
+    }
+  } catch {
+    // Kaggle unreachable: keep the current stage; the wake still times out after 20 minutes.
+  }
+}
+
+/** Test hook. */
+export function resetKaggleCheck(): void {
+  lastKaggleCheck = 0;
 }

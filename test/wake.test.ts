@@ -5,7 +5,7 @@ import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetBackendCache } from "../src/lib/backend.ts";
 import { createProjectKey } from "../src/lib/credentials.ts";
-import { kaggleAuth, latestWake, requestWake } from "../src/lib/wake.ts";
+import { checkKaggleRun, kaggleAuth, latestWake, redeemBootstrap, requestWake, resetKaggleCheck } from "../src/lib/wake.ts";
 import { handleUpstreamRegister } from "../src/routes/upstream.ts";
 import { handleV1 } from "../src/routes/v1.ts";
 import { ALL_SCOPES } from "../src/tools/context.ts";
@@ -62,10 +62,16 @@ describe("requestWake", () => {
       enableGpu: true,
       enableInternet: true,
       machineShape: "NvidiaTeslaT4",
+      kernelExecutionType: "SAVE_AND_RUN_ALL",
     });
+    expect(wake!.detail).toBe("Kaggle accepted run (notebook version 7)");
     const nb = JSON.parse(call.body.text as string) as { cells: { source: string }[] };
-    expect(nb.cells[0]!.source).toContain("Genuine N-ATLaS inference on Kaggle");
-    expect(nb.cells[0]!.source).toContain('report("notebook_started"');
+    const source = nb.cells[0]!.source;
+    expect(source).toContain("Genuine N-ATLaS inference on Kaggle");
+    expect(source).toContain('report("notebook_started"');
+    // Only a single-use bootstrap token goes into the notebook (versions are kept forever), never a key.
+    expect(source).toMatch(/^BOOTSTRAP_TOKEN = "bt_[A-Za-z0-9_-]{43}"$/m);
+    expect(source).not.toMatch(/atl_admin_|atl_up_|hf_[A-Za-z0-9]{10,}/);
   });
 
   it("is debounced: concurrent and repeated requests start one GPU run", async () => {
@@ -87,13 +93,61 @@ describe("requestWake", () => {
   it("retries after a stuck wake times out, and is off without a Kaggle key", async () => {
     const w = world();
     await env.DB.prepare(
-      "INSERT INTO backend_wakes VALUES ('old', ?, 'user:1', 'loading_weights', NULL, ?)",
+      "INSERT INTO backend_wakes (id, requested_at, requested_by, stage, detail, updated_at) VALUES ('old', ?, 'user:1', 'loading_weights', NULL, ?)",
     )
       .bind(Date.now() - 25 * 60_000, Date.now() - 25 * 60_000)
       .run();
     await requestWake(env.DB, w.fetcher, KAGGLE, "user:1");
     expect(w.kaggleCalls).toHaveLength(1);
     expect(await requestWake(env.DB, w.fetcher, null, "user:1")).toBeNull();
+  });
+});
+
+describe("bootstrap exchange (Kaggle secrets are unavailable to API-started runs)", () => {
+  const exchange = (token: string) =>
+    handleUpstreamRegister(
+      new Request("https://atlas.test/api/upstream/bootstrap", { method: "POST", body: JSON.stringify({ token }) }),
+      { db: env.DB, fetcher: world().fetcher, adminKey: ADMIN, upstreamKey: "up-key", allowedHosts: "*.trycloudflare.com", hfToken: "hf-read" },
+    ).then((r) => r!);
+
+  it("hands the woken server its keys exactly once", async () => {
+    const w = world();
+    await requestWake(env.DB, w.fetcher, KAGGLE, "user:1");
+    const nb = JSON.parse(w.kaggleCalls[0]!.body.text as string) as { cells: { source: string }[] };
+    const token = /BOOTSTRAP_TOKEN = "([^"]+)"/.exec(nb.cells[0]!.source)![1]!;
+    const first = await exchange(token);
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({ upstream_key: "up-key", admin_key: ADMIN, hf_token: "hf-read" });
+    expect((await exchange(token)).status).toBe(401);
+    expect((await exchange("bt_" + "x".repeat(43))).status).toBe(401);
+    expect((await exchange("not-a-token")).status).toBe(401);
+  });
+
+  it("refuses tokens older than 30 minutes", async () => {
+    const w = world();
+    const old = Date.now() - 31 * 60_000;
+    await requestWake(env.DB, w.fetcher, KAGGLE, "user:1", old);
+    const token = /BOOTSTRAP_TOKEN = "([^"]+)"/.exec((JSON.parse(w.kaggleCalls[0]!.body.text as string) as { cells: { source: string }[] }).cells[0]!.source)![1]!;
+    expect(await redeemBootstrap(env.DB, token)).toBeNull();
+  });
+});
+
+describe("Kaggle run status", () => {
+  it("marks a wake failed when Kaggle reports the run errored, instead of 'waking' forever", async () => {
+    resetKaggleCheck();
+    const statusFetch = strictFetch(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/SaveKernel")) return Response.json({ versionNumber: 3 });
+      if (url.endsWith("/GetKernelSessionStatus")) return Response.json({ status: "ERROR" });
+      throw new TypeError("fetch failed");
+    });
+    const t0 = Date.now() - 60_000;
+    await requestWake(env.DB, statusFetch, KAGGLE, "user:1", t0);
+    await env.DB.prepare("UPDATE backend_wakes SET updated_at = ?").bind(t0).run();
+    await checkKaggleRun(env.DB, statusFetch, KAGGLE);
+    const w = await latestWake(env.DB);
+    expect(w).toMatchObject({ stage: "failed" });
+    expect(w!.detail).toContain("Kaggle reports the run error");
   });
 });
 

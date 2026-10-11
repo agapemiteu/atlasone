@@ -11,9 +11,11 @@ import { probe, resetBackendCache, type Upstream } from "../lib/backend.ts";
 import { MODEL_ID } from "../lib/chat.ts";
 import { bearer, sha256Hex } from "../lib/credentials.ts";
 import { AtlasError, toHttpResponse } from "../lib/errors.ts";
-import { recordStage, type WakeStage } from "../lib/wake.ts";
+import { recordStage, redeemBootstrap, type WakeStage } from "../lib/wake.ts";
 
 export interface UpstreamDeps {
+  /** Hugging Face read token handed to a woken model server (with the upstream and admin keys). */
+  hfToken?: string;
   db: D1Database;
   fetcher: typeof fetch;
   adminKey: string;
@@ -105,8 +107,31 @@ async function handleProgress(request: Request, deps: UpstreamDeps): Promise<Res
   return Response.json({ ok: true, stage });
 }
 
+/**
+ * POST /api/upstream/bootstrap: a Kaggle run started by wake-on-demand trades its single-use token for
+ * the keys it needs (Kaggle secrets are unavailable to API-started runs). Unknown, used or expired
+ * tokens get a 401 and learn nothing.
+ */
+async function handleBootstrap(request: Request, deps: UpstreamDeps): Promise<Response> {
+  if (request.method !== "POST") throw new AtlasError("NOT_FOUND");
+  const body = (await request.json().catch(() => null)) as { token?: unknown } | null;
+  const redeemed = typeof body?.token === "string" ? await redeemBootstrap(deps.db, body.token) : null;
+  if (!redeemed || !deps.hfToken) throw new AtlasError("AUTH_REQUIRED", "Bootstrap token is invalid, used or expired.");
+  return Response.json(
+    { upstream_key: deps.upstreamKey, admin_key: deps.adminKey, hf_token: deps.hfToken },
+    { headers: { "cache-control": "no-store" } },
+  );
+}
+
 export async function handleUpstreamRegister(request: Request, deps: UpstreamDeps): Promise<Response | null> {
   const { pathname } = new URL(request.url);
+  if (pathname === "/api/upstream/bootstrap") {
+    try {
+      return await handleBootstrap(request, deps);
+    } catch (err) {
+      return toHttpResponse(err);
+    }
+  }
   if (pathname === "/api/upstream/progress") {
     try {
       return await handleProgress(request, deps);

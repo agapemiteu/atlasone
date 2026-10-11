@@ -7,7 +7,7 @@ import { homePage } from "../src/web/site.ts";
 import type { PublicStatus } from "../src/web/status.ts";
 
 function status(backend: PublicStatus["backend"]): PublicStatus {
-  return { gateway: "ok", backend, stage: null, stage_text: null, detail: null, wake_started_at: null, updated_at: null, stages: [] };
+  return { gateway: "ok", backend, stage: null, stage_text: null, detail: null, wake_started_at: null, updated_at: null, stages: [], last_failure: null };
 }
 import { fakeUpstream, type Scenario, UPSTREAM_URL } from "./fake-upstream.ts";
 

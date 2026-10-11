@@ -34,13 +34,36 @@ ATLAS_ONE_URL = "https://atlas-one.collins-coordinator-worker.workers.dev"
 SLOTS, SLOT_CTX = 4, 4096
 IDLE_SLEEP_MIN = 20  # stop after this long without any inference, to protect the free GPU quota
 
-secrets = UserSecretsClient()
-HF_TOKEN = secrets.get_secret("HF_TOKEN")
-UPSTREAM_KEY = secrets.get_secret("ATLAS_UPSTREAM_KEY")
-try:
-    ADMIN_KEY = secrets.get_secret("ATLAS_ADMIN_KEY")
-except Exception:
-    ADMIN_KEY = None  # server still runs; registration is skipped with a clear message
+# Set by Atlas One when it wakes this notebook through Kaggle's API: a single-use, 30-minute token that is
+# traded once for the keys below. Kaggle secrets are unavailable to API-started runs, and notebook versions
+# are kept forever, so no long-lived key is ever written into this file.
+BOOTSTRAP_TOKEN = None
+
+
+def load_keys():
+    """Kaggle secrets when run by hand; the bootstrap exchange when Atlas One started the run."""
+    try:
+        secrets = UserSecretsClient()
+        hf, up = secrets.get_secret("HF_TOKEN"), secrets.get_secret("ATLAS_UPSTREAM_KEY")
+        try:
+            admin = secrets.get_secret("ATLAS_ADMIN_KEY")
+        except Exception:
+            admin = None  # server still runs; registration is skipped with a clear message
+        return hf, up, admin
+    except Exception as e:
+        if not BOOTSTRAP_TOKEN:
+            raise SystemExit(f"Kaggle secrets unavailable ({e}) and no bootstrap token: add the secrets to this notebook.")
+        req = urllib.request.Request(
+            f"{ATLAS_ONE_URL}/api/upstream/bootstrap",
+            data=json.dumps({"token": BOOTSTRAP_TOKEN}).encode(),
+            headers={"content-type": "application/json", "user-agent": "atlas-one-kaggle/1.0"},
+        )
+        keys = json.loads(urllib.request.urlopen(req, timeout=30).read())
+        print("[atlas] keys received from Atlas One via single-use bootstrap token", flush=True)
+        return keys["hf_token"], keys["upstream_key"], keys["admin_key"]
+
+
+HF_TOKEN, UPSTREAM_KEY, ADMIN_KEY = load_keys()
 os.makedirs(WORK, exist_ok=True)
 
 

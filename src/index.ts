@@ -43,7 +43,7 @@ async function app(request: Request, env: Env, ctx: ExecutionContext): Promise<R
     return Response.json({ service: "atlas-one", gateway: "ok" });
   }
   if (request.method === "GET" && url.pathname === "/api/status") {
-    return Response.json(await publicStatus(env.DB, fetcher), { headers: { "cache-control": "no-store" } });
+    return Response.json(await publicStatus(env.DB, fetcher, kaggle), { headers: { "cache-control": "no-store" } });
   }
 
   const response =
@@ -54,6 +54,7 @@ async function app(request: Request, env: Env, ctx: ExecutionContext): Promise<R
       adminKey: env.ATLAS_ADMIN_KEY,
       upstreamKey: env.ATLAS_UPSTREAM_KEY,
       allowedHosts: env.UPSTREAM_HOSTS,
+      hfToken: env.HF_TOKEN,
     })) ??
     (await handleAuth(request, {
       oauth: env.OAUTH_PROVIDER,
@@ -76,7 +77,7 @@ async function app(request: Request, env: Env, ctx: ExecutionContext): Promise<R
   if (response) return response;
 
   if (request.method === "GET" && url.pathname === "/") {
-    return homePage(env.PUBLIC_ORIGIN, await publicStatus(env.DB, fetcher));
+    return homePage(env.PUBLIC_ORIGIN, await publicStatus(env.DB, fetcher, kaggle));
   }
   return toHttpResponse(new AtlasError("NOT_FOUND"));
 }

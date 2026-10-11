@@ -2,7 +2,15 @@
 // home page and the playground. While N-ATLaS wakes, pages poll it and render each observed stage.
 
 import { getBackend } from "../lib/backend.ts";
-import { latestWake, STAGE_TEXT, WAKE_STAGES, type WakeStage, wakeInFlight } from "../lib/wake.ts";
+import {
+  checkKaggleRun,
+  type KaggleConfig,
+  latestWake,
+  STAGE_TEXT,
+  WAKE_STAGES,
+  type WakeStage,
+  wakeInFlight,
+} from "../lib/wake.ts";
 import { esc } from "./html.ts";
 
 export interface PublicStatus {
@@ -14,9 +22,12 @@ export interface PublicStatus {
   wake_started_at: string | null;
   updated_at: string | null;
   stages: { id: string; text: string; done: boolean; current: boolean }[];
+  /** The most recent wake failed within the last 30 minutes, with its reason. */
+  last_failure: string | null;
 }
 
-export async function publicStatus(db: D1Database, fetcher: typeof fetch): Promise<PublicStatus> {
+export async function publicStatus(db: D1Database, fetcher: typeof fetch, kaggle: KaggleConfig | null = null): Promise<PublicStatus> {
+  await checkKaggleRun(db, fetcher, kaggle); // a dead Kaggle run shows as failed, not "waking" forever
   const [backend, wake] = await Promise.all([getBackend(db, fetcher), latestWake(db)]);
   const waking = backend.state !== "ready" && wakeInFlight(wake);
   const current = backend.state === "ready" ? WAKE_STAGES.length - 1 : waking ? WAKE_STAGES.indexOf(wake!.stage as never) : -1;
@@ -28,6 +39,8 @@ export async function publicStatus(db: D1Database, fetcher: typeof fetch): Promi
     detail: waking ? (wake!.detail ?? null) : null,
     wake_started_at: waking ? new Date(wake!.requested_at).toISOString() : null,
     updated_at: wake ? new Date(wake.updated_at).toISOString() : null,
+    last_failure:
+      backend.state !== "ready" && wake?.stage === "failed" && Date.now() - wake.updated_at < 30 * 60_000 ? (wake.detail ?? "unknown error") : null,
     stages: WAKE_STAGES.map((id, i) => ({ id, text: STAGE_TEXT[id], done: i < current || (i === current && id === "ready"), current: i === current && id !== "ready" })),
   };
 }
@@ -52,7 +65,7 @@ export function statusWidget(s: PublicStatus): string {
       var box=document.getElementById("wake"); var pill=document.getElementById("status-pill");
       if(s.backend==="waking"){box.hidden=false;started=s.wake_started_at;}
       s.stages.forEach(function(st){var li=document.querySelector('#wake-steps li[data-stage="'+st.id+'"]'); if(li) li.className=st.done?"done":st.current?"current":"";});
-      if(pill){pill.textContent="● "+(s.backend==="ready"?"N-ATLaS is online":s.backend==="waking"?"Waking N-ATLaS: "+s.stage_text:s.backend==="loading"?"N-ATLaS is starting":"N-ATLaS is asleep");
+      if(pill){pill.textContent="● "+(s.backend==="ready"?"N-ATLaS is online":s.backend==="waking"?"Waking N-ATLaS: "+s.stage_text:s.backend==="loading"?"N-ATLaS is starting":s.last_failure?"Last wake-up failed: "+s.last_failure:"N-ATLaS is asleep");
         pill.className="pill "+(s.backend==="ready"?"ok":s.backend==="offline"?"off":"warn");}
       if(s.backend!=="ready") setTimeout(tick,4000); else if(box) setTimeout(function(){box.hidden=true},4000);
     }).catch(function(){setTimeout(tick,8000)});

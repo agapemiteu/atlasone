@@ -13,7 +13,7 @@ import { sha256Hex } from "../lib/credentials.ts";
 import { AtlasError } from "../lib/errors.ts";
 import { newRequestId, runInference } from "../lib/inference.ts";
 import { resolveProject } from "../lib/projects.ts";
-import { latestWake, requestWake, retryAfterFor, STAGE_TEXT, wakeInFlight } from "../lib/wake.ts";
+import { checkKaggleRun, latestWake, requestWake, retryAfterFor, STAGE_TEXT, wakeInFlight } from "../lib/wake.ts";
 import type { ToolDeps } from "./context.ts";
 
 export type Language = "en" | "ha" | "ig" | "yo";
@@ -75,6 +75,7 @@ async function inference(deps: ToolDeps, projectId: string, args: TestArgs, prog
       if (wake.stage !== shown) await progress(2, `Waking N-ATLaS: ${STAGE_TEXT[wake.stage]}`);
       shown = wake.stage;
       await sleep(POLL_MS);
+      await checkKaggleRun(deps.db, deps.fetcher, deps.kaggle ?? null);
       wake = await latestWake(deps.db);
     }
     backend = await getBackend(deps.db, deps.fetcher, { fresh: true });
