@@ -19,10 +19,17 @@ const loginRedirect = (path: string) =>
 function errorPage(err: unknown): Response {
   if (err instanceof AtlasError) {
     const status = err.code === "FORBIDDEN" ? 403 : err.code === "CLAIM_EXPIRED" ? 410 : 404;
-    return messagePage("This link can't be used", err.message, status);
+    const hint =
+      err.code === "CLAIM_EXPIRED"
+        ? " Links work once. If you didn't copy the key, ask your coding agent to rotate it (atlas_bind_project with action 'rotate_key') and open the new link."
+        : "";
+    return messagePage("This link can't be used", err.message + hint, status);
   }
   throw err;
 }
+
+// Back/forward cache can show a confirm page whose link was already used; reload to show the real state.
+const NO_STALE_PAGE = `<script>addEventListener("pageshow",(e)=>{if(e.persisted)location.reload()})</script>`;
 
 async function claimPage(request: Request, deps: PageDeps, token: string, session: Session): Promise<Response> {
   const purpose = `claim:${token}`;
@@ -48,7 +55,7 @@ ${secretBlock("key", `ATLAS_ONE_BASE_URL=${deps.origin}/v1\nATLAS_ONE_API_KEY=${
 <p>Your coding agent asked Atlas One to: <strong>${esc(ACTION_TEXT[claim.action])}</strong>.</p>
 <p class="muted">Signed in as @${esc(session.login)}. This link works once and expires ${new Date(claim.expires_at).toUTCString()}.</p>
 <form method="post"><input type="hidden" name="csrf" value="${await csrfToken(deps.sessionSecret, session, purpose)}">
-<div class="row"><button class="${claim.action === "revoke_key" ? "danger" : "primary"}">Confirm</button></div></form></div>`);
+<div class="row"><button class="${claim.action === "revoke_key" ? "danger" : "primary"}">Confirm</button></div></form></div>${NO_STALE_PAGE}`);
   } catch (err) {
     return errorPage(err);
   }

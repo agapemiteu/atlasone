@@ -125,6 +125,11 @@ describe("claim and token pages", () => {
 
     const replay = (await as(`/claim/${token}`, { method: "POST", body: new URLSearchParams({ csrf }) }))!;
     expect(replay.status).toBe(410);
+    expect(await replay.text()).toContain("rotate_key");
+    // A revisit of a used link never shows a Confirm button again.
+    const revisit = await (await as(`/claim/${token}`))!.text();
+    expect(revisit).not.toContain(">Confirm</button>");
+    expect(html).toContain('addEventListener("pageshow"');
   });
 
   it("another GitHub account cannot open someone else's link", async () => {
