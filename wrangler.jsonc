@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "atlas-one",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "atlas-one",
+      "database_id": "130399d4-7b16-4f28-946f-e40f90e1f6e7",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

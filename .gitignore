@@ -1,4 +1,7 @@
 .env*
 !.env.example
 node_modules/
+.wrangler/
 __pycache__/
+worker-configuration.d.ts
+.dev.vars
