@@ -70,4 +70,37 @@ connected to Atlas One, followed the `nextjs` recipe: `lib/atlas.ts` (server-onl
 an ask-in-Hausa box with "Powered by Awarri", `.env.example`. `next build` passes; the key is absent from
 all browser bundles (`.next/static` scanned for the key value and variable name).
 
-Live verification with the backend online: pending, recorded below when run.
+Timeline (git, WAT): baseline committed 15:07:52; integration committed 15:09:38 (5 files, 166 lines added).
+
+### Live verification (2026-10-11, backend online, Kaggle session that auto-registered itself)
+
+| Step (from Claude Code over OAuth) | Result |
+|---|---|
+| `atlas_test` inference, Hausa | `req_91d6bec6fdbd44acaa01237a`, "Babban birnin Najeriya Abuja ne.", 1,110 ms (984 ms in model server), weights `NCAIR1/N-ATLaS@e294476…`; confirms the server accepts the model-card settings |
+| `atlas_test` issue_app_nonce | nonce issued (10 min, single use) |
+| App route `POST /api/support` with `x-atlas-verify` | 200, Hausa answer, `req_714d166c70154f5ba50b47d5`, 6.6 s |
+| `atlas_test` verify_app | **`verified: true`**, evidence request id `req_714d166c70154f5ba50b47d5` (same id the app returned), source `app` |
+
+App answer (verbatim): *"Eh, muna bayar da isarwa ga dukkan jihohi 36 cikin sa'o'i uku zuwa biyar na aiki. Don biyan kuɗi akan
+isarwa, don Allah a tabbata kun zaɓi "Biya Lokacin Karɓa" …"* Quality note, recorded as observed: the model
+said "3 to 5 working *hours*" (sa'o'i) where the shop facts say days. Atlas One reports output as-is.
+
+### Live automated suites (same session)
+
+- `scripts/e2e-gateway.mjs` (official OpenAI SDK): 5/5. Hausa `req_71705f76113d43d081f5566f` 1.39 s; Yoruba stream 1.48 s.
+- `scripts/e2e-mcp.mjs` (official MCP client): all passed in both protocol eras (2025-11-25 and 2026-07-28),
+  including progress notifications, inference (`req_ab9880512b434181b0ce23e7`, `req_90e6889acab44eaa8e79a50d`)
+  and the nonce flow (false before the app call, true after: `req_366ee4b79c5a46fe902a9325`, `req_7e3da5f9ab874b649317e12b`).
+- Codex: `atlas_test` was first **blocked by Codex itself** ("MCP tool call requires approval") because Atlas One
+  marks it as not read-only; with approval review enabled it ran Igbo: `req_3db406b183a0405a868238e0`,
+  "Isi obodo Naịjirịa bụ Abuja.", 1,364 ms.
+
+Quality notes (observed, not hidden): one Yoruba answer was garbled ("Abẹ́òbìnrin àgbà ti orílẹ̀-èdè Nàìjíríà
+ló jẹ́ Abuja."), consistent with N-ATLaS's own evaluation rating Yoruba lowest.
+
+### PRD Test 6 (comparative advantage)
+
+Agent route measured above: about 2 minutes of agent work from a baseline app to an integrated,
+building route, plus one browser confirmation for the key, then automated verification. The conventional
+route (reading docs and SDKs and wiring keys by hand) is being measured by external beta testers; their
+numbers go in `docs/BETA-TESTING.md` results, not estimates here.
