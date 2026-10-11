@@ -127,7 +127,12 @@ function requireReady(backend: Backend): Upstream {
 }
 
 async function callUpstream(ctx: InferenceContext, upstream: Upstream, req: ChatRequest): Promise<Response> {
-  const payload = req.stream ? { ...req, model: MODEL_ID, stream_options: { include_usage: true } } : { ...req, model: MODEL_ID };
+  const payload = {
+    ...modelDefaults(ctx.now?.() ?? Date.now()),
+    ...req,
+    model: MODEL_ID,
+    ...(req.stream && { stream_options: { include_usage: true } }),
+  };
   let res: Response;
   try {
     const { fetcher } = ctx; // never call as ctx.fetcher(): workerd fetch rejects a foreign `this`
@@ -159,6 +164,19 @@ async function callUpstream(ctx: InferenceContext, upstream: Upstream, req: Chat
   if (res.status === 400) throw new AtlasError("VALIDATION_FAILED", `Rejected by the model server: ${upstreamMessage(text)}`);
   console.error("inference: upstream error", ctx.requestId, res.status, text.slice(0, 300));
   throw new AtlasError("UPSTREAM_ERROR");
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * N-ATLaS model-card settings, applied server-side so any OpenAI client gets them for free:
+ * repetition penalty 1.12 (prevents loops, notably in Yoruba), low default temperature, and the
+ * current date passed to the chat template (strftime "%d %b %Y"). A caller's temperature wins.
+ */
+export function modelDefaults(now: number) {
+  const d = new Date(now);
+  const date = `${String(d.getUTCDate()).padStart(2, "0")} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  return { temperature: 0.1, repeat_penalty: 1.12, chat_template_kwargs: { date_string: date } };
 }
 
 function upstreamMessage(text: string): string {

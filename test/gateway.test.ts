@@ -78,6 +78,17 @@ describe("POST /v1/chat/completions: success", () => {
     expect(JSON.stringify(log)).not.toContain("Najeriya");
   });
 
+  it("applies N-ATLaS model-card defaults server-side; caller temperature wins", async () => {
+    const t = await setup("ok");
+    await t.call(HAUSA);
+    const sent = t.up.calls.find((c) => c.path === "/v1/chat/completions")!.body!;
+    expect(sent).toMatchObject({ temperature: 0.1, repeat_penalty: 1.12 });
+    expect((sent.chat_template_kwargs as { date_string: string }).date_string).toMatch(/^\d{2} [A-Z][a-z]{2} \d{4}$/);
+    await t.call({ ...HAUSA, temperature: 0.7 });
+    const second = t.up.calls.filter((c) => c.path === "/v1/chat/completions")[1]!.body!;
+    expect(second.temperature).toBe(0.7);
+  });
+
   it("forwards only allowlisted fields", async () => {
     const t = await setup("ok");
     await t.call({ ...HAUSA, temperature: 0.2, grammar: "root ::= x", n_probs: 5 });

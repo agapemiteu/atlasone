@@ -8,7 +8,12 @@ HTTP library can call genuine N-ATLaS. For Next.js, use the `nextjs` recipe inst
 - Call from server-side code only; keep the key in server environment variables, never in a browser
   bundle or a committed file.
 - Never invent or simulate N-ATLaS output. On failure, surface the error code and request id.
-- Show "Powered by Awarri" wherever N-ATLaS output appears.
+- Show "Powered by Awarri" wherever N-ATLaS output appears, and in public apps the credit line
+  "N-ATLaS is an initiative of the Federal Ministry of Communications, Innovation and Digital Economy,
+  and powered by Awarri Technologies." N-ATLaS terms: at most 1,000 active end users per 30 days;
+  commercial or large-scale use needs a licence from Awarri.
+- Atlas One already applies the model-card settings (repetition penalty, low default temperature,
+  current date); you only choose the language in the system message.
 - Always set a system message naming the reply language (English, Hausa, Igbo or Yoruba).
 
 Environment:

@@ -8,7 +8,12 @@ Follow the steps in order. Ask the developer before editing env files or install
 - Server-side only. The key must never reach the browser: no `NEXT_PUBLIC_` prefix, no client
   components importing the client, no key in committed files.
 - Never invent or simulate N-ATLaS output. If a call fails, report the error code and request id.
-- Show the attribution "Powered by Awarri" wherever N-ATLaS output appears in the UI.
+- Show "Powered by Awarri" wherever N-ATLaS output appears, and in public apps the credit line
+  "N-ATLaS is an initiative of the Federal Ministry of Communications, Innovation and Digital Economy,
+  and powered by Awarri Technologies." N-ATLaS terms: at most 1,000 active end users per 30 days;
+  commercial or large-scale use needs a licence from Awarri.
+- Atlas One already applies the model-card settings (repetition penalty, low default temperature,
+  current date); you only choose the language in the system message.
 - Always set a system message naming the reply language. N-ATLaS answers in the language you ask
   for; without it, it may reply in English or misjudge the language.
 

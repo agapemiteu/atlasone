@@ -58,8 +58,6 @@ if not os.path.isdir(BIN):
     for name in (f"llama-{LLAMA_TAG}-bin-ubuntu-cuda-12.8-x64.tar.gz",
                  f"cudart-llama-{LLAMA_TAG}-bin-ubuntu-cuda-12.8-x64.tar.gz"):
         run(f"wget -q {RELEASE}/{name} -O - | tar -xz -C {BIN}")
-    run(f"rm -rf {LLAMA}")  # clear any earlier partial checkout
-    run(f"git clone -q --depth 1 --branch {LLAMA_TAG} https://github.com/ggml-org/llama.cpp {LLAMA}")
 
 SERVER_BIN = next(os.path.join(d, "llama-server") for d, _, files in os.walk(BIN) if "llama-server" in files)
 lib_dirs = sorted({d for d, _, files in os.walk(BIN) if any(".so" in f for f in files)})
@@ -72,15 +70,47 @@ if "CUDA" not in devices.stdout + devices.stderr:
     raise SystemExit("No CUDA devices visible to llama.cpp. Is Accelerator set to 'GPU T4 x2'?")
 
 # 2. Pinned N-ATLaS weights -> one F16 GGUF file.
-if not os.path.exists(GGUF):
-    from huggingface_hub import snapshot_download
+#    Fast path: a ready GGUF cached in YOUR private Hugging Face repo (skips the source checkout and the
+#    ~2.5 min conversion). Slow path (first run): convert from NCAIR1/N-ATLaS, then upload the GGUF to
+#    that private repo in the background so every later session takes the fast path. The cache is
+#    private and only for running your own server; the N-ATLaS terms still apply to it.
+from huggingface_hub import HfApi, hf_hub_download
 
-    step(f"Downloading {MODEL_ID}@{MODEL_REVISION[:8]} (~16 GB)")
-    src = snapshot_download(MODEL_ID, revision=MODEL_REVISION, token=HF_TOKEN, local_dir=f"{WORK}/hf")
-    step("Converting to GGUF F16 (full precision)")
-    run([sys.executable, f"{LLAMA}/convert_hf_to_gguf.py", src, "--outtype", "f16", "--outfile", GGUF],
-        env={**os.environ, "PYTHONPATH": f"{LLAMA}/gguf-py"})
-    run(f"rm -rf {WORK}/hf")  # free disk; the GGUF is all we serve
+hf = HfApi(token=HF_TOKEN)
+CACHE_REPO = f"{hf.whoami()['name']}/n-atlas-gguf-cache"
+GGUF_NAME = os.path.basename(GGUF)
+cache_upload = None
+
+if not os.path.exists(GGUF):
+    try:
+        step(f"Fetching cached GGUF {CACHE_REPO}/{GGUF_NAME} (~16 GB, no conversion needed)")
+        hf_hub_download(CACHE_REPO, GGUF_NAME, token=HF_TOKEN, local_dir=WORK)
+    except Exception as e:
+        print(f"  no usable cache yet ({type(e).__name__}); converting from {MODEL_ID}")
+        from huggingface_hub import snapshot_download
+
+        run(f"rm -rf {LLAMA}")
+        run(f"git clone -q --depth 1 --branch {LLAMA_TAG} https://github.com/ggml-org/llama.cpp {LLAMA}")
+        step(f"Downloading {MODEL_ID}@{MODEL_REVISION[:8]} (~16 GB)")
+        src = snapshot_download(MODEL_ID, revision=MODEL_REVISION, token=HF_TOKEN, local_dir=f"{WORK}/hf")
+        step("Converting to GGUF F16 (full precision)")
+        run([sys.executable, f"{LLAMA}/convert_hf_to_gguf.py", src, "--outtype", "f16", "--outfile", GGUF],
+            env={**os.environ, "PYTHONPATH": f"{LLAMA}/gguf-py"})
+        run(f"rm -rf {WORK}/hf")  # free disk; the GGUF is all we serve
+
+        def upload_cache():
+            try:
+                hf.create_repo(CACHE_REPO, private=True, exist_ok=True)
+                hf.upload_file(path_or_fileobj=GGUF, path_in_repo=GGUF_NAME, repo_id=CACHE_REPO,
+                               commit_message=f"F16 GGUF of {MODEL_ID}@{MODEL_REVISION} (llama.cpp {LLAMA_TAG})")
+                print(f"\n[atlas] cache saved to private repo {CACHE_REPO}: next restarts skip conversion", flush=True)
+            except Exception as err:  # never take the server down for a cache problem
+                print(f"\n[atlas] cache upload skipped: {err}", flush=True)
+
+        import threading
+
+        cache_upload = threading.Thread(target=upload_cache, daemon=True)
+        cache_upload.start()
 
 # 3. OpenAI-compatible server. 4 slots x 4k context, all layers on GPU, model's own chat template.
 step("Starting N-ATLaS server")

@@ -10,7 +10,13 @@ export const MODEL_CARD = {
   languages: ["en", "ha", "ig", "yo"],
   context_window_per_request: 4096,
   attribution: "Powered by Awarri",
-  licence: "N-ATLaS licence: separate agreement with Awarri required above 1,000 active end users per 30 days.",
+  credit_line:
+    "N-ATLaS is an initiative of the Federal Ministry of Communications, Innovation and Digital Economy, and powered by Awarri Technologies.",
+  licence:
+    "N-ATLaS Terms of Use: limited to projects with at most 1,000 active end users per rolling 30 days; commercial or " +
+    "large-scale use requires a separate licence from Awarri Technologies. Prohibited: surveillance, discriminatory " +
+    "profiling, disinformation or impersonation, military use, and unauthorised personal-data scraping. " +
+    "https://huggingface.co/NCAIR1/N-ATLaS",
 } as const;
 
 export const MAX_BODY_BYTES = 64 * 1024;
