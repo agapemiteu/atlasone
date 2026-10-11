@@ -141,7 +141,9 @@ def register():
         f"{ATLAS_ONE_URL}/api/upstream/register",
         data=json.dumps({"url": url, "model_id": MODEL_ID, "model_revision": MODEL_REVISION,
                          "runtime": f"llama.cpp@{LLAMA_TAG} f16"}).encode(),
-        headers={"authorization": f"Bearer {ADMIN_KEY}", "content-type": "application/json"},
+        # Cloudflare rejects Python-urllib's default User-Agent with error 1010; identify ourselves.
+        headers={"authorization": f"Bearer {ADMIN_KEY}", "content-type": "application/json",
+                 "user-agent": "atlas-one-kaggle/1.0"},
     )
     # The tunnel's public DNS can take a few seconds to resolve for the gateway; retry briefly.
     for attempt in range(6):
