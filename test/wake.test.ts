@@ -14,7 +14,7 @@ import { publicStatus } from "../src/web/status.ts";
 import { strictFetch, UPSTREAM_URL } from "./fake-upstream.ts";
 import { makeProject } from "./helpers.ts";
 
-const KAGGLE = { username: "agapemiteu", key: "kaggle-key-123", kernelSlug: "notebookf585471141" };
+const KAGGLE = { username: "agapemiteu", key: "kaggle-key-123", kernelSlug: "notebookf585471141", atlasOrigin: "https://atlas.example" };
 const ADMIN = "admin-secret-for-tests";
 
 /** Fake world: Kaggle API + a backend that is down (tunnel gone). */
@@ -71,6 +71,8 @@ describe("requestWake", () => {
     expect(source).toContain('report("notebook_started"');
     // Only a single-use bootstrap token goes into the notebook (versions are kept forever), never a key.
     expect(source).toMatch(/^BOOTSTRAP_TOKEN = "bt_[A-Za-z0-9_-]{43}"$/m);
+    // The server reports to this deployment's origin, whatever URL Atlas One is moved to.
+    expect(source).toMatch(/^ATLAS_ONE_URL = "https:\/\/atlas\.example"$/m);
     expect(source).not.toMatch(/atl_admin_|atl_up_|hf_[A-Za-z0-9]{10,}/);
   });
 

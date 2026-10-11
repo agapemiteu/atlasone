@@ -31,7 +31,7 @@ const fetcher: typeof fetch = (input, init) => fetch(input, init);
 
 /** Wake-on-demand is on only when the Kaggle key secret is set. */
 function kaggleConfig(env: Env): KaggleConfig | null {
-  return env.KAGGLE_KEY ? { username: env.KAGGLE_USERNAME, key: env.KAGGLE_KEY, kernelSlug: env.KAGGLE_KERNEL } : null;
+  return env.KAGGLE_KEY ? { username: env.KAGGLE_USERNAME, key: env.KAGGLE_KEY, kernelSlug: env.KAGGLE_KERNEL, atlasOrigin: env.PUBLIC_ORIGIN } : null;
 }
 
 async function app(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

@@ -142,3 +142,8 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
     remaining server pages. Phone check at 390px via CDP device emulation: no horizontal page scroll.
   - Tests: 118 Worker + 5 web (render home/docs, verbatim output only, honest outage, Hausa, 5-item docs nav).
   - shadcn CLI audit findings (fast-glob/braces) are dev-only tooling; 0 in shipped dependencies.
+
+[2026-10-11 20:25 WAT] Short URL decision (owner): rename the Cloudflare workers.dev account subdomain (free) instead of
+  a domain, shortener (breaks MCP POST + OAuth resource matching) or Vercel proxy (risk before deadline).
+  Prep fix: inference/kaggle_serve.py had the Worker URL hard-coded; serverNotebook() now injects PUBLIC_ORIGIN
+  into ATLAS_ONE_URL when pushing to Kaggle, so a URL move cannot strand wake-up. Test added; deployed.

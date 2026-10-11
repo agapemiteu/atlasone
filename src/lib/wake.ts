@@ -49,6 +49,8 @@ export interface KaggleConfig {
   username: string;
   key: string;
   kernelSlug: string;
+  /** Where the model server reports progress and registers: this Worker's public origin. */
+  atlasOrigin: string;
 }
 
 export interface Wake {
@@ -71,15 +73,19 @@ export async function latestWake(db: D1Database): Promise<Wake | null> {
 
 export const BOOTSTRAP_TTL_MS = 30 * 60_000;
 const BOOTSTRAP_LINE = "BOOTSTRAP_TOKEN = None";
+const ORIGIN_LINE = /^ATLAS_ONE_URL = ".*"$/m;
 
 /**
  * The Kaggle notebook that runs the model server: one code cell holding inference/kaggle_serve.py with a
  * single-use bootstrap token. Kaggle secrets are unavailable to API-started runs, and notebook versions
  * are kept forever, so the notebook never contains long-lived keys: it trades this token once for them.
  */
-export function serverNotebook(bootstrapToken: string): string {
-  if (!serverScript.includes(BOOTSTRAP_LINE)) throw new Error("server script is missing the bootstrap placeholder");
-  const source = serverScript.replace(BOOTSTRAP_LINE, `BOOTSTRAP_TOKEN = ${JSON.stringify(bootstrapToken)}`);
+export function serverNotebook(bootstrapToken: string, atlasOrigin: string): string {
+  if (!serverScript.includes(BOOTSTRAP_LINE) || !ORIGIN_LINE.test(serverScript)) throw new Error("server script is missing a placeholder");
+  // The origin comes from this Worker's config, so moving Atlas One to a new URL cannot strand the server.
+  const source = serverScript
+    .replace(BOOTSTRAP_LINE, `BOOTSTRAP_TOKEN = ${JSON.stringify(bootstrapToken)}`)
+    .replace(ORIGIN_LINE, `ATLAS_ONE_URL = ${JSON.stringify(atlasOrigin)}`);
   return JSON.stringify({
     cells: [{ cell_type: "code", execution_count: null, metadata: {}, outputs: [], source }],
     metadata: {
@@ -135,7 +141,7 @@ export async function requestWake(
       body: JSON.stringify({
         slug: `${kaggle.username}/${kaggle.kernelSlug}`,
         newTitle: kaggle.kernelSlug,
-        text: serverNotebook(bootstrap),
+        text: serverNotebook(bootstrap, kaggle.atlasOrigin),
         language: "python",
         kernelType: "notebook",
         isPrivate: true,
