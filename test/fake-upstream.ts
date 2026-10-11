@@ -20,6 +20,19 @@ export interface Call {
 
 export const UPSTREAM_URL = "https://fake-upstream.trycloudflare.com";
 
+/**
+ * Wraps a fake fetch so it fails like workerd's real fetch when invoked as a method of another
+ * object (deps.fetcher(...) => "Illegal invocation"). Caught a production-only bug once.
+ */
+export function strictFetch(impl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>): typeof fetch {
+  return function (this: unknown, input: RequestInfo | URL, init?: RequestInit) {
+    if (this !== undefined && this !== globalThis) {
+      return Promise.reject(new TypeError("Illegal invocation: function called with incorrect `this` reference."));
+    }
+    return impl(input, init);
+  } as typeof fetch;
+}
+
 const COMPLETION = {
   id: "chatcmpl-test",
   object: "chat.completion",
@@ -35,7 +48,7 @@ const SSE =
 
 export function fakeUpstream(scenario: Scenario) {
   const calls: Call[] = [];
-  const fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => {
+  const fetcher = strictFetch(async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : input.toString());
     const headers = new Headers(init?.headers);
     const body = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : null;
@@ -67,6 +80,6 @@ export function fakeUpstream(scenario: Scenario) {
           ? new Response(SSE, { headers: { "content-type": "text/event-stream" } })
           : Response.json(COMPLETION);
     }
-  }) as typeof fetch;
+  });
   return { fetcher, calls };
 }

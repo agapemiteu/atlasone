@@ -130,7 +130,8 @@ async function callUpstream(ctx: InferenceContext, upstream: Upstream, req: Chat
   const payload = req.stream ? { ...req, model: MODEL_ID, stream_options: { include_usage: true } } : { ...req, model: MODEL_ID };
   let res: Response;
   try {
-    res = await ctx.fetcher(new URL("/v1/chat/completions", upstream.url), {
+    const { fetcher } = ctx; // never call as ctx.fetcher(): workerd fetch rejects a foreign `this`
+    res = await fetcher(new URL("/v1/chat/completions", upstream.url), {
       method: "POST",
       headers: { authorization: `Bearer ${ctx.upstreamKey}`, "content-type": "application/json" },
       body: JSON.stringify(payload),

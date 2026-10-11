@@ -5,6 +5,10 @@ import { AtlasError, toHttpResponse } from "./lib/errors.ts";
 import { handleUpstreamRegister } from "./routes/upstream.ts";
 import { handleV1 } from "./routes/v1.ts";
 
+// workerd's fetch throws "Illegal invocation" when called as a method of another object
+// (e.g. deps.fetcher(...)). Wrap it once so every injected fetcher is safe to call either way.
+const fetcher: typeof fetch = (input, init) => fetch(input, init);
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -14,7 +18,7 @@ export default {
 
     const v1 = await handleV1(request, {
       db: env.DB,
-      fetcher: fetch,
+      fetcher,
       upstreamKey: env.ATLAS_UPSTREAM_KEY,
       waitUntil: (p) => ctx.waitUntil(p),
     });
@@ -22,7 +26,7 @@ export default {
 
     const registered = await handleUpstreamRegister(request, {
       db: env.DB,
-      fetcher: fetch,
+      fetcher,
       adminKey: env.ATLAS_ADMIN_KEY,
       upstreamKey: env.ATLAS_UPSTREAM_KEY,
       allowedHosts: env.UPSTREAM_HOSTS,

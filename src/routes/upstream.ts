@@ -56,14 +56,19 @@ function parseUpstreamUrl(raw: unknown, allowedHosts: string): string {
 
 async function servesOurModel(origin: string, deps: UpstreamDeps): Promise<boolean> {
   try {
-    const res = await deps.fetcher(new URL("/v1/models", origin), {
+    const { fetcher } = deps; // never call as deps.fetcher(): workerd fetch rejects a foreign `this`
+    const res = await fetcher(new URL("/v1/models", origin), {
       headers: { authorization: `Bearer ${deps.upstreamKey}` },
       signal: AbortSignal.timeout(5_000),
     });
-    if (!res.ok) return false;
+    if (!res.ok) {
+      console.warn("upstream register: /v1/models returned", res.status, (await res.text()).slice(0, 200));
+      return false;
+    }
     const body = (await res.json()) as { data?: { id?: string }[] };
     return body.data?.some((m) => m.id === MODEL_ID) ?? false;
-  } catch {
+  } catch (err) {
+    console.warn("upstream register: /v1/models failed", String(err));
     return false;
   }
 }

@@ -2,6 +2,7 @@ import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getBackend, resetBackendCache } from "../src/lib/backend.ts";
 import { handleUpstreamRegister, hostAllowed } from "../src/routes/upstream.ts";
+import { strictFetch } from "./fake-upstream.ts";
 
 const ADMIN = "admin-secret-for-tests";
 const UP_KEY = "upstream-key-for-tests";
@@ -12,7 +13,7 @@ type Mode = "ok" | "loading" | "wrong-key" | "other-model" | "down";
 
 function server(mode: Mode) {
   const hits: string[] = [];
-  const fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => {
+  const fetcher = strictFetch(async (input, init) => {
     const url = new URL(input.toString());
     hits.push(url.host + url.pathname);
     if (mode === "down") throw new TypeError("fetch failed");
@@ -22,7 +23,7 @@ function server(mode: Mode) {
     const auth = new Headers(init?.headers).get("authorization");
     if (mode === "wrong-key" || auth !== `Bearer ${UP_KEY}`) return new Response("unauthorized", { status: 401 });
     return Response.json({ data: [{ id: mode === "other-model" ? "llama-3-8b" : "n-atlas-8b" }] });
-  }) as typeof fetch;
+  });
   return { fetcher, hits };
 }
 
