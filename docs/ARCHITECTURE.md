@@ -74,6 +74,7 @@ APIs; nothing in this plan blocks it.
 | D18 | All on Cloudflare: Worker + D1 + KV + Durable Objects; how-to page served as static assets from the same Worker (replaces Vercel + Supabase). A Vercel front end can be added later as a client of the Worker APIs |
 | D19 | Beta evidence for PRD Test 3/6: an `activity` table records sign-ins (with the MCP client name) and every tool call's outcome (metadata only); a signed-in `/feedback` questionnaire; a public `/evidence` page and `/evidence.json` computed live (time from connect to first real inference and to verified app, per tester; team excluded via `TEAM_GITHUB_LOGINS`). Disclosed on the consent page; testers can be anonymous |
 | D20 | Verifiable evidence with standards only: session ids per connection; event log exported as JSON Lines (`atlas-one.evidence/v1`); EdDSA/Ed25519-signed JWTs (RFC 7519/8037) for verification receipts (saved in testers' own repos) and for the evidence snapshot committed in `evidence/`; public key as JWKS (RFC 7517) at `/.well-known/jwks.json`; `scripts/verify-evidence.mjs` checks signatures, the SHA-256 digest and that the live log is append-only. The private key exists only as the `RECEIPT_SIGNING_KEY` Worker secret |
+| D21 | Public beta: `ACCESS=open` lets any GitHub account sign in so testers start without an invite; abuse is bounded by per-project quotas and the per-account project cap, and every use is logged as evidence. `ACCESS=invite` (or any other value, failing closed) restores the invite list |
 
 ## 3a. Implementation notes (2026-10-11, after T4/T6)
 

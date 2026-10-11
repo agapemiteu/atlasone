@@ -186,6 +186,9 @@ describe("GitHub identity and invite list", () => {
     expect(await isAllowed(env.DB, "agapemiteu", "stranger")).toBe(false);
     await env.DB.prepare("INSERT INTO allowlist (github_login, added_at) VALUES ('beta-tester', 0)").run();
     expect(await isAllowed(env.DB, "", "Beta-Tester")).toBe(true);
+    // Public beta: any GitHub account; unknown access values fail closed to the invite list.
+    expect(await isAllowed(env.DB, "", "anyone-at-all", "open")).toBe(true);
+    expect(await isAllowed(env.DB, "", "anyone-at-all", "opn")).toBe(false);
   });
 });
 

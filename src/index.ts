@@ -78,6 +78,7 @@ async function app(request: Request, env: Env, ctx: ExecutionContext): Promise<R
       github: { clientId: env.GITHUB_CLIENT_ID, clientSecret: env.GITHUB_CLIENT_SECRET },
       sessionSecret: env.SESSION_SECRET,
       allowedLogins: env.ALLOWED_GITHUB_LOGINS,
+      access: env.ACCESS,
       origin: env.PUBLIC_ORIGIN,
     })) ??
     (await handlePages(request, {

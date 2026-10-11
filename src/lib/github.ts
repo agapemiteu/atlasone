@@ -70,7 +70,12 @@ export async function githubUser(
 }
 
 /** Invite-only access during NAIC (D15): env list (bootstrap) or the allowlist table. */
-export async function isAllowed(db: D1Database, envList: string | undefined, login: string): Promise<boolean> {
+/**
+ * Who may sign in. access "open": any GitHub account (public beta; usage is quota-limited and logged as evidence).
+ * Anything else, including unset, fails closed to the invite list: env-listed logins plus the allowlist table.
+ */
+export async function isAllowed(db: D1Database, envList: string | undefined, login: string, access?: string): Promise<boolean> {
+  if (access === "open") return true;
   const listed = (envList ?? "")
     .split(",")
     .map((s) => s.trim().toLowerCase())

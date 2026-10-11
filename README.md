@@ -18,7 +18,7 @@ discover, connect, integrate and verify, in any app, without an SDK.
 
 ## Use it in 60 seconds
 
-1. **Connect your agent** (works with any MCP client; Atlas One is invite-only during the beta):
+1. **Connect your agent** (works with any MCP client; sign in with any GitHub account):
 
    | Client | Setup |
    |---|---|
@@ -61,7 +61,7 @@ template) are applied server-side, so every client gets them.
 ## Security and licence
 
 - OAuth 2.1 + PKCE per the MCP authorization spec (Client ID Metadata Documents and Dynamic Client
-  Registration), scoped consent, invite-only allowlist, per-project quotas (30/min, 500/day, atomic).
+  Registration), scoped consent, open or invite-only access (one switch), per-project quotas (30/min, 500/day, atomic).
 - Keys and tokens stored only as SHA-256 digests; prompts and completions are never stored.
 - Sensitive actions need the developer's confirmation in the browser (owner-bound, single-use links).
 - N-ATLaS terms: at most 1,000 active end users per 30 days; commercial or large-scale use needs a licence

@@ -2,7 +2,7 @@
 //
 //   MCP client ─► GET /authorize ─► consent page: which app, where tokens go, scopes (ticked)
 //              ─► POST /authorize (Allow) ─► GitHub sign-in (PKCE)
-//              ─► GET /auth/github/mcp ─► invite-only check ─► completeAuthorization ─► back to the client
+//              ─► GET /auth/github/mcp ─► access check ─► completeAuthorization ─► back to the client
 //
 //   Atlas pages (claim links, tokens) ─► GET /login?next= ─► GitHub ─► GET /auth/github/web ─► session
 //
@@ -38,6 +38,8 @@ export interface AuthDeps {
   github: GithubConfig;
   sessionSecret: string;
   allowedLogins: string | undefined;
+  /** "open" lets any GitHub account sign in; anything else enforces the invite list. */
+  access?: string;
   origin: string;
 }
 
@@ -132,7 +134,7 @@ export async function handleAuth(request: Request, deps: AuthDeps): Promise<Resp
         return new Response(null, { status: 302, headers: resumed.headers });
       }
       const user = await githubUser(deps.github, code, resumed.data.verifier, `${deps.origin}${MCP_CALLBACK}`, deps.fetcher);
-      if (!(await isAllowed(deps.db, deps.allowedLogins, user.login))) return notInvited(user.login);
+      if (!(await isAllowed(deps.db, deps.allowedLogins, user.login, deps.access))) return notInvited(user.login);
       const scopes = resumed.request.scope;
       const session = `conn_${crypto.randomUUID().replace(/-/g, "")}`;
       const client = await deps.oauth
@@ -175,7 +177,7 @@ export async function handleAuth(request: Request, deps: AuthDeps): Promise<Resp
         return messagePage("Sign-in expired", "Please start again.", 400);
       }
       const user = await githubUser(deps.github, code, pending.verifier, `${deps.origin}${WEB_CALLBACK}`, deps.fetcher);
-      if (!(await isAllowed(deps.db, deps.allowedLogins, user.login))) return notInvited(user.login);
+      if (!(await isAllowed(deps.db, deps.allowedLogins, user.login, deps.access))) return notInvited(user.login);
       const headers = new Headers({ location: pending.next, "cache-control": "no-store" });
       headers.append("set-cookie", await sessionCookie(deps.sessionSecret, { githubId: user.id, login: user.login }));
       headers.append("set-cookie", clearCookie(LOGIN_COOKIE));

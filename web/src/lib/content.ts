@@ -12,9 +12,12 @@ export const COPY = {
     sub: "Atlas One is the MCP server that lets every agent build with N-ATLaS: one URL, real model, verified results.",
     connect: "Start building",
     docs: "Read the docs",
-    setup: "One URL. Every agent.",
-    setupNote: "Your client opens a sign-in: approve the permissions, sign in with GitHub. Invite-only during the NAIC 2026 beta.",
-    perClient: "Command for your client",
+    setup: "Start in 60 seconds.",
+    steps: [
+      ["Add Atlas One to your agent", "Run the command for your agent, or paste the URL into any MCP client."],
+      ["Sign in with GitHub", "Your agent opens the browser. Approve, sign in, done. Free during the beta."],
+      ["Ask for a feature", "Paste this into your agent, inside your app's folder."],
+    ],
     cases: "What will you ship?",
     live: "Real model. Real numbers.",
   },
@@ -24,13 +27,20 @@ export const COPY = {
     sub: "Atlas One sabar MCP ce da ke bai wa kowane wakili damar gina da N-ATLaS: adireshi ɗaya, ainihin samfuri, sakamakon da aka tabbatar.",
     connect: "Fara ginawa",
     docs: "Karanta bayani",
-    setup: "Adireshi ɗaya. Kowane wakili.",
-    setupNote: "Manhajarka za ta buɗe shiga: amince da izini, shiga da GitHub. Gayyata kawai a lokacin gwajin NAIC 2026.",
-    perClient: "Umarni don manhajarka",
+    setup: "Fara cikin daƙiƙa 60.",
+    steps: [
+      ["Ƙara Atlas One ga wakilinka", "Gudanar da umarnin wakilinka, ko liƙa adireshin a kowane MCP client."],
+      ["Shiga da GitHub", "Wakilinka zai buɗe burauza. Amince, shiga, shi ke nan. Kyauta a lokacin gwaji."],
+      ["Nemi fasali", "Liƙa wannan a wakilinka, a cikin fayil ɗin manhajarka."],
+    ],
     cases: "Me za ka gina?",
     live: "Ainihin samfuri. Ainihin lambobi.",
   },
 } as const;
+
+/** First prompt for a new developer: works in any app, any stack, and ends with verification. */
+export const STARTER_PROMPT =
+  "Use Atlas One to add an N-ATLaS feature to this app: an endpoint that answers customer questions in Hausa. Keep the key server-side, then test and verify it.";
 
 export const DEMO = {
   instruction: "Add a Hausa customer-support route powered by N-ATLaS, and test it.",

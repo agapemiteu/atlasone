@@ -188,3 +188,10 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   Tests: 124 Worker + 5 web. LIVE: woke N-ATLaS (online in 180 s); nonce -> app call req_c50b86bc65444d9d8ce4b979
   "Isi obodo Naijiria bu Abuja." -> verify_app true with a signed receipt; verify-evidence: snapshot 6/6 PASS,
   receipt 5/5 PASS, tampered receipt FAIL (signature does not verify).
+
+[2026-10-11 22:40 WAT] Public beta (D21), owner: "no need to make the invite complex ... start immediately".
+  ACCESS=open: any GitHub account can sign in (unknown values fail closed to the invite list; npm run invite kept for
+  ACCESS=invite). Abuse bounded by per-project quotas + per-account project cap; every use is logged (D19/D20).
+  Home: "Start in 60 seconds" stepper: 1 command per agent (tabs) + URL copy, 2 GitHub sign-in, 3 copyable starter
+  prompt. Invite wording removed from site, README, BETA-TESTING. Tests 124 + 5; deployed; phone + desktop checked.
+  Evidence snapshot refreshed and verified (npm run evidence:snapshot).

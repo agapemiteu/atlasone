@@ -8,7 +8,7 @@ import { SiteHeader, StatusDot } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStatus } from "@/hooks/use-status";
-import { CLIENTS, clientSnippets, COPY, type Lang, USE_CASES } from "@/lib/content";
+import { CLIENTS, clientSnippets, COPY, type Lang, STARTER_PROMPT, USE_CASES } from "@/lib/content";
 
 export function Home({ origin, lang, autoplay = true, initialStatus }: { origin: string; lang: Lang; autoplay?: boolean; initialStatus?: PublicStatus | null }) {
   const live = useStatus();
@@ -52,15 +52,32 @@ export function Home({ origin, lang, autoplay = true, initialStatus }: { origin:
 
         <section id="connect" className="pt-24 sm:pt-32">
           <h2 className="text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">{t.setup}</h2>
-          <div className="mt-6 flex max-w-2xl items-center gap-2 rounded-xl border bg-muted/50 p-1.5 pl-4">
-            <code className="min-w-0 flex-1 overflow-x-auto font-mono text-[13px] whitespace-nowrap sm:text-[15px] [scrollbar-width:none]">{mcp}</code>
-            <CopyButton text={mcp} label="Copy" variant="default" />
-          </div>
-          <p className="mt-3 max-w-2xl text-sm text-muted-foreground">{t.setupNote}</p>
-          <div className="mt-8 max-w-3xl">
-            <p className="text-sm font-medium">{t.perClient}</p>
-            <CodeTabs items={clientSnippets(mcp)} />
-          </div>
+          <ol className="mt-10 grid max-w-3xl gap-10">
+            {t.steps.map(([title, line], i) => (
+              <li key={title} className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-4">
+                <span className="flex size-8 items-center justify-center rounded-full bg-foreground text-sm font-semibold text-background">{i + 1}</span>
+                <div className="min-w-0">
+                  <h3 className="pt-1 text-lg font-semibold tracking-tight">{title}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{line}</p>
+                  {i === 0 && (
+                    <>
+                      <CodeTabs items={clientSnippets(mcp)} />
+                      <div className="mt-3 flex items-center gap-2 rounded-xl border bg-muted/50 p-1.5 pl-4">
+                        <code className="min-w-0 flex-1 overflow-x-auto font-mono text-[13px] whitespace-nowrap [scrollbar-width:none]">{mcp}</code>
+                        <CopyButton text={mcp} label="Copy URL" />
+                      </div>
+                    </>
+                  )}
+                  {i === 2 && (
+                    <div className="mt-4 flex items-start gap-2 rounded-xl border bg-muted/50 p-1.5 pl-4">
+                      <p className="min-w-0 flex-1 py-1.5 font-mono text-[13px] leading-relaxed">{STARTER_PROMPT}</p>
+                      <CopyButton text={STARTER_PROMPT} label="Copy" variant="default" />
+                    </div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
         </section>
 
         <section className="pt-24 sm:pt-32">
