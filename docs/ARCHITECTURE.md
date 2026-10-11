@@ -73,6 +73,18 @@ APIs; nothing in this plan blocks it.
 | D17 | Recipes: `nextjs` (deeply tested) + `generic` (any OpenAI client: Node, Python, curl) so agents can integrate any stack; no SDKs |
 | D18 | All on Cloudflare: Worker + D1 + KV + Durable Objects; how-to page served as static assets from the same Worker (replaces Vercel + Supabase). A Vercel front end can be added later as a client of the Worker APIs |
 
+## 3a. Implementation notes (2026-10-11, after T4/T6)
+
+- MCP runs on `createMcpHandler` (Agents SDK, MCP server SDK v2): stateless Streamable HTTP serving the
+  2026-07-28 protocol and 2025 clients. `McpAgent`/Durable Objects are deprecated upstream and not used.
+- D16 approval is implemented as browser confirmation, not elicitation: every sensitive action
+  (`atlas_bind_project` key/rotate/revoke) returns an owner-bound claim link the developer confirms
+  after GitHub sign-in. This works on every MCP client; elicitation support varies.
+- OAuth: `OAuthProvider` with DCR and Client ID Metadata Documents, library consent helpers (browser-bound
+  handle, no framing), GitHub as identity (PKCE), scopes `atlas:read|test|projects`. Personal tokens enter
+  through `resolveExternalToken` as a documented compatibility path. Root and path-specific protected
+  resource metadata are both served.
+
 ## 4. Components
 
 | Component | Path | Responsibility |

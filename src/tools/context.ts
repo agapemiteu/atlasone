@@ -1,6 +1,15 @@
 // Shared context for MCP tools. Every tool runs as one authenticated owner.
 
-import { toToolError } from "../lib/errors.ts";
+import { AtlasError, toToolError } from "../lib/errors.ts";
+
+/** OAuth scopes (D16). Shown on the consent screen; personal tokens carry all of them. */
+export const SCOPES = {
+  "atlas:read": "See N-ATLaS availability, model facts, your projects and usage",
+  "atlas:test": "Run bounded test requests against genuine N-ATLaS (uses your project quota)",
+  "atlas:projects": "Create projects and request key links (keys are only shown to you in the browser)",
+} as const;
+export type Scope = keyof typeof SCOPES;
+export const ALL_SCOPES = Object.keys(SCOPES) as Scope[];
 
 export interface ToolDeps {
   db: D1Database;
@@ -11,6 +20,17 @@ export interface ToolDeps {
   owner: string;
   /** Public origin of this Atlas One deployment, e.g. https://atlas-one.example.workers.dev */
   origin: string;
+  /** Scopes the developer granted to this client. */
+  scopes: readonly string[];
+}
+
+export function requireScope(deps: ToolDeps, scope: Scope): void {
+  if (!deps.scopes.includes(scope)) {
+    throw new AtlasError(
+      "FORBIDDEN",
+      `This connection was not granted '${scope}' (${SCOPES[scope]}). Reconnect Atlas One and approve it.`,
+    );
+  }
 }
 
 type Payload = Record<string, unknown>;

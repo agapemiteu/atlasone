@@ -5,8 +5,9 @@ import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/cli
 import { createExecutionContext, env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetBackendCache } from "../src/lib/backend.ts";
-import { createPersonalToken, createProjectKey } from "../src/lib/credentials.ts";
-import { handleMcp } from "../src/mcp.ts";
+import { createProjectKey } from "../src/lib/credentials.ts";
+import { serveMcp } from "../src/mcp.ts";
+import { ALL_SCOPES } from "../src/tools/context.ts";
 import { handleV1 } from "../src/routes/v1.ts";
 import { atlasTest } from "../src/tools/test.ts";
 import { fakeUpstream, type Scenario, strictFetch, UPSTREAM_URL } from "./fake-upstream.ts";
@@ -27,24 +28,22 @@ async function registerUpstream() {
     .run();
 }
 
-async function world(scenario: Scenario = "ok", mode?: (typeof ERAS)[number][1]) {
+async function world(scenario: Scenario = "ok", mode?: (typeof ERAS)[number][1], scopes: string[] = ALL_SCOPES) {
   await registerUpstream();
   const owner = `gh-${crypto.randomUUID().slice(0, 8)}`;
   const slug = `shop-${crypto.randomUUID().slice(0, 6)}`;
   const projectId = await makeProject(owner, slug);
-  const pat = await createPersonalToken(env.DB, owner);
   const up = fakeUpstream(scenario);
   const pending: Promise<unknown>[] = [];
   const deps = { db: env.DB, fetcher: up.fetcher, upstreamKey: "k", waitUntil: (p: Promise<unknown>) => void pending.push(p) };
-  const route = strictFetch(async (input, init) => {
-    const req = new Request(input, init);
-    return (await handleMcp(req, deps, env, createExecutionContext()))!;
-  });
+  // Authentication is the OAuth provider's job (see oauth.test.ts); here we inject the principal.
+  const route = strictFetch(async (input, init) =>
+    serveMcp(new Request(input, init), { ...deps, owner, origin: ORIGIN, scopes }, env, createExecutionContext()),
+  );
   const client = new Client({ name: "conformance", version: "1.0.0" }, mode ? { versionNegotiation: { mode } } : undefined);
   await client.connect(
     new StreamableHTTPClientTransport(new URL(`${ORIGIN}/mcp`), {
       fetch: route,
-      requestInit: { headers: { authorization: `Bearer ${pat.secret}` } },
     }),
   );
   const call = async (name: string, args: Record<string, unknown> = {}) => {
@@ -58,23 +57,6 @@ async function world(scenario: Scenario = "ok", mode?: (typeof ERAS)[number][1])
 
 beforeEach(() => resetBackendCache());
 
-describe("authentication", () => {
-  it("rejects missing and unknown tokens with 401 + WWW-Authenticate before any MCP work", async () => {
-    const deps = { db: env.DB, fetcher: fakeUpstream("ok").fetcher, upstreamKey: "k", waitUntil: () => {} };
-    for (const auth of [undefined, "Bearer atl_pat_" + "x".repeat(43), "Bearer atl_live_" + "y".repeat(43)]) {
-      const res = (await handleMcp(
-        new Request(`${ORIGIN}/mcp`, { method: "POST", headers: auth ? { authorization: auth } : {}, body: "{}" }),
-        deps,
-        env,
-        createExecutionContext(),
-      ))!;
-      expect(res.status).toBe(401);
-      expect(res.headers.get("www-authenticate")).toContain("Bearer");
-    }
-    expect(await handleMcp(new Request(`${ORIGIN}/other`), deps, env, createExecutionContext())).toBeNull();
-  });
-});
-
 for (const [era, mode] of ERAS) {
   describe(`MCP ${era}`, () => {
     it("negotiates the intended protocol era", async () => {
@@ -86,11 +68,12 @@ for (const [era, mode] of ERAS) {
     it("lists exactly the Atlas tools with honest annotations", async () => {
       const { client } = await world("ok", mode);
       const { tools } = await client.listTools();
-      expect(tools.map((t) => t.name).sort()).toEqual(["atlas_discover", "atlas_test"]);
+      expect(tools.map((t) => t.name).sort()).toEqual(["atlas_bind_project", "atlas_discover", "atlas_test"]);
       const byName = Object.fromEntries(tools.map((t) => [t.name, t]));
       expect(byName.atlas_discover!.annotations).toMatchObject({ readOnlyHint: true });
       expect(byName.atlas_test!.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false });
       expect(byName.atlas_test!.inputSchema.required).toContain("project");
+      expect(byName.atlas_bind_project!.annotations).toMatchObject({ destructiveHint: true, idempotentHint: true });
     });
 
     it("atlas_discover reports live backend, own projects only, and a ready-to-use recipe", async () => {
@@ -184,6 +167,42 @@ for (const [era, mode] of ERAS) {
       expect(again.isError).toBe(true);
     });
 
+    it("atlas_bind_project is idempotent and never returns a key, only an owner-bound link (D2)", async () => {
+      const w = await world("ok", mode);
+      const first = (await w.call("atlas_bind_project", { name: "Hausa Support Desk" })).body;
+      expect(first).toMatchObject({
+        ok: true,
+        action_required: true,
+        project: { slug: "hausa-support-desk", created: true, active_keys: 0 },
+        env_var: "ATLAS_ONE_API_KEY",
+      });
+      expect(first.claim_url).toMatch(new RegExp(`^${ORIGIN}/claim/cl_[A-Za-z0-9_-]{43}$`));
+      expect(JSON.stringify(first)).not.toMatch(/atl_live_/);
+      const again = (await w.call("atlas_bind_project", { name: "hausa support desk" })).body;
+      expect(again.project).toMatchObject({ id: first.project.id, created: false });
+      const n = await env.DB.prepare("SELECT count(*) AS n FROM projects WHERE owner_github_id = ? AND slug = 'hausa-support-desk'")
+        .bind(w.owner).first<number>("n");
+      expect(n).toBe(1);
+    });
+
+    it("binding a project that already has a key asks for rotate instead of minting more", async () => {
+      const w = await world("ok", mode);
+      await createProjectKey(env.DB, w.projectId);
+      const bound = (await w.call("atlas_bind_project", { name: w.slug })).body;
+      expect(bound).toMatchObject({ ok: true, action_required: false });
+      const rotate = (await w.call("atlas_bind_project", { name: w.slug, action: "rotate_key" })).body;
+      expect(rotate).toMatchObject({ ok: true, action_required: true, pending_action: expect.stringContaining("Revoke") });
+    });
+
+    it("enforces granted scopes per tool (D16)", async () => {
+      const w = await world("ok", mode, ["atlas:read"]);
+      expect((await w.call("atlas_discover")).isError).toBe(false);
+      const test = await w.call("atlas_test", { project: w.slug });
+      expect(test).toMatchObject({ isError: true, body: { ok: false, error: { code: "FORBIDDEN" } } });
+      expect(test.body.error.message).toContain("atlas:test");
+      expect((await w.call("atlas_bind_project", { name: "x" })).body.error.code).toBe("FORBIDDEN");
+    });
+
     it("serves recipes as resources for clients that support them", async () => {
       const { client } = await world("ok", mode);
       const res = await client.readResource({ uri: "atlas://recipes/generic" });
@@ -209,7 +228,7 @@ describe("atlas_test warm-up wait", () => {
     });
     const messages: string[] = [];
     const result = await atlasTest(
-      { db: env.DB, fetcher, upstreamKey: "k", waitUntil: () => {}, owner, origin: ORIGIN },
+      { db: env.DB, fetcher, upstreamKey: "k", waitUntil: () => {}, owner, origin: ORIGIN, scopes: ALL_SCOPES },
       { project: "warm-app" },
       async (_step, message) => void messages.push(message),
       async () => {},
@@ -227,7 +246,7 @@ describe("atlas_test warm-up wait", () => {
     const messages: string[] = [];
     await expect(
       atlasTest(
-        { db: env.DB, fetcher: fakeUpstream("ok").fetcher, upstreamKey: "k", waitUntil: () => {}, owner, origin: ORIGIN },
+        { db: env.DB, fetcher: fakeUpstream("ok").fetcher, upstreamKey: "k", waitUntil: () => {}, owner, origin: ORIGIN, scopes: ALL_SCOPES },
         { project: "off-app" },
         async (_s, m) => void messages.push(m),
         async () => {},

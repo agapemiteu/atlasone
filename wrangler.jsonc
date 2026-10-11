@@ -3,7 +3,8 @@
   "name": "atlas-one",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
-  "compatibility_flags": ["nodejs_compat"],
+  // global_fetch_strictly_public: required to fetch Client ID Metadata Documents safely (CIMD).
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   // Integration recipes are bundled as text.
   "rules": [{ "type": "Text", "globs": ["**/*.md"], "fallthrough": true }],
   "observability": { "enabled": true },
@@ -11,7 +12,15 @@
   "preview_urls": false,
   // Hosts the Kaggle server may register (D3). Secrets ATLAS_UPSTREAM_KEY and ATLAS_ADMIN_KEY are set
   // with `wrangler secret put`, never here.
-  "vars": { "UPSTREAM_HOSTS": "*.trycloudflare.com" },
+  // GITHUB_CLIENT_SECRET and SESSION_SECRET are secrets too.
+  "vars": {
+    "PUBLIC_ORIGIN": "https://atlas-one.collins-coordinator-worker.workers.dev",
+    "UPSTREAM_HOSTS": "*.trycloudflare.com",
+    "GITHUB_CLIENT_ID": "SET_AFTER_GITHUB_OAUTH_APP_IS_CREATED",
+    // Invite-only beta (D15): GitHub logins allowed to sign in, plus rows in the allowlist table.
+    "ALLOWED_GITHUB_LOGINS": "agapemiteu"
+  },
+  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "3dda9cfc00b0490a817ca93ed39694ac" }],
   "d1_databases": [
     {
       "binding": "DB",

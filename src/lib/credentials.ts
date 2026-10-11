@@ -102,6 +102,7 @@ export async function verifyPersonalToken(
     .first<{ id: string; owner_github_id: string; revoked_at: number | null }>();
   if (!row) throw new AtlasError("AUTH_REQUIRED");
   if (row.revoked_at !== null) throw new AtlasError("KEY_REVOKED", "This personal access token has been revoked.");
+  await db.prepare("UPDATE personal_tokens SET last_used_at = ? WHERE id = ?").bind(Date.now(), row.id).run();
   return { tokenId: row.id, ownerGithubId: row.owner_github_id };
 }
 

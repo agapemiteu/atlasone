@@ -4,6 +4,8 @@
 //   node scripts/seed.ts --name "Demo app"                     # project + project key, local D1
 //   node scripts/seed.ts --name "Demo app" --remote            # same, deployed D1
 //   node scripts/seed.ts --pat --owner <github-id> --remote    # personal access token for MCP clients
+//
+// --owner is the developer's numeric GitHub user id (gh api user --jq .id), the same id OAuth sign-in uses.
 
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
