@@ -2,17 +2,19 @@
 
 Paste this whole file into ONE Kaggle notebook cell and run it.
 Notebook settings: Accelerator = "GPU T4 x2", Internet = On (needs phone verification).
-Kaggle Secrets (Add-ons > Secrets): HF_TOKEN, ATLAS_UPSTREAM_KEY (copy from your .env.local).
+Kaggle Secrets (Add-ons > Secrets): HF_TOKEN, ATLAS_UPSTREAM_KEY, ATLAS_ADMIN_KEY (from .env.local).
 
 Runs NCAIR1/N-ATLaS at full F16 precision (no quantisation) split across both GPUs with
-llama.cpp's OpenAI-compatible server, then prints a public HTTPS URL via a Cloudflare tunnel.
-Put that URL in .env.local as ATLAS_UPSTREAM_URL. The cell keeps running to keep the server up.
+llama.cpp's OpenAI-compatible server (4 parallel slots x 4096 tokens), exposes it through a
+Cloudflare tunnel, sends one warm-up request, then registers the tunnel URL with the Atlas One
+gateway so nothing needs to be pasted anywhere. The cell keeps running to keep the server up.
 """
 
 import os
 import re
 import subprocess
 import sys
+import json
 import time
 import urllib.request
 
@@ -28,10 +30,16 @@ LLAMA = f"{WORK}/llama.cpp"  # source checkout, only for the HF -> GGUF converte
 BIN = f"{WORK}/bin"
 GGUF = f"{WORK}/n-atlas-{MODEL_REVISION[:8]}-f16.gguf"
 RELEASE = f"https://github.com/ggml-org/llama.cpp/releases/download/{LLAMA_TAG}"
+ATLAS_ONE_URL = "https://atlas-one.collins-coordinator-worker.workers.dev"
+SLOTS, SLOT_CTX = 4, 4096
 
 secrets = UserSecretsClient()
 HF_TOKEN = secrets.get_secret("HF_TOKEN")
 UPSTREAM_KEY = secrets.get_secret("ATLAS_UPSTREAM_KEY")
+try:
+    ADMIN_KEY = secrets.get_secret("ATLAS_ADMIN_KEY")
+except Exception:
+    ADMIN_KEY = None  # server still runs; registration is skipped with a clear message
 os.makedirs(WORK, exist_ok=True)
 
 
@@ -74,11 +82,11 @@ if not os.path.exists(GGUF):
         env={**os.environ, "PYTHONPATH": f"{LLAMA}/gguf-py"})
     run(f"rm -rf {WORK}/hf")  # free disk; the GGUF is all we serve
 
-# 3. OpenAI-compatible server. 2 slots x 8k context, all layers on GPU, model's own chat template.
+# 3. OpenAI-compatible server. 4 slots x 4k context, all layers on GPU, model's own chat template.
 step("Starting N-ATLaS server")
 server = subprocess.Popen(
     [SERVER_BIN, "-m", GGUF, "--alias", ALIAS, "--host", "0.0.0.0", "--port", str(PORT),
-     "-ngl", "99", "-c", "16384", "-np", "2", "--jinja", "--api-key", UPSTREAM_KEY],
+     "-ngl", "99", "-c", str(SLOTS * SLOT_CTX), "-np", str(SLOTS), "--jinja", "--api-key", UPSTREAM_KEY],
     stdout=open(f"{WORK}/server.log", "w"), stderr=subprocess.STDOUT,
 )
 
@@ -113,6 +121,42 @@ while health() != 200:
     if server.poll() is not None:
         raise SystemExit("llama-server exited:\n" + open(f"{WORK}/server.log").read()[-3000:])
     time.sleep(3)
+
+# First request after load pays CUDA warm-up (~19s observed); pay it here, not in a user's request.
+step("Warming up (one throwaway request)")
+warm = urllib.request.Request(
+    f"http://localhost:{PORT}/v1/chat/completions",
+    data=json.dumps({"model": ALIAS, "messages": [{"role": "user", "content": "Hello"}], "max_tokens": 8}).encode(),
+    headers={"authorization": f"Bearer {UPSTREAM_KEY}", "content-type": "application/json"},
+)
+urllib.request.urlopen(warm, timeout=300).read()
+
+
+def register():
+    """Tells the Atlas One gateway where this session's server is (URL changes every session)."""
+    if not ADMIN_KEY:
+        print("  [register] skipped: add the ATLAS_ADMIN_KEY Kaggle secret to auto-register.")
+        return False
+    req = urllib.request.Request(
+        f"{ATLAS_ONE_URL}/api/upstream/register",
+        data=json.dumps({"url": url, "model_id": MODEL_ID, "model_revision": MODEL_REVISION,
+                         "runtime": f"llama.cpp@{LLAMA_TAG} f16"}).encode(),
+        headers={"authorization": f"Bearer {ADMIN_KEY}", "content-type": "application/json"},
+    )
+    # The tunnel's public DNS can take a few seconds to resolve for the gateway; retry briefly.
+    for attempt in range(6):
+        try:
+            print("  [register]", urllib.request.urlopen(req, timeout=30).read().decode())
+            return True
+        except Exception as e:
+            detail = e.read().decode()[:300] if hasattr(e, "read") else e
+            print(f"  [register] attempt {attempt + 1} failed: {detail}")
+            time.sleep(10)
+    return False
+
+
+step("Registering with Atlas One")
+register()
 
 step("READY")
 print(f"  ATLAS_UPSTREAM_URL={url}")

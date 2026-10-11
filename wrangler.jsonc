@@ -5,6 +5,11 @@
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  "workers_dev": true,
+  "preview_urls": false,
+  // Hosts the Kaggle server may register (D3). Secrets ATLAS_UPSTREAM_KEY and ATLAS_ADMIN_KEY are set
+  // with `wrangler secret put`, never here.
+  "vars": { "UPSTREAM_HOSTS": "*.trycloudflare.com" },
   "d1_databases": [
     {
       "binding": "DB",
