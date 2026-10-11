@@ -9,6 +9,6 @@ export default defineConfig({
   resolve: { alias: { "@": path.resolve(__dirname, "src"), "@atlas": path.resolve(__dirname, "../src/lib") } },
   build: {
     outDir: "dist",
-    rollupOptions: { input: { index: path.resolve(__dirname, "index.html"), docs: path.resolve(__dirname, "docs.html") } },
+    rollupOptions: { input: { index: path.resolve(__dirname, "index.html"), docs: path.resolve(__dirname, "docs.html"), guide: path.resolve(__dirname, "guide.html") } },
   },
 });

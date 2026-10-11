@@ -195,3 +195,18 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   Home: "Start in 60 seconds" stepper: 1 command per agent (tabs) + URL copy, 2 GitHub sign-in, 3 copyable starter
   prompt. Invite wording removed from site, README, BETA-TESTING. Tests 124 + 5; deployed; phone + desktop checked.
   Evidence snapshot refreshed and verified (npm run evidence:snapshot).
+
+[2026-10-11 23:10 WAT] Beginner's guide + repo declutter (owner: "simple for even a newbie"; "decluttered ... reason like a
+  distinguished engineer").
+  - /guide (web/, React): plain-language 6 steps (connect with where-to-paste per agent, sign in, ask, confirm key,
+    verified, receipt + feedback), live status, "if something goes wrong" FAQ. Linked from nav, quick start, footer.
+  - Removed: modal_serve.py (never used), smoke.mjs (pre-wake-on-demand, superseded by e2e scripts), invite.mjs (open
+    access; one documented SQL line for ACCESS=invite), web lint config + oxlint (never run), web/vitest.config.ts and
+    web/.gitignore (folded into vite.config.ts and the root .gitignore).
+  - Docs 8 -> 4 (+ video script): ARCHITECTURE.md rewritten as "how it works" (absorbs TECHNICAL.md; drops the stale
+    build plan, task list and review boilerplate; keeps D1-D21, superseded ones marked); EVIDENCE.md now covers genuine
+    N-ATLaS (absorbs NATLAS-INTEGRATION.md) and testers; HANDOFF.md merged into CLAUDE.md; BETA-TESTING.md replaced by
+    /guide. README shortened. .env.example lists exactly what the scripts read. test/site.test.ts -> playground.test.ts.
+  - Flaky test fixed properly: the auth rate-limit test assumed 32 requests fit one 60 s window; now tolerant of one
+    window boundary but still requires the limit to bite. Process fix: never gate a deploy through `| grep`.
+  - Tests 124 + 6 pass; deployed; all routes 200; evidence verifies.

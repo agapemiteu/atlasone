@@ -1,9 +1,45 @@
-# Verifying Atlas One's beta evidence
+# Evidence
 
-This is for NAIC judges and anyone else who wants to check, without trusting the Atlas One team, that
-independent developers used Atlas One and that their apps reached genuine N-ATLaS (PRD Test 3 and Test 6).
+Everything a judge needs to check, without trusting the Atlas One team: (1) the model is genuine N-ATLaS,
+and (2) independent developers used Atlas One and their apps reached it.
 
-## Quick check (2 minutes, Node 22.18 or newer, nothing to install)
+## 1. Genuine N-ATLaS
+
+| Item | Value |
+|---|---|
+| Model | `NCAIR1/N-ATLaS` (Llama-3 8B fine-tune; English, Hausa, Igbo, Yoruba) |
+| Revision | `e294476928aca9030e924ca27bb8e085e8581273`, pinned in `inference/kaggle_serve.py` and checked at registration |
+| Precision | F16 GGUF converted from the original BF16 weights with llama.cpp's converter; no quantisation |
+| Runtime | llama.cpp `b11552` (CUDA), 2x NVIDIA T4, 4 slots x 4096 tokens, the model's own chat template |
+| Settings | From the N-ATLaS model card, applied server-side: repetition penalty 1.12, temperature 0.1, current date |
+
+Check it in the code: the only weights `inference/kaggle_serve.py` downloads are the pinned revision; the only
+model call in `src/lib/inference.ts` goes to the registered N-ATLaS server; `package.json` has no other model
+provider; a server can only register if it serves `n-atlas-8b`. Every response carries
+`x-atlas-weights: NCAIR1/N-ATLaS@e294476…`.
+
+Live results (11 Oct 2026, request ids from the logs):
+
+| Run | Result |
+|---|---|
+| Gateway, official OpenAI SDK | 5/5. Hausa "Babban birnin Najeriya Abuja ne." 1.24 s (`req_b81e7e9b5c1f443aa3aae476`); Yoruba streamed 1.47 s; wrong key → `INVALID_KEY`; `model: "gpt-4o"` → `VALIDATION_FAILED` |
+| Claude Code over OAuth, existing Next.js app (PRD Test 2) | Agent added a Hausa support route in about 2 minutes; `atlas_test` `req_91d6bec6fdbd44acaa01237a` 1,110 ms; app route `req_714d166c70154f5ba50b47d5`; `verify_app` **true**, same id. Key absent from all browser bundles |
+| Codex | Igbo "Isi obodo Naịjirịa bụ Abuja." `req_3db406b183a0405a868238e0`, 1,364 ms (after Codex's own approval prompt for a non-read-only tool) |
+| Official MCP client, both protocol eras | All passed, including progress notifications and nonce verification |
+| Wake-on-demand | Asleep → online in about 4 minutes with no manual step; then `req_5e46287db16d4cfe8e22dce2` in 1,099 ms. Later runs: about 3 minutes |
+| Signed receipt | `verify_app` on `req_c50b86bc65444d9d8ce4b979` issued a receipt that verifies; a tampered copy fails |
+
+Honest failure (PRD Test 4): backend down → `503 MODEL_OFFLINE` with a request id from the API, the agent
+tools and an integrated app route; loading, busy, timeout and empty output map to `BACKEND_WARMING`,
+`BACKEND_BUSY`, `INFERENCE_TIMEOUT`, `INVALID_OUTPUT`. Never a substitute answer.
+
+Quality, reported as observed: once the model said "3 to 5 working *hours*" where the shop facts say days, and
+one Yoruba answer was garbled, consistent with N-ATLaS's own evaluation rating Yoruba lowest. Atlas One
+reports output as-is.
+
+## 2. Independent testers
+
+### Quick check (2 minutes, Node 22.18 or newer, nothing to install)
 
 ```bash
 git clone https://github.com/agapemiteu/atlasone && cd atlasone
@@ -14,7 +50,7 @@ node scripts/verify-evidence.mjs <tester's receipt>      # a file, raw JWT, or h
 Every line prints `PASS` or `FAIL`; the script exits non-zero on any failure. `--offline` skips the live
 cross-checks.
 
-## What each check proves
+### What each check proves
 
 | Evidence | Standard | How to check it |
 |---|---|---|
@@ -27,7 +63,7 @@ cross-checks.
 
 Any standard JWT library can verify the tokens too: algorithm `EdDSA`, curve `Ed25519`, key from the JWK Set above.
 
-## Event schema (`atlas-one.evidence/v1`)
+### Event schema (`atlas-one.evidence/v1`)
 
 One JSON object per line, ordered by time.
 
@@ -49,12 +85,12 @@ One JSON object per line, ordered by time.
 | `duration_ms` | Tool call duration |
 | `agent`, `stack`, `minutes`, `manual_steps`, `issues`, `rating` | Feedback questionnaire answers |
 
-## What is not recorded
+### What is not recorded
 
 Prompts, model outputs, source code and keys are never recorded; a test enforces this
 (`test/evidence.test.ts`). Testers are told what is recorded on the consent screen before they sign in.
 
-## Limits, stated plainly
+### Limits, stated plainly
 
 The Atlas One team runs the service that writes the log and holds the signing key. The signatures prove the
 committed copy matches what the service published, and the append-only check proves nothing was removed
@@ -62,6 +98,7 @@ since. They cannot prove the service itself was honest. The independent anchors 
 testers' own GitHub accounts and their own repos containing the receipts, which judges can open and, if they
 wish, contact directly.
 
-## For the Atlas One team
+### For the Atlas One team
 
 Before submitting, refresh the committed snapshot: `npm run evidence:snapshot`, then commit `evidence/`.
+Testers follow the beginner's guide at https://atlas-one.collins-coordinator-worker.workers.dev/guide.

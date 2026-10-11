@@ -52,6 +52,12 @@ export function Home({ origin, lang, autoplay = true, initialStatus }: { origin:
 
         <section id="connect" className="pt-24 sm:pt-32">
           <h2 className="text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">{t.setup}</h2>
+          <p className="mt-3 text-muted-foreground">
+            {t.newbie}{" "}
+            <a className="font-medium text-foreground underline underline-offset-4" href="/guide">
+              {t.guide}
+            </a>
+          </p>
           <ol className="mt-10 grid max-w-3xl gap-10">
             {t.steps.map(([title, line], i) => (
               <li key={title} className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-4">

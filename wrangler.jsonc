@@ -22,7 +22,7 @@
     "UPSTREAM_HOSTS": "*.trycloudflare.com",
     "GITHUB_CLIENT_ID": "Ov23liEjUtXPbExZAqVJ",
     // Who can sign in (D15, D21): "open" = any GitHub account; "invite" = only ALLOWED_GITHUB_LOGINS plus the
-    // allowlist table (npm run invite). Open is safe because every project is quota-limited and usage is logged.
+    // allowlist table (see docs/ARCHITECTURE.md). Open is safe: every project is quota-limited and usage is logged.
     "ACCESS": "open",
     "ALLOWED_GITHUB_LOGINS": "agapemiteu",
     // Atlas One team members: shown as "team" on /evidence and excluded from the external-tester summary.

@@ -1,5 +1,5 @@
 // Page copy and data. Model output shown on the site is verbatim from the live run of 11 Oct 2026
-// (atlas-one.log, docs/NATLAS-INTEGRATION.md); nothing here is invented output.
+// (atlas-one.log, docs/EVIDENCE.md); nothing here is invented output.
 
 export type Lang = "en" | "ha";
 
@@ -13,6 +13,8 @@ export const COPY = {
     connect: "Start building",
     docs: "Read the docs",
     setup: "Start in 60 seconds.",
+    newbie: "New to coding agents?",
+    guide: "Follow the beginner's guide",
     steps: [
       ["Add Atlas One to your agent", "Run the command for your agent, or paste the URL into any MCP client."],
       ["Sign in with GitHub", "Your agent opens the browser. Approve, sign in, done. Free during the beta."],
@@ -28,6 +30,8 @@ export const COPY = {
     connect: "Fara ginawa",
     docs: "Karanta bayani",
     setup: "Fara cikin daƙiƙa 60.",
+    newbie: "Sabo ga wakilan coding?",
+    guide: "Bi jagorar farawa",
     steps: [
       ["Ƙara Atlas One ga wakilinka", "Gudanar da umarnin wakilinka, ko liƙa adireshin a kowane MCP client."],
       ["Shiga da GitHub", "Wakilinka zai buɗe burauza. Amince, shiga, shi ke nan. Kyauta a lokacin gwaji."],

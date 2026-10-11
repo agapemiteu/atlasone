@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { PublicStatus } from "@atlas/public-status.ts";
 import { DEMO } from "@/lib/content";
 import { Docs } from "./docs";
+import { Guide } from "./guide";
 import { Home } from "./home";
 
 const ORIGIN = "https://atlas.test";
@@ -53,5 +54,20 @@ describe("docs", () => {
     expect(html).toContain("30 per minute, 500 per day");
     expect(html).toContain("1,000 active end users");
     expect(html.match(/href="#[a-z]+"/g)).toHaveLength(5);
+  });
+});
+
+describe("beginner's guide", () => {
+  it("walks a newcomer through every step, with where-to-paste help for each agent and fixes for common problems", () => {
+    const html = renderToStaticMarkup(<Guide origin={ORIGIN} />).replaceAll("&#x27;", "'");
+    for (const step of ["Connect Atlas One to your agent", "Sign in with GitHub", "Ask your agent for a feature", "Confirm your key", "Let it finish and check", "Keep your receipt"]) {
+      expect(html).toContain(step);
+    }
+    expect(html).toContain(`claude mcp add --transport http atlas-one ${ORIGIN}/mcp`);
+    expect(html).toContain("Open a terminal in your app's folder");
+    expect(html).toContain("Never paste it into the chat");
+    expect(html).toContain("It says N-ATLaS is waking up");
+    expect(html).toContain('href="/feedback"');
+    expect(html).not.toMatch(/invite/i);
   });
 });

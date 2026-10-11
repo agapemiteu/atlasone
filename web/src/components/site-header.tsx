@@ -45,6 +45,9 @@ export function SiteHeader({ status, connectLabel = "Connect" }: { status?: Publ
             </span>
           )}
           <Button variant="ghost" asChild>
+            <a href="/guide">Guide</a>
+          </Button>
+          <Button variant="ghost" asChild className="max-sm:hidden">
             <a href="/docs">Docs</a>
           </Button>
           <Button variant="ghost" size="icon" asChild>

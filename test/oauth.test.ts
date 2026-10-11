@@ -217,10 +217,22 @@ describe("post-login redirect (open-redirect guard)", () => {
 describe("auth endpoint rate limit", () => {
   it("limits sign-in and registration per client IP, leaving other clients unaffected", async () => {
     const hit = (ip: string) => worker("/login", { headers: { "cf-connecting-ip": ip }, redirect: "manual" });
-    const statuses: number[] = [];
-    for (let i = 0; i < 32; i++) statuses.push((await hit("203.0.113.7")).status);
-    expect(statuses.slice(0, 30).every((s) => s === 302)).toBe(true);
-    expect(statuses.at(-1)).toBe(429);
+    const ip = `203.0.113.${1 + Math.floor(Math.random() * 250)}`;
+    // The limit is 30 per 60 s window. A run can straddle one window boundary, so allow up to two windows'
+    // worth of successes before the first 429, but require that the limit does bite.
+    let allowed = 0;
+    let limited = false;
+    for (let i = 0; i < 70 && !limited; i++) {
+      const status = (await hit(ip)).status;
+      if (status === 429) limited = true;
+      else {
+        expect(status).toBe(302);
+        allowed++;
+      }
+    }
+    expect(limited).toBe(true);
+    expect(allowed).toBeGreaterThanOrEqual(30);
+    expect(allowed).toBeLessThanOrEqual(60);
     expect((await hit("198.51.100.9")).status).toBe(302);
   });
 });

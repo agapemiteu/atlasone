@@ -5,3 +5,5 @@ node_modules/
 __pycache__/
 worker-configuration.d.ts
 .dev.vars
+dist/
+*.tsbuildinfo

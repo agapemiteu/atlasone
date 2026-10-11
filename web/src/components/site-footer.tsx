@@ -9,6 +9,8 @@ export function SiteFooter({ lang }: { lang?: Lang }) {
         <p className="max-w-xl">{MODEL_CARD.credit_line}</p>
         <div className="flex flex-wrap gap-x-5 gap-y-2">
           {lang && <a className="hover:text-foreground" href={lang === "en" ? "/?lang=ha" : "/"}>{lang === "en" ? "Hausa" : "English"}</a>}
+          <a className="hover:text-foreground" href="/guide">Guide</a>
+          <a className="hover:text-foreground" href="/docs">Docs</a>
           <a className="hover:text-foreground" href="/evidence">Beta evidence</a>
           <a className="hover:text-foreground" href="/playground">Playground</a>
           <a className="hover:text-foreground" href="/tokens">Tokens</a>
