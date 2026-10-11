@@ -69,6 +69,20 @@ with Atlas One. Registration requires the admin key, an `https` origin on `UPSTR
 Any OpenAI-compatible N-ATLaS server (vLLM, llama.cpp elsewhere, a hosted endpoint) can register the same
 way; `inference/modal_serve.py` is a vLLM variant for Modal.
 
+### Wake-on-demand
+
+With the `KAGGLE_KEY` secret set (a Kaggle API token), an authenticated request that finds the backend
+offline (app key, OAuth tool call, or signed-in playground) calls Kaggle `SaveKernel` with the bundled
+`kaggle_serve.py`, `machineShape: NvidiaTeslaT4` (GPU T4 x2), internet on and `SAVE_AND_RUN_ALL`. Wakes are
+debounced (one in flight) and expire after 20 minutes. Kaggle secrets are not available to API-started
+runs, so each pushed notebook carries only a single-use bootstrap token (30-minute TTL, digest stored),
+traded once at `POST /api/upstream/bootstrap` for the keys; notebook versions never hold long-lived keys.
+The server reports each stage to `POST /api/upstream/progress` (`notebook_started`, `fetching_runtime`,
+`downloading_model`, `loading_weights`, `warming_up`, `sleeping`, `failed`) and registration marks it
+`ready`. If no progress arrives, Atlas One asks Kaggle for the run status and records a failure with its
+reason. `GET /api/status` exposes the live state; the home page renders it as a step list. The server
+sleeps after 20 minutes without generated tokens (llama.cpp `--metrics`).
+
 ## App API
 
 `POST /v1/chat/completions`: OpenAI Chat Completions format. Fields forwarded: `messages` (system, user,

@@ -26,15 +26,17 @@ the video.
 |---|---|
 | Phase A, T1-T4, T6, T7 (all 4 MCP tools), T9 (how-to site + playground) | Done, deployed, 107 tests |
 | Real clients | Claude Code and Codex connected over OAuth (both identify via CIMD) and used the tools; Cursor/VS Code/Windsurf/Gemini CLI documented |
-| T5 sample app `atlas-demo-shop` (sibling folder, own repo) | Integrated; build, key-safety and offline checks done; **live inference + nonce verification pending Kaggle** |
-| Kaggle fast restarts | Private GGUF cache built; first run populates `Agapemiteu/n-atlas-gguf-cache` |
+| T5 sample app `atlas-demo-shop` (sibling folder, own repo) | Done: live `verify_app` = true (req_714d166c…); evidence in docs/NATLAS-INTEGRATION.md |
+| Backend | **Wake-on-demand live**: requests wake Kaggle (T4 x2) via API, live stages on `/` and `/api/status`, ~4 min cold start, sleeps after 20 idle min; GGUF cache in `Agapemiteu/n-atlas-gguf-cache`. Nobody starts Kaggle by hand any more |
 | Docs | README, TECHNICAL, NATLAS-INTEGRATION (live T5 section pending), BETA-TESTING, VIDEO-SCRIPT |
 | Security | Auth-route rate limit; open redirect, CSRF, XSS, SSRF, owner isolation, quota races covered by tests |
 | Post-beta | List in the official MCP Registry, then client directories (not GitHub Marketplace) |
 
 ## Resume here (exact next steps)
 
-1. When the owner says Kaggle is ready: `atlas_test` (inference) on `hausa-support-demo`; start the demo
+1. (Done) Live proof, e2e suites and wake-on-demand all passed on 2026-10-11. Remaining: beta testers' runs
+   (they just use Atlas One; the model wakes itself), Test 6 conventional timing from testers, video.
+   Old note, kept for reference: when the owner said Kaggle was ready: `atlas_test` (inference) on `hausa-support-demo`; start the demo
    app (`npx next start -p 3100` in atlas-demo-shop); `issue_app_nonce`; POST `/api/support` with
    `x-atlas-verify`; `verify_app`. Run `scripts/e2e-gateway.mjs` and `scripts/e2e-mcp.mjs`. Confirm
    llama.cpp accepted `repeat_penalty` and `chat_template_kwargs`. Fill section 6 of
@@ -47,7 +49,7 @@ the video.
 - Live Worker: https://atlas-one.collins-coordinator-worker.workers.dev (Cloudflare account 09a50cc4f142098ffba16b823dd31ad9, Wrangler logged in as miteuagape@gmail.com)
 - D1 `atlas-one` = 130399d4-7b16-4f28-946f-e40f90e1f6e7 (migrations 0001, 0002 applied remote + local)
 - KV `OAUTH_KV` = 3dda9cfc00b0490a817ca93ed39694ac
-- Worker secrets: `ATLAS_UPSTREAM_KEY`, `ATLAS_ADMIN_KEY`, `SESSION_SECRET`, `GITHUB_CLIENT_SECRET` (set). Vars in `wrangler.jsonc`: `PUBLIC_ORIGIN`, `UPSTREAM_HOSTS`, `GITHUB_CLIENT_ID`, `ALLOWED_GITHUB_LOGINS=agapemiteu`.
+- Worker secrets: `ATLAS_UPSTREAM_KEY`, `ATLAS_ADMIN_KEY`, `SESSION_SECRET`, `GITHUB_CLIENT_SECRET`, `KAGGLE_KEY` (KGAT bearer token), `HF_TOKEN` (set). Vars in `wrangler.jsonc`: `PUBLIC_ORIGIN`, `UPSTREAM_HOSTS`, `GITHUB_CLIENT_ID`, `ALLOWED_GITHUB_LOGINS=agapemiteu`.
 - GitHub OAuth App "Atlas One" (id 3923042), redirect URIs `/auth/github/mcp` and `/auth/github/web`, exact match.
 - Owner identity in Atlas One = GitHub numeric id `114285882` (login `agapemiteu`). Seed project `e2e-gateway` belongs to it.
 - Local secrets (gitignored): `.env.local` (HF token, upstream/admin keys, seed project key, PAT, GitHub app values), `.dev.vars` (Worker local secrets; its presence stops Wrangler loading `.env.local`).

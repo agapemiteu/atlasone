@@ -96,6 +96,9 @@ Run your own N-ATLaS backend: see [`docs/TECHNICAL.md`](docs/TECHNICAL.md#runnin
 
 ## Status
 
-Beta for NAIC 2026. The N-ATLaS backend runs on free Kaggle GPUs in scheduled windows, so it is not always
-on; the site shows live status. The backend is pluggable: any OpenAI-compatible N-ATLaS server registers
-itself, so moving to always-on GPU capacity needs no code changes.
+Beta for NAIC 2026. N-ATLaS runs on free Kaggle GPUs with **wake-on-demand**: when it is asleep, the first
+agent, app or playground request makes Atlas One start it through Kaggle's API (GPU T4 x2). Callers get an
+honest `BACKEND_WARMING` with a retry time while every startup stage, reported by the model server itself,
+shows live on the site; it is online in about 4 minutes and sleeps again after 20 idle minutes. Nobody
+starts a GPU by hand. The backend is pluggable: any OpenAI-compatible N-ATLaS server registers itself, so
+moving to always-on GPU capacity needs no code changes.

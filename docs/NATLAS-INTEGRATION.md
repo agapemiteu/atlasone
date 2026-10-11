@@ -44,6 +44,18 @@ Observation kept in the recipes: without a language system message N-ATLaS may m
 
 Stored per request (D1 `request_logs`): status, timings, token counts, request id. No prompt or completion text.
 
+## 4a. Wake-on-demand, live (2026-10-11)
+
+N-ATLaS asleep; `atlas_test` called from Claude Code at about 18:16:55 WAT. Atlas One started the Kaggle
+notebook through Kaggle's API with no manual step. Stages reported by the model server: downloading model
+18:17:44, loading weights 18:18:48, warming up 18:20:34, **online 18:20:55** (about 4 minutes). The next
+`atlas_test`: `req_5e46287db16d4cfe8e22dce2`, "Babban birnin Najeriya Abuja ne.", 1,099 ms. While waking,
+callers received `BACKEND_WARMING` with the current stage and a retry time, never output.
+
+Two failures found on the way and fixed (recorded, not hidden): Kaggle saved the notebook without running it
+until `SAVE_AND_RUN_ALL` was set; then the run crashed because Kaggle secrets are unavailable to API runs
+(fixed with single-use bootstrap tokens), and Atlas One now detects a dead Kaggle run and reports it.
+
 ## 4. Honest failure (PRD Test 4)
 
 | Situation | What Atlas One returned |
