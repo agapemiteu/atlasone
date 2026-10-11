@@ -13,7 +13,7 @@ document covers how the system works, how to run it, and the API contracts.
   │ OAuthProvider ─ /mcp ─► 4 tools (discover, bind_project, test, inspect)   │
   │               ─ /authorize consent ─► GitHub sign-in ─► invite list        │
   │ /v1/chat/completions, /v1/models  ◄── developer's finished app (project key)│
-  │ /claim/:token, /tokens, /playground, /  (owner pages, how-to site)         │
+  │ /claim/:token, /tokens, /playground (owner pages); / and /docs: web/ assets│
   │            all model calls ─► lib/inference.ts (single path)               │
   │ /api/upstream/register ◄── N-ATLaS server announces itself (admin key)     │
   └──────────────┬────────────────────────────────────────────────────────────┘
@@ -39,7 +39,7 @@ Prerequisites: Node 22+, a Cloudflare account (free plan), a GitHub OAuth App, H
 `NCAIR1/N-ATLaS`.
 
 ```bash
-npm install
+npm install && npm install --prefix web
 npx wrangler d1 create atlas-one            # put the id in wrangler.jsonc
 npx wrangler kv namespace create OAUTH_KV   # put the id in wrangler.jsonc
 npx wrangler d1 migrations apply atlas-one --remote
@@ -49,7 +49,7 @@ npx wrangler secret put ATLAS_ADMIN_KEY      # lets the N-ATLaS server register 
 npx wrangler secret put SESSION_SECRET       # >= 32 random characters
 npx wrangler secret put GITHUB_CLIENT_SECRET
 # vars in wrangler.jsonc: PUBLIC_ORIGIN, GITHUB_CLIENT_ID, ALLOWED_GITHUB_LOGINS, UPSTREAM_HOSTS
-npx wrangler deploy
+npm run deploy                              # builds web/ (React + shadcn/ui), then wrangler deploy
 ```
 
 GitHub OAuth App redirect URIs (exact match): `<origin>/auth/github/mcp` and `<origin>/auth/github/web`.
@@ -80,7 +80,7 @@ traded once at `POST /api/upstream/bootstrap` for the keys; notebook versions ne
 The server reports each stage to `POST /api/upstream/progress` (`notebook_started`, `fetching_runtime`,
 `downloading_model`, `loading_weights`, `warming_up`, `sleeping`, `failed`) and registration marks it
 `ready`. If no progress arrives, Atlas One asks Kaggle for the run status and records a failure with its
-reason. `GET /api/status` exposes the live state; the home page renders it as a step list. The server
+reason. `GET /api/status` exposes the live state; the home page polls it and renders each stage. The server
 sleeps after 20 minutes without generated tokens (llama.cpp `--metrics`).
 
 ## App API

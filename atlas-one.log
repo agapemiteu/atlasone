@@ -127,3 +127,18 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   - /docs: quickstart, flow, tools, API, verification, cold starts, errors, limits, keys, licence. Error table and
     limits render from ERRORS / LIMITS / MODEL_CARD so docs cannot drift. 122 tests pass; deployed.
   - Shorter URL needs a custom domain (owner decision).
+
+[2026-10-11 20:05 WAT] Front end rebuilt in React + shadcn/ui (owner request), phone-first.
+  - web/: Vite + React 19 + Tailwind 4 + shadcn/ui (radix-nova: Button, Tabs, Card, Separator), Geist fonts
+    self-hosted, Hugeicons. Built to web/dist and served by the same Worker as static assets (/ and /docs);
+    every other path falls through to the Worker. CSP via web/public/_headers (script-src 'self', no CDNs).
+  - Headline changed from "one instruction away" to "Give your agent Nigerian languages." with the eyebrow
+    "The MCP server for N-ATLaS" (also in README, package.json, atlas_discover, video script; PRD left as spec).
+  - Nav cut to Docs, GitHub, Connect plus a live status dot; docs sidebar cut from 10 to 5 items.
+  - Demo plays once (no replay), no request ids or tool slugs, human-readable steps; the 1.1 s test step waits
+    the real inference time; question and answer verbatim from the live run. Status polls /api/status live.
+  - Docs tables, limits and errors import the Worker's own modules (src/lib/errors.ts, chat.ts, limits.ts).
+  - Removed server-rendered home/docs (site.ts, docs.ts, theme.ts, icons.ts, statusWidget); light restyle of the
+    remaining server pages. Phone check at 390px via CDP device emulation: no horizontal page scroll.
+  - Tests: 118 Worker + 5 web (render home/docs, verbatim output only, honest outage, Hausa, 5-item docs nav).
+  - shadcn CLI audit findings (fast-glob/braces) are dev-only tooling; 0 in shipped dependencies.

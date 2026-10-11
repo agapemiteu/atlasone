@@ -3,58 +3,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { resetBackendCache } from "../src/lib/backend.ts";
 import { sessionCookie } from "../src/lib/session.ts";
 import { handlePages } from "../src/web/pages.ts";
-import { docsPage } from "../src/web/docs.ts";
-import { homePage } from "../src/web/site.ts";
-import type { PublicStatus } from "../src/web/status.ts";
 
-function status(backend: PublicStatus["backend"]): PublicStatus {
-  return { gateway: "ok", backend, stage: null, stage_text: null, detail: null, wake_started_at: null, updated_at: null, stages: [], last_failure: null };
-}
 import { fakeUpstream, type Scenario, UPSTREAM_URL } from "./fake-upstream.ts";
 
 const SECRET = "test-session-secret-0123456789abcdef";
 const ORIGIN = "https://atlas.test";
-
-describe("how-to page", () => {
-  it("gives every major client a setup snippet pointing at the same MCP URL, in English and Hausa", async () => {
-    const html = await homePage(ORIGIN, status("ready")).text();
-    for (const client of ["Claude Code", "Codex", "Cursor", "VS Code", "Windsurf", "Gemini CLI", "Any other MCP client"]) {
-      expect(html, client).toContain(client);
-    }
-    expect(html.match(new RegExp(`${ORIGIN}/mcp`, "g"))!.length).toBeGreaterThanOrEqual(7);
-    expect(html).toContain("Babban birnin Najeriya Abuja ne.");
-    expect(html).toContain("req_714d166c7015");
-    expect(html).toContain("Powered by Awarri");
-    expect(html).toContain("Federal Ministry of Communications");
-    expect(html).toContain("N-ATLaS is online");
-    expect(html).not.toContain("never a fake answer");
-  });
-
-  it("renders in Hausa", async () => {
-    const html = await homePage(ORIGIN, status("ready"), "ha").text();
-    expect(html).toContain('lang="ha"');
-    expect(html).toContain("Haɗa wakilinka");
-  });
-
-  it("states an outage honestly", async () => {
-    const html = await homePage(ORIGIN, status("offline")).text();
-    expect(html).toContain("N-ATLaS is asleep");
-    expect(html).toContain("never a fake answer");
-    expect(html).toContain("wakes automatically");
-  });
-});
-
-describe("docs", () => {
-  it("documents setup, the API and every client-facing error code from the live catalog", async () => {
-    const html = await docsPage(ORIGIN).text();
-    expect(html).toContain(`${ORIGIN}/v1`);
-    expect(html).toContain(`${ORIGIN}/mcp`);
-    for (const code of ["MODEL_OFFLINE", "BACKEND_WARMING", "RATE_LIMITED", "INVALID_KEY", "VALIDATION_FAILED"]) expect(html).toContain(code);
-    expect(html).toContain("30 per minute, 500 per day");
-    expect(html).toContain("Federal Ministry of Communications");
-    expect(html).toContain("1,000 active end users");
-  });
-});
 
 describe("playground", () => {
   beforeEach(async () => {

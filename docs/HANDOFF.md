@@ -24,7 +24,7 @@ the video.
 
 | Item | State (2026-10-11 evening) |
 |---|---|
-| Phase A, T1-T4, T6, T7 (all 4 MCP tools), T9 (how-to site + playground) | Done, deployed, 107 tests |
+| Phase A, T1-T4, T6, T7 (all 4 MCP tools), T9 (site + playground) | Done, deployed. Home + /docs are React + shadcn/ui in `web/` (Worker static assets); 118 Worker + 5 web tests |
 | Real clients | Claude Code and Codex connected over OAuth (both identify via CIMD) and used the tools; Cursor/VS Code/Windsurf/Gemini CLI documented |
 | T5 sample app `atlas-demo-shop` (sibling folder, own repo) | Done: live `verify_app` = true (req_714d166c…); evidence in docs/NATLAS-INTEGRATION.md |
 | Backend | **Wake-on-demand live**: requests wake Kaggle (T4 x2) via API, live stages on `/` and `/api/status`, ~4 min cold start, sleeps after 20 idle min; GGUF cache in `Agapemiteu/n-atlas-gguf-cache`. Nobody starts Kaggle by hand any more |
@@ -67,5 +67,7 @@ the video.
 - workers.dev blocks Python `urllib`'s default User-Agent (Cloudflare 1010); set one.
 - The MCP handler rejects requests without a Host header; tests must send it.
 - Writing regexes/backslashes through Python heredocs mangles them; use the Edit tool for such code.
+- Deploy with `npm run deploy` (builds `web/` first); `wrangler deploy` alone ships a stale or missing `web/dist`.
+- Headless Chrome enforces a 500px minimum window: check phone layouts with CDP device emulation, not `--window-size`.
 - Right after `wrangler deploy`, the first requests can still hit the previous version.
 - Don't upgrade shared global Python packages (broke `transformers` once); don't share `/tmp` between bash and Python on this machine.

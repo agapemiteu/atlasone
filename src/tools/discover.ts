@@ -32,7 +32,7 @@ export async function discover(deps: ToolDeps, args: { recipe?: RecipeName }) {
   ]);
   const waking = backend.state !== "ready" && wakeInFlight(wake) ? wake : null;
   return {
-    product: "Atlas One: N-ATLaS, one instruction away.",
+    product: "Atlas One: the MCP server for N-ATLaS.",
     gateway: "ok",
     backend: {
       state: waking ? "waking" : backend.state,

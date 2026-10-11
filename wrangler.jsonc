@@ -9,6 +9,9 @@
   // Integration recipes and the model-server script (pushed to Kaggle on wake) are bundled as text.
   "rules": [{ "type": "Text", "globs": ["**/*.md", "**/*.py"], "fallthrough": true }],
   "observability": { "enabled": true },
+  // Home page and docs: the React build in web/ (npm run build:web). Paths with no file fall through to
+  // the Worker (/mcp, /v1, /api, OAuth, playground, ...).
+  "assets": { "directory": "./web/dist", "html_handling": "auto-trailing-slash", "not_found_handling": "none" },
   "workers_dev": true,
   "preview_urls": false,
   // Hosts the Kaggle server may register (D3). Secrets ATLAS_UPSTREAM_KEY and ATLAS_ADMIN_KEY are set

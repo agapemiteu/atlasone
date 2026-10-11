@@ -16,8 +16,6 @@ import { ALL_SCOPES } from "./tools/context.ts";
 import { handleAuth } from "./web/auth.ts";
 import type { KaggleConfig } from "./lib/wake.ts";
 import { handlePages } from "./web/pages.ts";
-import { homePage } from "./web/site.ts";
-import { docsPage } from "./web/docs.ts";
 import { publicStatus } from "./web/status.ts";
 
 /** What completeAuthorization() stores, and what a personal token resolves to. */
@@ -77,10 +75,6 @@ async function app(request: Request, env: Env, ctx: ExecutionContext): Promise<R
     }));
   if (response) return response;
 
-  if (request.method === "GET" && url.pathname === "/") {
-    return homePage(env.PUBLIC_ORIGIN, await publicStatus(env.DB, fetcher, kaggle), url.searchParams.get("lang") === "ha" ? "ha" : "en");
-  }
-  if (request.method === "GET" && url.pathname === "/docs") return docsPage(env.PUBLIC_ORIGIN);
   return toHttpResponse(new AtlasError("NOT_FOUND"));
 }
 

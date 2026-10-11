@@ -1,9 +1,9 @@
 # Atlas One
 
-**N-ATLaS, one instruction away.** Connect your coding agent once. Ask it to add a Hausa, Igbo, Yoruba or
+**The MCP server for N-ATLaS. Give your agent Nigerian languages.** Connect your coding agent once. Ask it to add a Hausa, Igbo, Yoruba or
 Nigerian-English AI feature to your app. It integrates genuine N-ATLaS and proves it works.
 
-- **Live:** https://atlas-one.collins-coordinator-worker.workers.dev (how-to page, playground, live model status)
+- **Live:** https://atlas-one.collins-coordinator-worker.workers.dev (home page with live demo and model status, [/docs](https://atlas-one.collins-coordinator-worker.workers.dev/docs), playground)
 - **MCP endpoint (any agent):** `https://atlas-one.collins-coordinator-worker.workers.dev/mcp`
 - **App API (industry-standard, OpenAI-compatible):** `https://atlas-one.collins-coordinator-worker.workers.dev/v1`
 - NAIC 2026, PS1 Developer Infrastructure: *"Build the tools that make N-ATLAS easy to build with."*
@@ -75,7 +75,8 @@ template) are applied server-side, so every client gets them.
 | `src/mcp.ts`, `src/tools/` | MCP server and the four tools |
 | `src/lib/` | Inference core, backend state, credentials, quotas, errors, sessions, GitHub sign-in |
 | `src/routes/` | `/v1` gateway, upstream registration |
-| `src/web/` | How-to site, playground, consent, claim and token pages |
+| `web/` | Home page and docs: React + shadcn/ui (Vite), served as static assets by the Worker |
+| `src/web/` | Playground, consent, claim and token pages (server-rendered) |
 | `src/recipes/` | Integration recipes served to agents |
 | `inference/kaggle_serve.py` | N-ATLaS server (llama.cpp on 2x T4), auto-registers with the gateway |
 | `migrations/` | D1 schema |

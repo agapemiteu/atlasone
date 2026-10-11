@@ -12,8 +12,9 @@
 // the last slot. A request rejected by the minute limit never consumes daily quota.
 
 import { AtlasError } from "./errors.ts";
+import { LIMITS } from "./limits.ts";
 
-export const LIMITS = { min: 30, day: 500 } as const;
+export { LIMITS };
 const WINDOW_MS = { min: 60_000, day: 86_400_000 } as const;
 
 type Window = keyof typeof LIMITS;

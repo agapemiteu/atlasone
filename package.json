@@ -2,15 +2,16 @@
   "name": "atlas-one",
   "version": "0.1.0",
   "private": true,
-  "description": "N-ATLAS, one instruction away. Agent-native integration layer for N-ATLAS.",
+  "description": "The MCP server for N-ATLaS: give your coding agent Nigerian languages.",
   "type": "module",
   "engines": {
     "node": ">=22.18"
   },
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "test": "vitest run",
+    "build:web": "npm --prefix web run build",
+    "deploy": "npm run build:web && wrangler deploy",
+    "test": "vitest run && npm --prefix web test",
     "test:watch": "vitest",
     "typecheck": "wrangler types && tsc --noEmit",
     "db:migrate:local": "wrangler d1 migrations apply atlas-one --local",

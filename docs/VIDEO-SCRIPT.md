@@ -7,7 +7,7 @@ recording and check the site says "N-ATLaS is online".
 **Show:** the Atlas One home page.
 **Say:** "N-ATLaS is open, but getting from access to a working integration still means a GPU, a runtime,
 keys, glue code, and guessing whether the output is real. Developers now build by instructing coding
-agents. Atlas One puts N-ATLaS one instruction away, for any agent."
+agents. Atlas One is the MCP server for N-ATLaS: it gives any agent Nigerian languages."
 
 ## 0:25-1:00 Connect once
 **Show:** `claude mcp add --transport http atlas-one <url>/mcp`, then `/mcp` → Authenticate. The consent
@@ -37,4 +37,4 @@ reached genuine N-ATLaS."
 
 ## 3:35-4:00 Close
 **Show:** the README's tool table and the beta-tester results.
-**Say:** "Any agent, any stack, genuine N-ATLaS, verified. Atlas One: N-ATLaS, one instruction away."
+**Say:** "Any agent, any stack, genuine N-ATLaS, verified. Atlas One: give your agent Nigerian languages."
