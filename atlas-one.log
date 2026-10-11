@@ -125,5 +125,5 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   - Setup reduced to one URL with a Copy button; per-client commands folded under a disclosure.
   - Use cases: Hausa support (marked proven live) plus three copyable agent instructions (not presented as results).
   - /docs: quickstart, flow, tools, API, verification, cold starts, errors, limits, keys, licence. Error table and
-    limits render from ERRORS / LIMITS / MODEL_CARD so docs cannot drift. 123 tests pass; deployed.
+    limits render from ERRORS / LIMITS / MODEL_CARD so docs cannot drift. 122 tests pass; deployed.
   - Shorter URL needs a custom domain (owner decision).
