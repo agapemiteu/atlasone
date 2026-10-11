@@ -1,40 +1,47 @@
 # Atlas One: Architecture Plan (Phases B to E)
 
-Status: LOCKED by /plan-eng-review on 2026-10-11 (15 decisions, outside voice: Codex).
+Status: LOCKED by /plan-eng-review on 2026-10-11 (18 decisions, outside voice: Codex).
+Platform: Cloudflare (D18): Worker + D1 + KV + Durable Objects + workers-oauth-provider, GitHub login.
 Scope source of truth: `docs/PRD.md`. Phase A (genuine inference) is done: see `atlas-one.log`.
 
-## 1. Shape: one Next.js app on Vercel
+## 1. Shape: one Cloudflare Worker
 
-One deployable serves the gateway, the MCP server, sign-in/consent/claim pages, and the how-to page.
+One Worker serves the gateway, the MCP server, sign-in/consent/claim pages, and the how-to page
+(static assets). One deploy, one URL (`atlas-one.<account>.workers.dev`), one set of logs.
 
 ```
-                    ┌──────────────────── Atlas One (Next.js on Vercel) ────────────────────┐
- ANY MCP client ──► │ /mcp  (mcp-handler, Streamable HTTP, withMcpAuth)                      │
- Claude Code,       │   atlas_discover · atlas_bind_project · atlas_test · atlas_inspect     │
- Cursor, Codex,     │   token = Supabase OAuth JWT  OR  personal token atl_pat_… (D5)        │
- VS Code, CI …      │                     │                                                  │
-        │ OAuth 2.1 │ /oauth/consent  /claim/[id]  (GitHub sign-in, allowlist D15)           │
-        ▼   + DCR   │                     │                                                  │
- Supabase Auth ◄────┤                     ▼                                                  │
-                    │            lib/inference.ts  ◄── the ONLY path to the model (D7)       │
- Developer's app ──►│ /v1/chat/completions, /v1/models   (project key atl_live_…)            │
- (server-side only) │   auth → validate → quota (atomic, D12) → upstream → stream → log      │
- Kaggle READY ─────►│ /api/upstream/register  (admin secret, https, host allowlist, D3)      │
-                    └─────────────────────┼──────────────────────────────────────────────────┘
+                    ┌──────────────── Atlas One (Cloudflare Worker, TypeScript) ─────────────────┐
+ ANY MCP client ──► │ OAuthProvider (workers-oauth-provider): /authorize /token /register (DCR)  │
+ Claude Code,       │   /.well-known/oauth-authorization-server, oauth-protected-resource       │
+ Cursor, Codex,     │ /mcp ─► McpAgent (Durable Object, Agents SDK), Streamable HTTP             │
+ VS Code, CI …      │   atlas_discover · atlas_bind_project · atlas_test · atlas_inspect         │
+        │           │   token = OAuth grant (scopes, D16) OR personal token atl_pat_… (D5)       │
+        ▼           │ /authorize UI: GitHub sign-in → allowlist (D15) → consent with scopes     │
+ GitHub OAuth App ◄─┤ /claim/:id  /tokens  /  (how-to page, static assets + live status)        │
+                    │                     │                                                      │
+                    │            src/lib/inference.ts  ◄── the ONLY path to the model (D7)       │
+ Developer's app ──►│ /v1/chat/completions, /v1/models  (project key atl_live_…)                 │
+ (server-side only) │   auth → validate → quota (atomic D1 upsert, D12) → upstream → stream → log│
+ Kaggle READY ─────►│ /api/upstream/register (admin secret, https, host allowlist, D3)           │
+                    └─────────────────────┼───────────────────────────────────────────────────────┘
                                           ▼
                      llama.cpp on Kaggle 2x T4 (4 slots x 4k ctx, D14) via Cloudflare tunnel
-                                          │
-         Supabase Postgres: projects · api_keys · personal_tokens · claims · rate_windows ·
-                            request_logs · upstreams · allowlist
+   D1 (SQLite): allowlist · projects · api_keys · personal_tokens · claims · rate_windows ·
+                request_logs · upstreams        KV: OAuth grants/tokens (workers-oauth-provider)
 ```
 
 The developer's finished app talks only to `/v1/*` with a project key. It never needs MCP.
+The free plan fits beta: 100k requests/day; 10 ms CPU per request is enough because waiting on the
+upstream is I/O, not CPU. Move to Workers Paid ($5/mo) only if CPU limits are hit.
+A richer hosted front end (e.g. on Vercel) can be added later as a pure client of the same Worker
+APIs; nothing in this plan blocks it.
 
 ## 2. Agent compatibility: any MCP client, no client-specific code
 
-- Transport: MCP Streamable HTTP only (spec 2026-07-28; mcp-handler 2.x also serves 2025 clients).
+- Transport: MCP Streamable HTTP via the Cloudflare Agents SDK `McpAgent` (current spec; the SDK also serves older clients).
 - Auth: the MCP Authorization spec exactly. OAuth 2.1 + PKCE, Protected Resource Metadata at
-  `/.well-known/oauth-protected-resource`, Supabase OAuth 2.1 server with Dynamic Client Registration.
+  `/.well-known/oauth-protected-resource`, workers-oauth-provider as authorization server with Dynamic
+  Client Registration; GitHub is the identity provider behind it.
   Fallback for clients without a browser (CI, sandboxes, minimal clients): personal token in the
   `Authorization: Bearer` header (D5). No vendor client IDs anywhere.
 - Surface: everything is reachable through the 4 tools. Resources and progress notifications are
@@ -47,7 +54,7 @@ The developer's finished app talks only to `/v1/*` with a project key. It never 
 
 | # | Decision |
 |---|---|
-| D1 | MCP sign-in is OAuth Connect: Supabase OAuth 2.1 server, GitHub sign-in, consent page |
+| D1 | MCP sign-in is OAuth Connect: OAuth 2.1 + DCR (workers-oauth-provider), GitHub sign-in, consent page |
 | D2 | `atlas_bind_project` returns a one-time claim link; the key never enters the agent's context |
 | D3 | Kaggle script self-registers its tunnel URL on READY (admin secret, https only, host allowlist, health-checked before activation) |
 | D4 | Licence cap and "Powered by Awarri" shown in discover, bind and recipe; per-project quotas 30 req/min and 500 req/day |
@@ -64,33 +71,37 @@ The developer's finished app talks only to `/v1/*` with a project key. It never 
 | D15 | Invite-only: GitHub-username allowlist at sign-in, so the platform stays far below the 1,000-user cap |
 | D16 | Permission model like Claude/Codex connectors: OAuth scopes on the consent screen (`atlas:read`, `atlas:test`, `atlas:projects`); sensitive tool actions (create project, rotate/revoke key) require human approval via MCP elicitation, or a one-time confirmation code on clients without elicitation; tools carry readOnly/destructive annotations |
 | D17 | Recipes: `nextjs` (deeply tested) + `generic` (any OpenAI client: Node, Python, curl) so agents can integrate any stack; no SDKs |
+| D18 | All on Cloudflare: Worker + D1 + KV + Durable Objects; how-to page served as static assets from the same Worker (replaces Vercel + Supabase). A Vercel front end can be added later as a client of the Worker APIs |
 
 ## 4. Components
 
 | Component | Path | Responsibility |
 |---|---|---|
-| Gateway | `src/app/v1/chat/completions/route.ts`, `src/app/v1/models/route.ts` | OpenAI-compatible surface; streaming passthrough |
-| Inference core | `src/lib/inference.ts` | auth context in, quota, backend state, forward with timeout, map errors, log. Used by gateway and `atlas_test` |
-| Backend state | `src/lib/backend.ts` | active upstream lookup, /health probe, 10s cache, ready/loading/offline/busy |
-| MCP server | `src/app/[transport]/route.ts` | 4 tools + resources, `withMcpAuth` verifier (JWT or PAT) |
-| Tools | `src/lib/tools/{discover,bind,test,inspect}.ts` | pure functions over `db`, `inference`, `backend` |
-| Credentials | `src/lib/credentials.ts` | generate/hash/verify `atl_live_` keys and `atl_pat_` tokens; SHA-256 + prefix; timing-safe compare |
-| Quota | `src/lib/quota.ts` | atomic minute/day counters |
+| Entry | `src/index.ts` | `OAuthProvider` wrapper: routes `/mcp` to McpAgent, everything else to the default handler |
+| Gateway | `src/routes/v1.ts` | `/v1/chat/completions`, `/v1/models`; streaming passthrough |
+| Inference core | `src/lib/inference.ts` | quota, backend state, forward with timeout, map errors, log. Used by gateway and `atlas_test` |
+| Backend state | `src/lib/backend.ts` | active upstream, /health probe, 10s cache, ready/loading/offline/busy |
+| MCP server | `src/mcp.ts` | `McpAgent` Durable Object: 4 tools + resources, scope checks, elicitation (D16) |
+| Tools | `src/tools/{discover,bind,test,inspect}.ts` | pure functions over `db`, `inference`, `backend` |
+| Credentials | `src/lib/credentials.ts` | `atl_live_` keys, `atl_pat_` tokens; SHA-256 (WebCrypto) + prefix; timing-safe compare |
+| Quota | `src/lib/quota.ts` | atomic minute/day counters (D1 upsert RETURNING) |
 | Errors | `src/lib/errors.ts` | catalog + HTTP and tool-result renderers |
-| Recipe | `src/recipes/nextjs.md` | single source for tool and resource |
-| Pages | `src/app/oauth/consent`, `src/app/claim/[id]`, `src/app/tokens`, `src/app/page.tsx` | consent, owner-bound claim, PAT management, how-to |
-| Upstream registry | `src/app/api/upstream/register/route.ts` | D3 |
-| DB | `supabase/migrations/0001_init.sql` | schema below |
+| Auth UI | `src/routes/auth.ts` | GitHub OAuth callback, allowlist check, consent screen with scopes |
+| Pages | `src/routes/{claim,tokens}.ts`, `public/index.html` | owner-bound claim, PAT management, how-to page |
+| Recipes | `src/recipes/{nextjs,generic}.md` | single source for tool and resource |
+| Upstream registry | `src/routes/upstream.ts` | D3 |
+| DB | `migrations/0001_init.sql` | D1 schema below |
+| Config | `wrangler.jsonc` | D1, KV, Durable Object bindings, static assets, secrets |
 | Seed | `scripts/seed.mjs` | admin: create test project + key (unblocks Phase B testing) |
 
-## 5. Data model
+## 5. Data model (D1 / SQLite; ids are text UUIDs, times are unix ms)
 
 ```
 allowlist        github_username pk, added_at                                    (D15)
-projects         id, owner_id → auth.users, name, slug, created_at; unique(owner_id, slug)
+projects         id, owner_github_id, name, slug, created_at; unique(owner_github_id, slug)
 api_keys         id, project_id, prefix, hash, created_at, revoked_at
-personal_tokens  id, owner_id, prefix, hash, created_at, last_used_at, revoked_at (D5)
-claims           id (random 32B), project_id, key_id, owner_id, expires_at, redeemed_at (D13)
+personal_tokens  id, owner_github_id, prefix, hash, created_at, last_used_at, revoked_at (D5)
+claims           id (random 32B), project_id, key_id, owner_github_id, expires_at, redeemed_at (D13)
 rate_windows     project_id, window_kind ('min'|'day'), window_start, count; pk(all but count) (D12)
 request_logs     id, request_id, project_id, key_id, source ('app'|'atlas_test'), verify_nonce null,
                  status, error_code, latency_ms, upstream_ms, prompt_tokens, completion_tokens,
@@ -113,7 +124,7 @@ No prompt or completion text is stored (PRD §8). Every read is scoped to a proj
              ── timeout → 504 INFERENCE_TIMEOUT · connect fail → 503 MODEL_OFFLINE (state flips)
              ── 200 empty choice → 502 INVALID_OUTPUT
        ─► stream/JSON back; headers x-atlas-request-id, x-atlas-model-revision
-       ─► after(): request_logs row (source, verify_nonce from x-atlas-verify)
+       ─► ctx.waitUntil(): request_logs row (source, verify_nonce from x-atlas-verify)
 ```
 
 ## 7. MCP tool contracts
@@ -137,7 +148,8 @@ Results are `{ ok: true, ... }` or `{ ok: false, error: { code, message, retryab
 
 ## 8. Tests (coverage plan)
 
-Framework: Vitest. DB: PGlite (in-process Postgres). Upstream: test-only fake server (ok / 503 loading /
+Framework: Vitest with `@cloudflare/vitest-pool-workers` (tests run inside workerd with real local
+D1, KV and Durable Objects). Upstream: test-only fake server (ok / 503 loading /
 503 busy / 500 / hang / empty). Live E2E scripts only run when `ATLAS_UPSTREAM_URL` is set.
 
 ```
@@ -172,9 +184,10 @@ PLANNED COVERAGE: all code paths above have a planned test; 0 gaps.
    upstream register (and Kaggle script calls it on READY, 4 slots x 4k, warm-up request before READY).
 2. **C** `/mcp` with PAT auth + atlas_discover + atlas_test (incl. nonce) + Next.js recipe.
 3. **Run PRD Test 6 early**: sample Next.js app, conventional route vs agent route; record times.
-4. **D** Supabase OAuth Connect + consent + allowlist + atlas_bind_project + owner-bound claim page.
+4. **D** OAuth Connect (workers-oauth-provider + GitHub) + consent with scopes + allowlist +
+   atlas_bind_project with approval (D16) + owner-bound claim page.
 5. **E** atlas_inspect, failure drills (Tests 4, 5), conformance E2E, 4-client matrix, beta windows,
-   how-to page on Vercel.
+   how-to page (static assets on the same Worker).
 
 ## 10. Failure modes
 
@@ -183,7 +196,7 @@ PLANNED COVERAGE: all code paths above have a planned test; 0 gaps.
 | Upstream call | Kaggle session ends mid-request | yes | yes, state flips | MODEL_OFFLINE + request_id |
 | Upstream call | all 4 slots busy | yes | yes | BACKEND_BUSY, retry_after |
 | Quota | burst from a loop in the dev's app | yes | yes, atomic | 429 RATE_LIMITED + Retry-After |
-| Log write | DB hiccup in `after()` | yes | yes, swallowed + console error | nothing (quota unaffected) |
+| Log write | D1 hiccup in `ctx.waitUntil()` | yes | yes, swallowed + console error | nothing (quota unaffected) |
 | Register | tunnel URL registered but unhealthy | yes | yes, stays inactive | previous upstream stays live or MODEL_OFFLINE |
 | OAuth | client lacks OAuth / headless | conformance E2E | yes, PAT path | install doc for PAT |
 | Claim | link pasted in public chat | yes | yes, owner-bound | 403 for others |
@@ -200,6 +213,8 @@ No critical gaps (every row has a test, handling, and a visible outcome).
 - npm CLI for `env pull`: rejected in D2 (extra artifact to publish).
 - Developer-owned upstream endpoints: the registry is admin-only for now.
 - Modal deployment: `inference/modal_serve.py` kept, untested, needs a card.
+- Stable tunnel URL via a named Cloudflare Tunnel: needs a domain on Cloudflare; D3 covers it for now.
+- Separate hosted front end (e.g. Vercel) with account linking: later, as a client of the Worker APIs.
 
 ## 12. What already exists
 
@@ -212,11 +227,11 @@ No critical gaps (every row has a test, handling, and a visible outcome).
 
 | Step | Modules | Depends on |
 |---|---|---|
-| Schema + credentials + quota + errors | `supabase/`, `src/lib/` | — |
+| Schema + credentials + quota + errors | `migrations/`, `src/lib/` | — |
 | Kaggle register + slots + warm-up | `inference/` | register endpoint contract |
-| Gateway + inference core | `src/lib/`, `src/app/v1/` | schema |
-| MCP + tools + recipe | `src/app/[transport]/`, `src/lib/tools/`, `src/recipes/` | inference core |
-| OAuth + pages + allowlist | `src/app/oauth/`, `src/app/claim/`, `src/app/tokens/` | schema |
+| Gateway + inference core | `src/lib/`, `src/routes/v1.ts` | schema |
+| MCP + tools + recipes | `src/mcp.ts`, `src/tools/`, `src/recipes/` | inference core |
+| OAuth + pages + allowlist | `src/index.ts`, `src/routes/auth.ts`, `src/routes/claim.ts` | schema |
 
 Lane A: schema → gateway → MCP (sequential, shared `src/lib/`). Lane B: Kaggle script (independent once
 the register contract is fixed). Lane C: OAuth pages after schema. Run A and B together; C after A's
@@ -224,15 +239,15 @@ schema lands.
 
 ## 14. Implementation tasks
 
-- [ ] **T1 (P1, human ~1d / CC ~30min)** schema, credentials, errors, quota (atomic), seed script. Verify: `npx vitest run src/lib`
+- [ ] **T1 (P1, human ~1d / CC ~30min)** schema, credentials, errors, quota (atomic), seed script. Verify: `npx vitest run`
 - [ ] **T2 (P1, human ~1d / CC ~30min)** backend state + inference core + `/v1/chat/completions` + `/v1/models`. Verify: OpenAI SDK test + `node scripts/smoke.mjs` via gateway
 - [ ] **T3 (P1, human ~3h / CC ~20min)** upstream register endpoint + Kaggle script registers, 4 slots x 4k, warm-up before READY
 - [ ] **T4 (P1, human ~1d / CC ~40min)** `/mcp` with PAT auth, atlas_discover (+recipe), atlas_test (+nonce). Verify: SDK-client E2E
 - [ ] **T5 (P1, human ~4h / CC ~30min)** Next.js recipe + sample app; run PRD Test 6 and record numbers in `atlas-one.log`
-- [ ] **T6 (P1, human ~1.5d / CC ~1h)** Supabase OAuth Connect, consent page, allowlist, atlas_bind_project, owner-bound claim page
+- [ ] **T6 (P1, human ~1.5d / CC ~1h)** OAuth Connect (workers-oauth-provider + GitHub), scoped consent, allowlist, atlas_bind_project with approval, owner-bound claim page
 - [ ] **T7 (P2, human ~4h / CC ~25min)** atlas_inspect + failure drills (Tests 4, 5)
 - [ ] **T8 (P2, human ~1d / CC ~45min)** conformance E2E in CI + manual 4-client matrix + install snippets
-- [ ] **T9 (P2, human ~4h / CC ~30min)** how-to page on Vercel with live availability and test windows
+- [ ] **T9 (P2, human ~4h / CC ~30min)** how-to page (Worker static assets) with live availability, test windows, per-client install snippets
 
 ## GSTACK REVIEW REPORT
 
@@ -240,7 +255,7 @@ schema lands.
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
 | Codex Review | `/codex review` | Independent 2nd opinion | 1 | issues_found → resolved | 8 findings, 7 decided (D10-D15), 1 folded into T3 |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (PLAN) | 9 issues, 0 critical gaps |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (PLAN) | 9 issues + D16-D18 follow-ups, 0 critical gaps |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
 

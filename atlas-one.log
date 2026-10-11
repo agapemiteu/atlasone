@@ -49,3 +49,5 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
 [2026-10-11] DECISION D16 — Scoped OAuth consent (atlas:read/test/projects) + human approval for sensitive tool actions via MCP elicitation, confirmation-code fallback; tool annotations.
 [2026-10-11] DECISION D17 — Recipes: nextjs (tested) + generic (any OpenAI client). No SDKs.
 [2026-10-11] SETUP — GitHub repo agapemiteu/atlasone (PUBLIC) created by user; gh CLI already authenticated as agapemiteu. Secrets must never be committed (.env* gitignored).
+[2026-10-11] GIT — Initial commit pushed to github.com/agapemiteu/atlasone (main), authored by Agape Miteu, no AI co-author lines. Secret scan clean; .env.local ignored; .gitattributes pins LF.
+[2026-10-11] DECISION D18 — All on Cloudflare (user preference): Worker + D1 + KV + Durable Objects, workers-oauth-provider (OAuth 2.1 + DCR) with GitHub login, McpAgent for MCP, Vitest in workerd. How-to page as static assets from the same Worker. Replaces Vercel + Supabase. Free plan: 100k req/day, 10ms CPU/request (upstream wait is I/O). A Vercel/hosted front end with account linking can be added later as a client of the Worker APIs.

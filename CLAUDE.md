@@ -11,4 +11,4 @@ Full spec: `docs/PRD.md`. Running session log: `atlas-one.log`.
 4. **Do not overbuild.** Build only what proves the PRD's core promise (PRD §11 MVP scope). Four MCP tools, one framework (Next.js), one real backend. No dashboards, SDK catalogues, or speculative abstractions.
 5. **Distinguished-engineer bar.** Small surface, sharp contracts, structured errors, real tests, security by default (no secrets in client bundles, logs, or tool output).
 6. **Never fake success.** No mocked or substituted model output presented as N-ATLAS inference (PRD §9). If the backend is down, say so.
-7. **After the build:** ship a simple one-page "how to use Atlas One" site (likely Vercel) that a developer understands in one read.
+7. **After the build:** ship a simple one-page "how to use Atlas One" site (static assets on the same Cloudflare Worker) that a developer understands in one read. A richer hosted front end (e.g. Vercel) with account linking can come later as a client of the Worker APIs.
