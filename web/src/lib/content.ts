@@ -42,6 +42,45 @@ export const COPY = {
   },
 } as const;
 
+/** One-click starter app for testers: zero dependencies, a GitHub template. */
+export const STARTER_REPO = "https://github.com/agapemiteu/atlas-one-starter";
+
+const VERIFY = "using N-ATLaS through Atlas One. Keep the key server-side, then test and verify it.";
+
+/** Ideas for testers. Each works in the starter shop (shop.json holds its facts) or any app, and ends verified. */
+export const IDEAS: { title: string; line: string; prompt: string }[] = [
+  {
+    title: "Customer support in Hausa",
+    line: "Answers shoppers' questions from the shop's own facts.",
+    prompt: `Add a customer-support chat to this shop that answers questions in Hausa from the facts in shop.json, ${VERIFY}`,
+  },
+  {
+    title: "One page, three languages",
+    line: "A language switch for the shop's questions and answers.",
+    prompt: `Add a language switch (Hausa, Igbo, Yoruba) that shows the shop's delivery, payment and returns information in the chosen language, ${VERIFY}`,
+  },
+  {
+    title: "Yoruba product descriptions",
+    line: "Warm, short descriptions for every product.",
+    prompt: `Add a button that writes a short, warm Yoruba description for each product in shop.json, ${VERIFY}`,
+  },
+  {
+    title: "Explain it in Igbo",
+    line: "Turns a confusing English message into simple Igbo.",
+    prompt: `Add a page where someone pastes an English message, like a bank alert or an official notice, and gets a simple explanation in Igbo, ${VERIFY}`,
+  },
+  {
+    title: "Delivery updates in the customer's language",
+    line: "Order messages in Hausa, Igbo or Yoruba.",
+    prompt: `Add an endpoint that writes a friendly order-delivery message in the customer's language (Hausa, Igbo or Yoruba), ${VERIFY}`,
+  },
+  {
+    title: "Farm advice in Hausa",
+    line: "A chat that answers farmers from a short crop guide.",
+    prompt: `Add a short maize-farming guide to this project and a Hausa chat that answers farmers' questions from it, ${VERIFY}`,
+  },
+];
+
 /** First prompt for a new developer: works in any app, any stack, and ends with verification. */
 export const STARTER_PROMPT =
   "Use Atlas One to add an N-ATLaS feature to this app: an endpoint that answers customer questions in Hausa. Keep the key server-side, then test and verify it.";

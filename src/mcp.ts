@@ -32,17 +32,23 @@ async function tracked(
   call: () => Promise<ToolResult>,
 ): Promise<ToolResult> {
   const started = Date.now();
-  const result = await call();
-  if (deps.principal) {
-    const principal = deps.principal;
+  const result = call();
+  // Registered before awaiting, so the record is written even if the client disconnects mid-call
+  // (a long atlas_test wait the user cancels still started real work, such as a wake).
+  const principal = deps.principal;
+  if (principal) {
     deps.waitUntil(
-      recordTool(deps.db, principal, {
-        tool,
-        action: args.action ?? null,
-        project: args.project ?? args.name ?? null,
-        payload: result.structuredContent,
-        ms: Date.now() - started,
-      }).catch(() => undefined),
+      result
+        .then((r) =>
+          recordTool(deps.db, principal, {
+            tool,
+            action: args.action ?? null,
+            project: args.project ?? args.name ?? null,
+            payload: r.structuredContent,
+            ms: Date.now() - started,
+          }),
+        )
+        .catch(() => undefined),
     );
   }
   return result;

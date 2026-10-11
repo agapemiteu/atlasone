@@ -210,3 +210,15 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   - Flaky test fixed properly: the auth rate-limit test assumed 32 requests fit one 60 s window; now tolerant of one
     window boundary but still requires the limit to bite. Process fix: never gate a deploy through `| grep`.
   - Tests 124 + 6 pass; deployed; all routes 200; evidence verifies.
+
+[2026-10-11 23:20 WAT] Tester plan made turnkey (owner: "easy testing plan ... top tier").
+  - Starter template repo published: github.com/agapemiteu/atlas-one-starter (public, GitHub template, authored by the
+    owner only). Zero-dependency Node shop "Kano Fabrics" (server.js, shop.json facts, public/index.html), `npm start`,
+    .env.local loader, path-traversal safe. "Use this template" gives each tester their own public repo, where the
+    agent commits ATLAS_VERIFICATION.jwt: the judges' independent check is built into the flow.
+  - /guide now 7 steps: get the starter, connect, sign in, pick one of 6 ideas (copy buttons; all end "test and verify
+    it"), confirm key, verified, receipt + push + feedback.
+  - Logging gap found and fixed: a tool call the client abandons mid-way (owner cancelled my atlas_test) still ran
+    (it woke the backend at 22:06 UTC) but was never recorded, because the record was written only after the awaited
+    result. tracked() now registers the record with waitUntil before awaiting. Backend idles back to sleep by ~22:46 UTC.
+  - Tests 124 + 6 pass; deployed.

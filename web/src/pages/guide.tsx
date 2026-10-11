@@ -4,7 +4,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader, StatusDot } from "@/components/site-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStatus } from "@/hooks/use-status";
-import { clientSnippets, STARTER_PROMPT } from "@/lib/content";
+import { clientSnippets, IDEAS, STARTER_REPO } from "@/lib/content";
 
 // The beginner's guide: plain language, one action per step, and what to do when something goes wrong.
 
@@ -84,7 +84,7 @@ export function Guide({ origin }: { origin: string }) {
       <main className="mx-auto max-w-3xl px-4 pt-12 sm:px-6 sm:pt-16">
         <p className="text-sm font-medium text-success">Beginner's guide</p>
         <h1 className="mt-3 text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">Your first N-ATLaS feature, step by step.</h1>
-        <p className="mt-4 text-lg text-muted-foreground">No AI experience needed. About 15 minutes. Free.</p>
+        <p className="mt-4 text-lg text-muted-foreground">No AI experience needed. About 15 minutes. Free. Every step is recorded as test evidence (never your code or prompts).</p>
 
         <section className="mt-10 rounded-2xl border p-5 sm:p-6">
           <h2 className="font-semibold">What you need</h2>
@@ -103,13 +103,26 @@ export function Guide({ origin }: { origin: string }) {
               ))}
             </li>
             <li>
-              <b className="text-foreground">An app to add a feature to.</b> Any project folder. No app yet? Ask your agent: "Create a simple website for a small shop."
+              <b className="text-foreground">Node.js 20.11 or newer</b> to run the ready-made starter app. Free at{" "}
+              <a className="underline underline-offset-4" href="https://nodejs.org">nodejs.org</a>. Already have your own app? Use that instead.
             </li>
           </ul>
         </section>
 
         <ol className="mt-12 grid gap-12">
-          <Step n={1} title="Connect Atlas One to your agent">
+          <Step n={1} title="Get the starter app">
+            <p>
+              A tiny online shop, ready for your agent. Open{" "}
+              <a className="font-medium underline underline-offset-4" href={STARTER_REPO}>atlas-one-starter</a>, click{" "}
+              <b>Use this template</b> to get your own copy, then copy it to your computer and start it:
+            </p>
+            <CopyBox text={"git clone https://github.com/<your-username>/<your-copy>\ncd <your-copy>\nnpm start"} />
+            <p className="text-sm text-muted-foreground">
+              Open http://localhost:3000 to see the shop. No install step. Short on time? <code>git clone {STARTER_REPO}</code> works too.
+            </p>
+          </Step>
+
+          <Step n={2} title="Connect Atlas One to your agent">
             <p>Pick your agent, copy the line, and paste it where the note says. You only do this once.</p>
             <Tabs defaultValue={snippets[0]![0]} className="mt-1 min-w-0">
               <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0 [scrollbar-width:none]">
@@ -128,19 +141,32 @@ export function Guide({ origin }: { origin: string }) {
             </Tabs>
           </Step>
 
-          <Step n={2} title="Sign in with GitHub">
+          <Step n={3} title="Sign in with GitHub">
             <p>
               The first time your agent uses Atlas One, your browser opens a page asking whether to allow it. Click <b>Allow and continue with GitHub</b>,
               then sign in. That's all. Anyone with a GitHub account can use it.
             </p>
           </Step>
 
-          <Step n={3} title="Ask your agent for a feature">
-            <p>Open your app's folder in the agent, paste this message and send it. You can also describe your own idea in your own words.</p>
-            <CopyBox text={STARTER_PROMPT} />
+          <Step n={4} title="Pick an idea and ask your agent">
+            <p>Open the starter's folder in your agent, copy one idea and send it. Or describe your own idea in your own words.</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {IDEAS.map((idea) => (
+                <div key={idea.title} className="flex flex-col gap-2 rounded-xl border p-4">
+                  <div>
+                    <h3 className="font-semibold text-foreground">{idea.title}</h3>
+                    <p className="text-sm text-muted-foreground">{idea.line}</p>
+                  </div>
+                  <div className="mt-auto flex items-start gap-2 rounded-lg bg-muted/60 p-1.5 pl-3">
+                    <p className="min-w-0 flex-1 py-1 font-mono text-[12px] leading-relaxed">{idea.prompt}</p>
+                    <CopyButton text={idea.prompt} />
+                  </div>
+                </div>
+              ))}
+            </div>
           </Step>
 
-          <Step n={4} title="Confirm your key">
+          <Step n={5} title="Confirm your key">
             <p>
               The agent gives you a link. Open it and click <b>Confirm</b>. You'll see two lines starting with <code>ATLAS_ONE_</code>: copy them into the file
               the agent names (usually <code>.env.local</code>). Then tell the agent "done".
@@ -148,7 +174,7 @@ export function Guide({ origin }: { origin: string }) {
             <p className="text-sm text-muted-foreground">The key is like a password for your app. Never paste it into the chat.</p>
           </Step>
 
-          <Step n={5} title="Let it finish and check">
+          <Step n={6} title="Let it finish and check">
             <p>
               The agent writes the code, then tests it on the real N-ATLaS model. You're done when it reports <code>verified: true</code>. If N-ATLaS is
               asleep, the first test wakes it in about 4 minutes.
@@ -159,10 +185,10 @@ export function Guide({ origin }: { origin: string }) {
             </div>
           </Step>
 
-          <Step n={6} title="Keep your receipt, tell us how it went">
+          <Step n={7} title="Keep your receipt, tell us how it went">
             <p>
-              The agent offers to save a signed receipt, <code>ATLAS_VERIFICATION.jwt</code>, in your app. Say yes. It proves your app really used N-ATLaS,
-              and anyone can check it.
+              The agent offers to save a signed receipt, <code>ATLAS_VERIFICATION.jwt</code>, in your app. Say yes, then push to your GitHub copy
+              (<code>git add -A && git commit -m "N-ATLaS feature" && git push</code>). It proves your app really used N-ATLaS, and anyone can check it.
             </p>
             <p>
               Then take 2 minutes for the{" "}

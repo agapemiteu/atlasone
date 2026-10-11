@@ -60,7 +60,7 @@ describe("docs", () => {
 describe("beginner's guide", () => {
   it("walks a newcomer through every step, with where-to-paste help for each agent and fixes for common problems", () => {
     const html = renderToStaticMarkup(<Guide origin={ORIGIN} />).replaceAll("&#x27;", "'");
-    for (const step of ["Connect Atlas One to your agent", "Sign in with GitHub", "Ask your agent for a feature", "Confirm your key", "Let it finish and check", "Keep your receipt"]) {
+    for (const step of ["Get the starter app", "Pick an idea and ask your agent", "Connect Atlas One to your agent", "Sign in with GitHub", "Confirm your key", "Let it finish and check", "Keep your receipt"]) {
       expect(html).toContain(step);
     }
     expect(html).toContain(`claude mcp add --transport http atlas-one ${ORIGIN}/mcp`);
@@ -69,5 +69,7 @@ describe("beginner's guide", () => {
     expect(html).toContain("It says N-ATLaS is waking up");
     expect(html).toContain('href="/feedback"');
     expect(html).not.toMatch(/invite/i);
+    expect(html).toContain("https://github.com/agapemiteu/atlas-one-starter");
+    expect(html.match(/through Atlas One\. Keep the key server-side, then test and verify it\./g)).toHaveLength(6);
   });
 });
