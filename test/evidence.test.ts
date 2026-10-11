@@ -1,12 +1,13 @@
-// Beta evidence (PRD Test 3 and Test 6): milestones are derived from recorded activity, team members are
-// excluded from the external summary, testers can be anonymous, tester text is escaped, and the
-// feedback form is CSRF-protected and validated.
+// Beta evidence (PRD Test 3 and Test 6, D19, D20): milestones come from the recorded log, team members are
+// excluded from the external summary, anonymity holds in every export, tester text is escaped, the event
+// log and snapshot are verifiable with the published key, and the feedback form is CSRF-protected.
 
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { buildEvidence, recordConnected, recordTool } from "../src/lib/activity.ts";
+import { buildEvidence, exportEvents, recordConnected, recordTool } from "../src/lib/activity.ts";
+import { loadSigner, sha256Hex, verifyJwt } from "../src/lib/receipts.ts";
 import { sessionCookie } from "../src/lib/session.ts";
-import { renderEvidence } from "../src/web/evidence.ts";
+import { handleEvidence, renderEvidence } from "../src/web/evidence.ts";
 import { handlePages } from "../src/web/pages.ts";
 
 const SECRET = "test-session-secret-0123456789abcdef";
@@ -15,7 +16,7 @@ const T0 = Date.UTC(2026, 9, 12, 9, 0);
 const min = (n: number) => T0 + n * 60_000;
 
 async function tester(githubId: string, login: string, client: string, steps: { inferenceAt?: number; verifiedAt?: number; errorAt?: number }) {
-  const p = { githubId, login, client };
+  const p = { githubId, login, client, sessionId: `conn_${githubId}` };
   await recordConnected(env.DB, p, T0);
   if (steps.errorAt) {
     const payload = { ok: false, error: { code: "BACKEND_WARMING", request_id: "req_warm" } };
@@ -31,19 +32,22 @@ async function tester(githubId: string, login: string, client: string, steps: { 
   }
 }
 
+const evidenceDeps = async () => ({ db: env.DB, team: ["AgapeMiteu"], secret: SECRET, signer: await loadSigner(env.RECEIPT_SIGNING_KEY), origin: ORIGIN });
+const get = async (path: string) => (await handleEvidence(new URL(`${ORIGIN}${path}`), await evidenceDeps()))!;
+
 beforeEach(async () => {
   await env.DB.prepare("DELETE FROM activity").run();
   await env.DB.prepare("DELETE FROM feedback").run();
 });
 
-describe("evidence", () => {
+describe("evidence summary", () => {
   it("measures each external tester from first connection to real inference and verified app", async () => {
     await tester("1", "ada", "Claude Code", { errorAt: min(1), inferenceAt: min(4), verifiedAt: min(9) });
     await tester("2", "bayo", "Codex", { inferenceAt: min(6), verifiedAt: min(13) });
     await tester("3", "chidi", "Cursor", { inferenceAt: min(2) });
     await tester("9", "agapemiteu", "Claude Code", { inferenceAt: min(1), verifiedAt: min(2) });
 
-    const e = await buildEvidence(env.DB, ["AgapeMiteu"], min(30));
+    const e = await buildEvidence(env.DB, ["AgapeMiteu"], SECRET, min(30));
     expect(e.summary).toMatchObject({
       external_testers: 3,
       external_with_real_inference: 3,
@@ -54,28 +58,69 @@ describe("evidence", () => {
     const ada = e.testers.find((t) => t.tester === "@ada")!;
     expect(ada).toMatchObject({
       agents: ["Claude Code"],
-      first_inference: { minutes_after_connect: 4, request_id: "req_inf_ada" },
+      sessions: 1,
+      first_inference: { minutes_after_connect: 4, request_id: "req_inf_ada", session: "conn_1" },
       app_verified: { minutes_after_connect: 9, request_id: "req_app_ada" },
       tool_errors: { BACKEND_WARMING: 1 },
     });
+    expect(ada.tester_id).toMatch(/^t_[0-9a-f]{12}$/);
     expect(e.testers.at(-1)).toMatchObject({ tester: "@agapemiteu", team: true });
-    // Metadata only: model output never reaches the activity log.
-    const dump = JSON.stringify(await env.DB.prepare("SELECT * FROM activity").all());
-    expect(dump).not.toContain("SECRET OUTPUT");
+    // Metadata only: model output never reaches the log.
+    expect(JSON.stringify(await env.DB.prepare("SELECT * FROM activity").all())).not.toContain("SECRET OUTPUT");
   });
 
-  it("honours anonymity and escapes tester-written text on the public page", async () => {
+  it("honours anonymity everywhere and escapes tester-written text", async () => {
     await tester("1", "ada", "Claude Code", { inferenceAt: min(3) });
     await env.DB.prepare(
-      "INSERT INTO feedback VALUES ('1', 'ada', 0, 'Claude Code', 'Next.js', 8, 'none', '<script>alert(1)</script>', 5, 1)",
+      "INSERT INTO feedback VALUES ('1', 'ada', 0, 'Claude Code', 'Next.js', 8, 'none', '<script>alert(1)</script>', 5, 1, 'https://github.com/ada/shop')",
     ).run();
-    const e = await buildEvidence(env.DB, []);
-    expect(e.testers[0]).toMatchObject({ tester: "Anonymous tester 1", profile: null, feedback: { rating: 5 } });
-    expect(e.summary.average_rating).toBe(5);
+    const e = await buildEvidence(env.DB, [], SECRET);
+    expect(e.testers[0]).toMatchObject({ profile: null, feedback: { rating: 5 } });
+    expect(e.testers[0]!.tester).toMatch(/^Anonymous tester \(t_[0-9a-f]{12}\)$/);
     const html = await renderEvidence(e).text();
     expect(html).not.toContain("<script>alert(1)</script>");
     expect(html).toContain("&#60;script&#62;");
     expect(html).not.toContain("@ada");
+    expect(html).not.toContain("github.com/ada");
+    expect(e.testers[0]!.feedback!.repo_url).toBeNull();
+    expect(await exportEvents(env.DB, [], SECRET)).not.toContain('"ada"');
+  });
+});
+
+describe("verifiable exports (D20)", () => {
+  it("publishes the signing key as a JWK Set without the private part", async () => {
+    const jwks = (await (await get("/.well-known/jwks.json")).json()) as { keys: Record<string, string>[] };
+    expect(jwks.keys).toHaveLength(1);
+    expect(jwks.keys[0]).toMatchObject({ kty: "OKP", crv: "Ed25519", alg: "EdDSA", use: "sig" });
+    expect(jwks.keys[0]!.d).toBeUndefined();
+  });
+
+  it("serves one JSON Lines trace per tester and a signed snapshot whose digest matches the log", async () => {
+    await tester("1", "ada", "Claude Code", { inferenceAt: min(4), verifiedAt: min(9) });
+    await tester("2", "bayo", "Codex", { inferenceAt: min(6) });
+    const all = await (await get("/evidence/events.jsonl")).text();
+    const events = all.trimEnd().split("\n").map((l) => JSON.parse(l) as Record<string, unknown>);
+    expect(events).toHaveLength(5);
+    expect(events[0]).toMatchObject({ schema: "atlas-one.evidence/v1", event: "connected", session: "conn_1", login: "ada" });
+
+    const ada = events.find((e) => e.login === "ada")!.tester as string;
+    const trace = (await (await get(`/evidence/events.jsonl?tester=${ada}`)).text()).trimEnd().split("\n").map((l) => JSON.parse(l));
+    expect(trace.map((e) => e.event)).toEqual(["connected", "tool_call", "tool_call"]);
+    expect(trace.at(-1)).toMatchObject({ action: "verify_app", verified: true, request_id: "req_app_ada", outcome: "ok" });
+
+    const snap = (await (await get("/evidence/snapshot.json")).json()) as { events: string; events_sha256: string; jwt: string };
+    expect(snap.events).toBe(all);
+    expect(snap.events_sha256).toBe(await sha256Hex(all));
+    const jwks = (await (await get("/.well-known/jwks.json")).json()) as never;
+    const { header, claims } = await verifyJwt(snap.jwt, jwks);
+    expect(header.typ).toBe("atlas-evidence+jwt");
+    expect(claims).toMatchObject({ iss: ORIGIN, events_sha256: snap.events_sha256, event_count: 5, summary: { external_testers: 2 } });
+
+    // Any edit to a signed token is detected.
+    const [h, p, s] = snap.jwt.split(".");
+    const forged = `${h}.${btoa(JSON.stringify({ ...claims, event_count: 50 })).replace(/=+$/, "")}.${s}`;
+    await expect(verifyJwt(forged, jwks)).rejects.toThrow("signature does not verify");
+    expect(p).toBeTruthy();
   });
 });
 
@@ -100,9 +145,13 @@ describe("feedback form", () => {
     expect((await go({ method: "POST", body: form("forged") })).status).toBe(403);
     expect((await go({ method: "POST", body: form(csrf, { rating: "9" }) })).status).toBe(400);
     expect((await go({ method: "POST", body: form(csrf, { agent: "Not an agent" }) })).status).toBe(400);
+    expect((await go({ method: "POST", body: form(csrf, { repo_url: "javascript:alert(1)" }) })).status).toBe(400);
+    expect((await go({ method: "POST", body: form(csrf, { repo_url: "https://evil.example/x" }) })).status).toBe(400);
     expect((await go({ method: "POST", body: form(csrf) })).status).toBe(200);
-    expect((await go({ method: "POST", body: form(csrf, { rating: "5" }) })).status).toBe(200);
-    const rows = await env.DB.prepare("SELECT login, agent, stack, minutes, rating, anonymous FROM feedback").all();
-    expect(rows.results).toEqual([{ login: "bayo", agent: "Codex", stack: "FastAPI", minutes: 12, rating: 5, anonymous: 0 }]);
+    expect((await go({ method: "POST", body: form(csrf, { rating: "5", repo_url: "https://github.com/bayo/api" }) })).status).toBe(200);
+    const rows = await env.DB.prepare("SELECT login, agent, stack, minutes, rating, anonymous, repo_url FROM feedback").all();
+    expect(rows.results).toEqual([
+      { login: "bayo", agent: "Codex", stack: "FastAPI", minutes: 12, rating: 5, anonymous: 0, repo_url: "https://github.com/bayo/api" },
+    ]);
   });
 });

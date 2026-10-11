@@ -1,0 +1,12 @@
+{
+  "keys": [
+    {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "hyVgUPlmXKwAKbr8da44VEva4PQDGgsk9p5RVxBm2Vg",
+      "kid": "atlas-one-2026-10",
+      "alg": "EdDSA",
+      "use": "sig"
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import { createExecutionContext, env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetBackendCache } from "../src/lib/backend.ts";
 import { createProjectKey } from "../src/lib/credentials.ts";
+import { loadSigner, verifyJwt } from "../src/lib/receipts.ts";
 import { serveMcp } from "../src/mcp.ts";
 import { ALL_SCOPES } from "../src/tools/context.ts";
 import { handleV1 } from "../src/routes/v1.ts";
@@ -40,7 +41,7 @@ async function world(scenario: Scenario = "ok", mode?: (typeof ERAS)[number][1],
   const route = strictFetch(async (input, init) =>
     serveMcp(
       new Request(input, init),
-      { ...deps, owner, origin: ORIGIN, scopes, principal: { githubId: owner, login: `${owner}-login`, client: "Conformance" } },
+      { ...deps, owner, origin: ORIGIN, scopes, principal: { githubId: owner, login: `${owner}-login`, client: "Conformance", sessionId: `conn_${owner}` }, signer: await loadSigner(env.RECEIPT_SIGNING_KEY) },
       env,
       createExecutionContext(),
     ),
@@ -169,6 +170,20 @@ for (const [era, mode] of ERAS) {
       const ok = (await w.call("atlas_test", { project: w.slug, action: "verify_app", nonce: issued.nonce })).body;
       expect(ok).toMatchObject({ ok: true, verified: true, evidence: { status: 200, source: "app" } });
       expect(ok.next).toBe(`Tell the developer: share how it went (2 minutes) at ${ORIGIN}/feedback`);
+      // The signed receipt verifies against the published key and names this developer, session and request.
+      const signer = (await loadSigner(env.RECEIPT_SIGNING_KEY))!;
+      const { header, claims } = await verifyJwt(ok.receipt, { keys: [signer.publicJwk] });
+      expect(header).toMatchObject({ alg: "EdDSA", typ: "atlas-receipt+jwt", kid: signer.kid });
+      expect(claims).toMatchObject({
+        iss: ORIGIN,
+        sub: `github:${w.owner}`,
+        jti: ok.evidence.request_id,
+        request_id: ok.evidence.request_id,
+        session: `conn_${w.owner}`,
+        project: { slug: w.slug },
+        verified: true,
+        model: "NCAIR1/N-ATLaS@e294476928aca9030e924ca27bb8e085e8581273",
+      });
       const again = await w.call("atlas_test", { project: w.slug, action: "verify_app", nonce: issued.nonce });
       expect(again.isError).toBe(true);
 

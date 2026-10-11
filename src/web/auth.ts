@@ -134,6 +134,7 @@ export async function handleAuth(request: Request, deps: AuthDeps): Promise<Resp
       const user = await githubUser(deps.github, code, resumed.data.verifier, `${deps.origin}${MCP_CALLBACK}`, deps.fetcher);
       if (!(await isAllowed(deps.db, deps.allowedLogins, user.login))) return notInvited(user.login);
       const scopes = resumed.request.scope;
+      const session = `conn_${crypto.randomUUID().replace(/-/g, "")}`;
       const client = await deps.oauth
         .describeConsent(resumed.request)
         .then((d) => d.clientName)
@@ -143,9 +144,9 @@ export async function handleAuth(request: Request, deps: AuthDeps): Promise<Resp
         userId: user.id,
         metadata: { login: user.login },
         scope: scopes,
-        props: { githubId: user.id, login: user.login, scopes, client },
+        props: { githubId: user.id, login: user.login, scopes, client, session },
       });
-      await recordConnected(deps.db, { githubId: user.id, login: user.login, client });
+      await recordConnected(deps.db, { githubId: user.id, login: user.login, client, sessionId: session });
       resumed.headers.set("location", redirectTo);
       // Also sign the browser in, so claim links the agent hands over open without a second login.
       resumed.headers.append("set-cookie", await sessionCookie(deps.sessionSecret, { githubId: user.id, login: user.login }));

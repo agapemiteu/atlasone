@@ -14,7 +14,8 @@ import { handleUpstreamRegister } from "./routes/upstream.ts";
 import { handleV1 } from "./routes/v1.ts";
 import { ALL_SCOPES } from "./tools/context.ts";
 import { handleAuth } from "./web/auth.ts";
-import { evidenceResponse } from "./web/evidence.ts";
+import { handleEvidence } from "./web/evidence.ts";
+import { loadSigner } from "./lib/receipts.ts";
 import type { KaggleConfig } from "./lib/wake.ts";
 import { handlePages } from "./web/pages.ts";
 import { publicStatus } from "./web/status.ts";
@@ -26,6 +27,8 @@ export interface AtlasProps {
   scopes: string[];
   /** MCP client name from the consent page (absent on grants made before beta evidence existed). */
   client?: string | null;
+  /** Evidence session id for this connection ("conn_..."); absent on older grants. */
+  session?: string | null;
 }
 
 // workerd's fetch throws "Illegal invocation" when called as a method of another object
@@ -44,8 +47,15 @@ async function app(request: Request, env: Env, ctx: ExecutionContext): Promise<R
   if (request.method === "GET" && url.pathname === "/health") {
     return Response.json({ service: "atlas-one", gateway: "ok" });
   }
-  if (request.method === "GET" && (url.pathname === "/evidence" || url.pathname === "/evidence.json")) {
-    return evidenceResponse(env.DB, (env.TEAM_GITHUB_LOGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean), url.pathname.endsWith(".json"));
+  if (request.method === "GET") {
+    const evidence = await handleEvidence(url, {
+      db: env.DB,
+      team: (env.TEAM_GITHUB_LOGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+      secret: env.SESSION_SECRET,
+      signer: await loadSigner(env.RECEIPT_SIGNING_KEY),
+      origin: env.PUBLIC_ORIGIN,
+    });
+    if (evidence) return evidence;
   }
   if (request.method === "GET" && url.pathname === "/api/status") {
     return Response.json(await publicStatus(env.DB, fetcher, kaggle), { headers: { "cache-control": "no-store" } });
@@ -92,7 +102,7 @@ function oauthProvider(env: Env): OAuthProvider<Env> {
   const instance = new OAuthProvider<Env>({
     apiRoute: MCP_PATH,
     apiHandler: {
-      fetch(request, env, ctx) {
+      async fetch(request, env, ctx) {
         const props = (ctx as ExecutionContext & { props: AtlasProps }).props;
         return serveMcp(
           request,
@@ -102,7 +112,8 @@ function oauthProvider(env: Env): OAuthProvider<Env> {
             upstreamKey: env.ATLAS_UPSTREAM_KEY,
             waitUntil: (p) => ctx.waitUntil(p),
             owner: props.githubId,
-            principal: { githubId: props.githubId, login: props.login, client: props.client ?? null },
+            principal: { githubId: props.githubId, login: props.login, client: props.client ?? null, sessionId: props.session ?? null },
+            signer: await loadSigner(env.RECEIPT_SIGNING_KEY),
             origin: env.PUBLIC_ORIGIN,
             scopes: props.scopes,
             kaggle: kaggleConfig(env),
@@ -124,7 +135,13 @@ function oauthProvider(env: Env): OAuthProvider<Env> {
     resolveExternalToken: async ({ token, env }) => {
       try {
         const pat = await verifyPersonalToken(env.DB, token);
-        const props: AtlasProps = { githubId: pat.ownerGithubId, login: null, scopes: ALL_SCOPES, client: "Personal token" };
+        const props: AtlasProps = {
+          githubId: pat.ownerGithubId,
+          login: null,
+          scopes: ALL_SCOPES,
+          client: "Personal token",
+          session: `pat_${pat.tokenId}`,
+        };
         return { props, audience: resource };
       } catch {
         return null;

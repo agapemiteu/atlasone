@@ -2,6 +2,7 @@
 
 import { AtlasError, toToolError } from "../lib/errors.ts";
 import type { Principal } from "../lib/activity.ts";
+import type { Signer } from "../lib/receipts.ts";
 import type { KaggleConfig } from "../lib/wake.ts";
 
 /** OAuth scopes (D16). Shown on the consent screen; personal tokens carry all of them. */
@@ -28,6 +29,8 @@ export interface ToolDeps {
   kaggle?: KaggleConfig | null;
   /** Who is calling, for the beta-evidence activity log; absent in unit tests that do not need it. */
   principal?: Principal;
+  /** Signs verification receipts (D20); null or absent issues none. */
+  signer?: Signer | null;
 }
 
 export function requireScope(deps: ToolDeps, scope: Scope): void {

@@ -23,10 +23,13 @@ Open your app in the agent and ask for something that uses N-ATLaS, for example:
 - If N-ATLaS is asleep, your agent's first test wakes it. It is online in about 4 minutes; the home page
   shows each stage. The agent should wait and retry, never fake an answer.
 - Let the agent finish. It should report a real `request_id`, then `verified: true` for your app's route.
+- The agent then offers to save a signed receipt as `ATLAS_VERIFICATION.jwt`. Say yes, commit it, and push
+  your app to a **public GitHub repo** if you can: that lets the judges check your result independently.
 
 ## 4. Tell us how it went (2 minutes)
 
 Open https://atlas-one.collins-coordinator-worker.workers.dev/feedback. You're already signed in from step 2.
+Include your repo link if you pushed the receipt.
 
 ## What is recorded, and who sees it
 
@@ -41,6 +44,8 @@ hide your username).
 ## For the Atlas One team
 
 - Invite testers: `npm run invite -- <github-login> [more logins]`
+- Before submitting: `npm run evidence:snapshot`, then commit `evidence/`. Judges verify it with
+  `node scripts/verify-evidence.mjs` (see docs/EVIDENCE.md).
 - Watch progress live: `/evidence` (judges get the same page; `/evidence.json` for machine-readable data).
 - Team members listed in `TEAM_GITHUB_LOGINS` (wrangler.jsonc) appear as "team" and are excluded from the
   external-tester summary.

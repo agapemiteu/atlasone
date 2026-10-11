@@ -175,3 +175,16 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
     progress reached the injected origin; atlas_test req_ed6bdd262cc6432fb142f46b "Babban birnin Najeriya Abuja ne."
     1,063 ms; e2e-gateway 5/5; e2e-mcp ALL PASSED both eras (verify_app true req_8d9a440a975e43a89566cefa);
     /evidence recorded all of it as team activity.
+
+[2026-10-11 22:15 WAT] Verifiable beta evidence (D20), owner: "judges must be able to verify the testers ... global standard,
+  not vibe coded". Standards only: session id per connection (migration 0006, applied remote); event log as JSON Lines
+  (schema atlas-one.evidence/v1, ISO 8601 UTC, pseudonymous HMAC tester ids); EdDSA/Ed25519 JWTs (RFC 7519/8037)
+  for verification receipts (issued on verify_app, saved by testers in their own repos as ATLAS_VERIFICATION.jwt)
+  and for the evidence snapshot committed in evidence/ (SHA-256 of the log); JWKS (RFC 7517) at
+  /.well-known/jwks.json, kid atlas-one-2026-10, private key only as Worker secret RECEIPT_SIGNING_KEY (never on disk).
+  scripts/verify-evidence.mjs (no install) checks key = published key, signatures, digest, event count, summary and
+  that the live log still contains every committed event. Feedback form takes an optional public repo URL
+  (github.com only, validated). .gitattributes keeps evidence/ bytes exact across OSes. docs/EVIDENCE.md for judges.
+  Tests: 124 Worker + 5 web. LIVE: woke N-ATLaS (online in 180 s); nonce -> app call req_c50b86bc65444d9d8ce4b979
+  "Isi obodo Naijiria bu Abuja." -> verify_app true with a signed receipt; verify-evidence: snapshot 6/6 PASS,
+  receipt 5/5 PASS, tampered receipt FAIL (signature does not verify).

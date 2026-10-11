@@ -12,7 +12,7 @@ import { MODEL_ID } from "../lib/chat.ts";
 import { sha256Hex } from "../lib/credentials.ts";
 import { AtlasError } from "../lib/errors.ts";
 import { newRequestId, runInference } from "../lib/inference.ts";
-import { resolveProject } from "../lib/projects.ts";
+import { type ProjectSummary, resolveProject } from "../lib/projects.ts";
 import { checkKaggleRun, latestWake, requestWake, retryAfterFor, STAGE_TEXT, wakeInFlight } from "../lib/wake.ts";
 import type { ToolDeps } from "./context.ts";
 
@@ -40,6 +40,31 @@ export interface TestArgs {
   nonce?: string;
 }
 
+export const RECEIPT_SCHEMA = "atlas-one.receipt/v1";
+
+/** EdDSA-signed JWT (RFC 7519/8037) proving this developer's app route reached genuine N-ATLaS (D20). */
+async function issueReceipt(deps: ToolDeps, project: ProjectSummary, requestId: string): Promise<string | null> {
+  if (!deps.signer) return null;
+  const upstream = await deps.db
+    .prepare("SELECT model_id, model_revision FROM upstreams WHERE active = 1")
+    .first<{ model_id: string; model_revision: string }>();
+  return deps.signer.sign("atlas-receipt+jwt", {
+    iss: deps.origin,
+    sub: `github:${deps.owner}`,
+    iat: Math.floor(Date.now() / 1000),
+    jti: requestId,
+    schema: RECEIPT_SCHEMA,
+    login: deps.principal?.login ?? null,
+    session: deps.principal?.sessionId ?? null,
+    client: deps.principal?.client ?? null,
+    project: { id: project.id, slug: project.slug, name: project.name },
+    request_id: requestId,
+    verified: true,
+    source: "app",
+    model: upstream ? `${upstream.model_id}@${upstream.model_revision}` : null,
+  });
+}
+
 export async function atlasTest(deps: ToolDeps, args: TestArgs, progress: Progress, sleep = defaultSleep) {
   const project = await resolveProject(deps.db, deps.owner, args.project);
   switch (args.action ?? "inference") {
@@ -47,8 +72,19 @@ export async function atlasTest(deps: ToolDeps, args: TestArgs, progress: Progre
       return issueNonce(deps.db, project.id);
     case "verify_app": {
       const result = await verifyApp(deps.db, project.id, args.nonce);
-      // Beta evidence: a verified integration is the moment to ask for the tester's questionnaire.
-      return result.verified ? { ...result, next: `Tell the developer: share how it went (2 minutes) at ${deps.origin}/feedback` } : result;
+      if (!result.verified || !result.evidence) return result;
+      // Beta evidence: a signed receipt the developer keeps in their own repo, and the questionnaire.
+      const receipt = await issueReceipt(deps, project, result.evidence.request_id);
+      return {
+        ...result,
+        ...(receipt && {
+          receipt,
+          receipt_instructions:
+            "With the developer's OK, save this receipt in the repository root as ATLAS_VERIFICATION.jwt and commit it. " +
+            `It is an EdDSA-signed JWT; anyone can verify it against ${deps.origin}/.well-known/jwks.json.`,
+        }),
+        next: `Tell the developer: share how it went (2 minutes) at ${deps.origin}/feedback`,
+      };
     }
     default:
       return inference(deps, project.id, args, progress, sleep);

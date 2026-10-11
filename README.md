@@ -4,6 +4,7 @@
 Nigerian-English AI feature to your app. It integrates genuine N-ATLaS and proves it works.
 
 - **Live:** https://atlas-one.collins-coordinator-worker.workers.dev (home page with live demo and model status, [/docs](https://atlas-one.collins-coordinator-worker.workers.dev/docs), playground)
+- **Beta evidence:** https://atlas-one.collins-coordinator-worker.workers.dev/evidence (signed, verifiable: [docs/EVIDENCE.md](docs/EVIDENCE.md))
 - **MCP endpoint (any agent):** `https://atlas-one.collins-coordinator-worker.workers.dev/mcp`
 - **App API (industry-standard, OpenAI-compatible):** `https://atlas-one.collins-coordinator-worker.workers.dev/v1`
 - NAIC 2026, PS1 Developer Infrastructure: *"Build the tools that make N-ATLAS easy to build with."*

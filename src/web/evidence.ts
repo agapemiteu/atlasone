@@ -1,13 +1,20 @@
-// Beta evidence for the NAIC judges (PRD Test 3 and Test 6): the public /evidence page and /evidence.json,
-// built live from the activity log, and the signed-in /feedback questionnaire. Metadata only.
+// Beta evidence for the NAIC judges (PRD Test 3 and Test 6, D19, D20), built live from the activity log:
+//   /evidence               human-readable summary and per-tester milestones
+//   /evidence.json          the same, machine-readable
+//   /evidence/events.jsonl  the full event log (JSON Lines, schema atlas-one.evidence/v1), ?tester=t_... for one trace
+//   /evidence/snapshot.json the event log plus an EdDSA-signed JWT over its SHA-256 (committed to the repo)
+// and the signed-in /feedback questionnaire. Metadata only.
 
-import { buildEvidence, type Evidence, type TesterEvidence } from "../lib/activity.ts";
+import { buildEvidence, EVIDENCE_SCHEMA, type Evidence, exportEvents, type TesterEvidence } from "../lib/activity.ts";
+import { sha256Hex, type Signer } from "../lib/receipts.ts";
 import { checkCsrf, csrfToken, type Session } from "../lib/session.ts";
 import { esc, messagePage, page } from "./html.ts";
 
 export const AGENTS = ["Claude Code", "Codex", "Cursor", "VS Code", "Windsurf", "Gemini CLI", "Other"] as const;
 
-const LIMITS = { stack: 80, manual_steps: 1000, issues: 2000 } as const;
+const LIMITS = { stack: 80, manual_steps: 1000, issues: 2000, repo_url: 200 } as const;
+/** Public GitHub repository: https://github.com/<owner>/<repo> */
+const REPO_URL = /^https:\/\/github\.com\/[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]{1,100}\/?$/;
 
 const WIDE = "<style>main{max-width:1040px}td,th{font-size:.88rem}td small{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0}.grid div{border:1px solid var(--line);border-radius:12px;padding:14px}.grid b{display:block;font-size:1.6rem;letter-spacing:-.02em}</style>";
 
@@ -24,10 +31,12 @@ function testerRow(t: TesterEvidence): string {
   const name = t.profile ? `<a href="${esc(t.profile)}">${esc(t.tester)}</a>` : esc(t.tester);
   const fb = t.feedback
     ? `${t.feedback.rating}/5 · ${esc(t.feedback.agent)} · ${esc(t.feedback.stack)}${t.feedback.minutes === null ? "" : ` · ${t.feedback.minutes} min`}` +
+      (t.feedback.repo_url ? `<br><small><a href="${esc(t.feedback.repo_url)}">repo</a></small>` : "") +
       (t.feedback.issues ? `<br><small>${esc(t.feedback.issues)}</small>` : "")
     : "–";
   const errors = Object.entries(t.tool_errors).map(([code, n]) => `${code} ×${n}`).join(", ");
-  return `<tr><td>${name}${t.team ? " <small>(team)</small>" : ""}<br><small>${esc(t.agents.join(", ") || "–")}</small></td>
+  const trace = `<a href="/evidence/events.jsonl?tester=${esc(t.tester_id)}">trace</a>`;
+  return `<tr><td>${name}${t.team ? " <small>(team)</small>" : ""}<br><small>${esc(t.agents.join(", ") || "–")} · ${plural(t.sessions, "session")} · ${trace}</small></td>
 <td>${when(t.connected_at)}</td><td>${milestone(t.first_inference)}</td><td>${milestone(t.app_verified)}</td>
 <td>${plural(t.tool_calls, "call")}${errors ? `<br><small>${esc(errors)}</small>` : ""}</td><td>${fb}</td></tr>`;
 }
@@ -38,7 +47,9 @@ export function renderEvidence(e: Evidence): Response {
   const body = `${WIDE}<div class="card"><h1>Beta evidence</h1>
 <p class="muted">Live from the Atlas One database, generated ${when(e.generated_at)}. Every tester signed in with their own GitHub
 account and their own coding agent; Atlas One records metadata only (never prompts, code or keys). Request ids match the
-<code>x-atlas-request-id</code> header on the real N-ATLaS responses. Machine-readable: <a href="/evidence.json">/evidence.json</a>.</p>
+<code>x-atlas-request-id</code> header on the real N-ATLaS responses. Full event log: <a href="/evidence/events.jsonl">events.jsonl</a> ·
+signed snapshot: <a href="/evidence/snapshot.json">snapshot.json</a> · public key: <a href="/.well-known/jwks.json">jwks.json</a> ·
+how to verify: <a href="https://github.com/agapemiteu/atlasone/blob/main/docs/EVIDENCE.md">docs/EVIDENCE.md</a>.</p>
 <div class="grid">
 ${stat(s.external_testers, "external testers")}
 ${stat(s.external_with_real_inference, "ran real N-ATLaS")}
@@ -53,10 +64,50 @@ ${e.testers.map(testerRow).join("") || '<tr><td colspan="6" class="muted">No tes
   return page("Beta evidence", body);
 }
 
-export async function evidenceResponse(db: D1Database, team: string[], json: boolean): Promise<Response> {
-  const evidence = await buildEvidence(db, team);
-  if (!json) return renderEvidence(evidence);
-  return Response.json(evidence, { headers: { "cache-control": "no-store", "access-control-allow-origin": "*" } });
+export interface EvidenceDeps {
+  db: D1Database;
+  team: string[];
+  /** HMAC key for pseudonymous tester ids. */
+  secret: string;
+  signer: Signer | null;
+  origin: string;
+}
+
+const OPEN = { "cache-control": "no-store", "access-control-allow-origin": "*" };
+
+/** Routes the public evidence endpoints; null when the path is not one of them. */
+export async function handleEvidence(url: URL, deps: EvidenceDeps): Promise<Response | null> {
+  switch (url.pathname) {
+    case "/evidence":
+      return renderEvidence(await buildEvidence(deps.db, deps.team, deps.secret));
+    case "/evidence.json":
+      return Response.json(await buildEvidence(deps.db, deps.team, deps.secret), { headers: OPEN });
+    case "/evidence/events.jsonl": {
+      const all = await exportEvents(deps.db, deps.team, deps.secret);
+      const tester = url.searchParams.get("tester");
+      const lines = all.split("\n").filter(Boolean);
+      const kept = tester ? lines.filter((l) => (JSON.parse(l) as { tester: string }).tester === tester) : lines;
+      return new Response(kept.map((l) => l + "\n").join(""), { headers: { ...OPEN, "content-type": "application/x-ndjson; charset=utf-8" } });
+    }
+    case "/evidence/snapshot.json": {
+      const [events, evidence] = await Promise.all([exportEvents(deps.db, deps.team, deps.secret), buildEvidence(deps.db, deps.team, deps.secret)]);
+      const eventsSha256 = await sha256Hex(events);
+      const claims = {
+        iss: deps.origin,
+        iat: Math.floor(Date.now() / 1000),
+        schema: EVIDENCE_SCHEMA,
+        events_sha256: eventsSha256,
+        event_count: events.split("\n").filter(Boolean).length,
+        summary: evidence.summary,
+      };
+      const jwt = deps.signer ? await deps.signer.sign("atlas-evidence+jwt", claims) : null;
+      return Response.json({ schema: EVIDENCE_SCHEMA, generated_at: evidence.generated_at, events_sha256: eventsSha256, jwt, events, evidence }, { headers: OPEN });
+    }
+    case "/.well-known/jwks.json":
+      return Response.json({ keys: deps.signer ? [deps.signer.publicJwk] : [] }, { headers: { ...OPEN, "cache-control": "public, max-age=300" } });
+    default:
+      return null;
+  }
 }
 
 function feedbackForm(csrf: string, session: Session, prior: Record<string, string | number | null> | null, error = ""): string {
@@ -73,6 +124,7 @@ ${error ? `<p class="warn">${esc(error)}</p>` : ""}
 <label>Agent you used<br><select name="agent" required>${agentOptions}</select></label>
 <label>Your app's stack (e.g. Next.js, Express, FastAPI)<br><input name="stack" required maxlength="${LIMITS.stack}" value="${v("stack")}" style="width:100%"></label>
 <label>Minutes from connecting to a verified feature<br><input name="minutes" type="number" min="0" max="1440" value="${v("minutes")}"></label>
+<label>Public GitHub repo of your app, with ATLAS_VERIFICATION.jwt committed (optional, lets judges check it)<br><input name="repo_url" type="url" maxlength="${LIMITS.repo_url}" placeholder="https://github.com/you/your-app" value="${v("repo_url")}" style="width:100%"></label>
 <label>Manual steps you had to do yourself<br><textarea name="manual_steps" maxlength="${LIMITS.manual_steps}" rows="3" style="width:100%">${v("manual_steps")}</textarea></label>
 <label>Anything confusing, broken, or wrong in the N-ATLaS answers<br><textarea name="issues" maxlength="${LIMITS.issues}" rows="3" style="width:100%">${v("issues")}</textarea></label>
 <div>Would you use Atlas One again? (1 = no, 5 = definitely)<br>${ratings}</div>
@@ -87,7 +139,7 @@ export async function feedbackPage(request: Request, db: D1Database, secret: str
   const purpose = "feedback";
   const csrf = await csrfToken(secret, session, purpose);
   const prior = await db
-    .prepare("SELECT agent, stack, minutes, manual_steps, issues, rating, anonymous FROM feedback WHERE github_id = ?")
+    .prepare("SELECT agent, stack, minutes, manual_steps, issues, rating, anonymous, repo_url FROM feedback WHERE github_id = ?")
     .bind(session.githubId)
     .first<Record<string, string | number | null>>();
   if (request.method !== "POST") return page("Feedback", feedbackForm(csrf, session, prior));
@@ -105,6 +157,7 @@ export async function feedbackPage(request: Request, db: D1Database, secret: str
     stack: text(form, "stack"),
     minutes,
     manual_steps: text(form, "manual_steps"),
+    repo_url: text(form, "repo_url") || null,
     issues: text(form, "issues"),
     rating,
     anonymous: form.get("anonymous") ? 1 : 0,
@@ -113,19 +166,20 @@ export async function feedbackPage(request: Request, db: D1Database, secret: str
     !(AGENTS as readonly string[]).includes(agent) ? "Pick the agent you used." :
     !entry.stack ? "Tell us your app's stack." :
     !Number.isInteger(rating) || rating < 1 || rating > 5 ? "Pick a rating from 1 to 5." :
+    entry.repo_url !== null && !REPO_URL.test(entry.repo_url) ? "The repo link must look like https://github.com/you/your-app." :
     minutes !== null && (!Number.isInteger(minutes) || minutes < 0 || minutes > 1440) ? "Minutes must be a whole number from 0 to 1440." :
     "";
   if (invalid) return page("Feedback", feedbackForm(csrf, session, entry, invalid), { status: 400 });
 
   await db
     .prepare(
-      `INSERT INTO feedback (github_id, login, submitted_at, agent, stack, minutes, manual_steps, issues, rating, anonymous)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO feedback (github_id, login, submitted_at, agent, stack, minutes, manual_steps, issues, rating, anonymous, repo_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (github_id) DO UPDATE SET login = excluded.login, submitted_at = excluded.submitted_at, agent = excluded.agent,
          stack = excluded.stack, minutes = excluded.minutes, manual_steps = excluded.manual_steps, issues = excluded.issues,
-         rating = excluded.rating, anonymous = excluded.anonymous`,
+         rating = excluded.rating, anonymous = excluded.anonymous, repo_url = excluded.repo_url`,
     )
-    .bind(session.githubId, session.login, Date.now(), agent, entry.stack, minutes, entry.manual_steps, entry.issues, rating, entry.anonymous)
+    .bind(session.githubId, session.login, Date.now(), agent, entry.stack, minutes, entry.manual_steps, entry.issues, rating, entry.anonymous, entry.repo_url)
     .run();
   return page("Thank you", `<div class="card"><h1>Thank you</h1><p>Your feedback is recorded. See it with everyone's results on the
 <a href="/evidence">evidence page</a>. You can update it any time from <a href="/feedback">/feedback</a>.</p></div>`);

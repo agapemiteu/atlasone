@@ -30,7 +30,7 @@ the video.
 | Backend | **Wake-on-demand live**: requests wake Kaggle (T4 x2) via API, live stages on `/` and `/api/status`, ~4 min cold start, sleeps after 40 idle min; GGUF cache in `Agapemiteu/n-atlas-gguf-cache`. Nobody starts Kaggle by hand any more |
 | Docs | README, TECHNICAL, NATLAS-INTEGRATION (live T5 section pending), BETA-TESTING, VIDEO-SCRIPT |
 | Security | Auth-route rate limit; open redirect, CSRF, XSS, SSRF, owner isolation, quota races covered by tests |
-| Beta evidence | `npm run invite -- <login>` adds testers; `/feedback` collects their questionnaire; `/evidence` (+ `.json`) shows live, per-tester proof for the judges (D19). Model idles 40 min before sleeping |
+| Beta evidence | Signed and verifiable (D20, docs/EVIDENCE.md): refresh with `npm run evidence:snapshot` and commit `evidence/` before submitting. `npm run invite -- <login>` adds testers; `/feedback` collects their questionnaire; `/evidence` (+ `.json`) shows live, per-tester proof for the judges (D19). Model idles 40 min before sleeping |
 | Post-beta | List in the official MCP Registry, then client directories (not GitHub Marketplace) |
 
 ## Resume here (exact next steps)
