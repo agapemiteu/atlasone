@@ -105,8 +105,9 @@ describe("Connect: consent, then GitHub (D1, D16)", () => {
     expect(html).toContain("&#60;script&#62;");
     expect(html).toContain("localhost");
     expect(html).toContain("app on your computer");
+    // All scopes pre-ticked even when the client asked only for the minimum; developer can untick.
     expect(html).toMatch(/value="atlas:test" checked/);
-    expect(html).not.toMatch(/value="atlas:projects" checked/);
+    expect(html).toMatch(/value="atlas:projects" checked/);
     expect(handle).toBeTruthy();
   });
 

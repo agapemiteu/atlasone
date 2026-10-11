@@ -64,10 +64,11 @@ function consentPage(details: ConsentDescription, handle: string): string {
   const origin = details.clientDomain
     ? `Published by <strong>${esc(details.clientDomain)}</strong>.`
     : "This app registered itself, so its name is not verified.";
-  const requested = new Set(details.scope.length ? details.scope : ALL_SCOPES);
+  // MCP clients typically request only the minimum scope from resource metadata (atlas:read), so
+  // pre-tick everything Atlas One needs to do its job; the developer can still untick any of it.
   const scopes = ALL_SCOPES.map((scope) => {
     const required = scope === "atlas:read";
-    return `<label class="scope"><input type="checkbox" name="scope" value="${scope}" ${requested.has(scope) || required ? "checked" : ""} ${required ? "disabled" : ""}>
+    return `<label class="scope"><input type="checkbox" name="scope" value="${scope}" checked ${required ? "disabled" : ""}>
       <span><code>${scope}</code>${required ? " (required)" : ""}<br><span class="muted">${esc(SCOPES[scope])}</span></span></label>`;
   }).join("");
   return `<div class="card">
