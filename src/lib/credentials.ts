@@ -80,6 +80,31 @@ export async function verifyProjectKey(db: D1Database, secret: string | null): P
   return { keyId: row.id, projectId: row.project_id };
 }
 
+export async function createPersonalToken(db: D1Database, ownerGithubId: string, now = Date.now()) {
+  const cred = await mintCredential("pat");
+  const id = crypto.randomUUID();
+  await db
+    .prepare("INSERT INTO personal_tokens (id, owner_github_id, prefix, hash, created_at) VALUES (?, ?, ?, ?, ?)")
+    .bind(id, ownerGithubId, cred.prefix, cred.hash, now)
+    .run();
+  return { id, secret: cred.secret, prefix: cred.prefix };
+}
+
+/** Resolves a personal access token (D5) to its owner, or throws AUTH_REQUIRED / KEY_REVOKED. */
+export async function verifyPersonalToken(
+  db: D1Database,
+  secret: string | null,
+): Promise<{ tokenId: string; ownerGithubId: string }> {
+  if (!secret || credentialKind(secret) !== "pat") throw new AtlasError("AUTH_REQUIRED");
+  const row = await db
+    .prepare("SELECT id, owner_github_id, revoked_at FROM personal_tokens WHERE hash = ?")
+    .bind(await sha256Hex(secret))
+    .first<{ id: string; owner_github_id: string; revoked_at: number | null }>();
+  if (!row) throw new AtlasError("AUTH_REQUIRED");
+  if (row.revoked_at !== null) throw new AtlasError("KEY_REVOKED", "This personal access token has been revoked.");
+  return { tokenId: row.id, ownerGithubId: row.owner_github_id };
+}
+
 /** Revokes every active key of a project. Other projects are untouched (PRD Test 5). */
 export async function revokeProjectKeys(db: D1Database, projectId: string, now = Date.now()): Promise<number> {
   const res = await db

@@ -2,7 +2,7 @@
 // sent, so browsers cannot call it cross-origin and project keys stay out of client bundles (PRD §8).
 
 import { getBackend } from "../lib/backend.ts";
-import { MODEL_ID, parseChatRequest } from "../lib/chat.ts";
+import { MODEL_CARD, MODEL_ID, parseChatRequest } from "../lib/chat.ts";
 import { bearer, sha256Hex, verifyProjectKey } from "../lib/credentials.ts";
 import { AtlasError, toHttpResponse } from "../lib/errors.ts";
 import { newRequestId, runInference } from "../lib/inference.ts";
@@ -13,13 +13,6 @@ export interface GatewayDeps {
   upstreamKey: string;
   waitUntil: (promise: Promise<unknown>) => void;
 }
-
-export const MODEL_CARD = {
-  languages: ["en", "ha", "ig", "yo"],
-  context_window_per_request: 4096,
-  attribution: "Powered by Awarri",
-  licence: "N-ATLaS licence: separate agreement with Awarri required above 1,000 active end users per 30 days.",
-} as const;
 
 const NONCE = /^[A-Za-z0-9_-]{16,128}$/;
 

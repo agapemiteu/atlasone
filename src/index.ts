@@ -1,7 +1,7 @@
-// Atlas One Worker entry. Routes are added as tasks land: /v1 (T2), upstream registry (T3),
-// MCP (T4), OAuth (T6).
+// Atlas One Worker entry: /v1 gateway (T2), upstream registry (T3), /mcp (T4). OAuth wraps this in T6.
 
 import { AtlasError, toHttpResponse } from "./lib/errors.ts";
+import { handleMcp } from "./mcp.ts";
 import { handleUpstreamRegister } from "./routes/upstream.ts";
 import { handleV1 } from "./routes/v1.ts";
 
@@ -32,6 +32,14 @@ export default {
       allowedHosts: env.UPSTREAM_HOSTS,
     });
     if (registered) return registered;
+
+    const mcp = await handleMcp(
+      request,
+      { db: env.DB, fetcher, upstreamKey: env.ATLAS_UPSTREAM_KEY, waitUntil: (p) => ctx.waitUntil(p) },
+      env,
+      ctx,
+    );
+    if (mcp) return mcp;
 
     return toHttpResponse(new AtlasError("NOT_FOUND"));
   },

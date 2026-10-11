@@ -4,6 +4,8 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
+  // Integration recipes are bundled as text.
+  "rules": [{ "type": "Text", "globs": ["**/*.md"], "fallthrough": true }],
   "observability": { "enabled": true },
   "workers_dev": true,
   "preview_urls": false,

@@ -4,6 +4,15 @@
 import { AtlasError } from "./errors.ts";
 
 export const MODEL_ID = "n-atlas-8b";
+
+/** Facts about the served model, shared by /v1/models and atlas_discover. */
+export const MODEL_CARD = {
+  languages: ["en", "ha", "ig", "yo"],
+  context_window_per_request: 4096,
+  attribution: "Powered by Awarri",
+  licence: "N-ATLaS licence: separate agreement with Awarri required above 1,000 active end users per 30 days.",
+} as const;
+
 export const MAX_BODY_BYTES = 64 * 1024;
 export const MAX_TOKENS_CAP = 1024;
 export const DEFAULT_MAX_TOKENS = 512;
