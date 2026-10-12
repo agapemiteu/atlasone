@@ -1,39 +1,41 @@
-# Demo video script (target 4 minutes, required 3-5)
+# Demo video (NAIC item 5: 3-5 minutes, end to end, ideally a real user in a Nigerian language)
 
-Record the screen at 1080p, browser and terminal side by side. Five minutes before recording, ask the agent to
-run `atlas_discover` (it wakes N-ATLaS) and check the site says "N-ATLaS online".
+One real run, recorded live, edited to about 4.5 minutes. Waiting (the agent writing code, model start-up) is
+sped up with an on-screen label such as "2x" or "skipped 90 s"; nothing else is cut or staged.
 
-## 0:00-0:25 The problem
-**Show:** the Atlas One home page and its demo.
-**Say:** "N-ATLaS is open, but getting from access to a working, deployed integration still means a GPU, a
-runtime, keys, glue code, and guessing whether the output is real. Developers now build by instructing coding
-agents. Atlas One connects the world to N-ATLaS: any agent, any stack, verified."
+## Before recording (15 minutes)
 
-## 0:25-1:00 Connect once
-**Show:** `codex mcp add atlas-one --url <url>/mcp` (or `claude mcp add ...`), the consent page with its three
-permissions, GitHub, "Authentication complete".
-**Say:** "Standard MCP and OAuth. The same URL works in Claude Code, Cursor, VS Code and others. I approve exactly
-what the agent may do, and I can sign it out any time from my agent or the Access page."
+1. A clean copy of the starter: `git clone https://github.com/agapemiteu/atlas-one-starter atlas-video-demo`,
+   then `npm start` inside it and open http://localhost:3000.
+2. Your agent with Atlas One connected (`codex mcp list` or `/mcp` shows atlas-one signed in). To show sign-in on
+   camera, sign out first: `codex mcp logout atlas-one`.
+3. Wake N-ATLaS: ask the agent "call atlas_discover" and wait until the site header says "N-ATLaS online".
+4. The real user: a Hausa (or Yoruba / Igbo) speaker beside you or on a phone, with a real medicine box or a
+   printed label. Ask their permission to record them.
+5. Screen recorder: Windows Snipping Tool (Record) or OBS at 1080p, microphone on. Close other tabs, hide
+   bookmarks, zoom the terminal and browser to 125%.
 
-## 1:00-2:15 One instruction
-**Show:** the starter app. In the agent: *"Use Atlas One to add a medicine-label reader to this app: dosing as
-JSON, explained in Hausa. Keep the key server-side, then test and verify it."* Show `atlas_discover`,
-`atlas_bind_project` (a link, not a key), Confirm in the browser, the agent naming the `.env.local` path.
-**Say:** "The key never passes through the AI. Sensitive actions wait for me."
+## Shot list
 
-## 2:15-3:05 Proof, not plausibility
-**Show:** `atlas_test` (request id, weights revision, latency), the nonce flow, `verify_app` → `verified: true`,
-the receipt saved as `ATLAS_VERIFICATION.jwt`. In the app, paste a label: dosing JSON plus the Hausa explanation,
-"Powered by Awarri". Briefly: the docs' Capabilities (structured output, function calling).
-**Say:** "Every answer carries the exact N-ATLaS revision and a request id, and Atlas One proves this route
-reached genuine N-ATLaS. Verified means real model use; answer quality you test with your own examples."
+| Time | Show | Say |
+|---|---|---|
+| 0:00-0:20 | Home page, demo plays | "N-ATLaS is Nigeria's open AI model. Building with it still means a GPU, a runtime, keys and glue code. Atlas One lets any coding agent do that work, and proves the result is genuine N-ATLaS." |
+| 0:20-0:50 | Terminal: `codex mcp add atlas-one --url <url>/mcp`, then `codex mcp login atlas-one`. Browser: consent page (three permissions), GitHub | "One URL for every agent: Codex, Claude Code, Cursor, VS Code. Standard sign-in, and I choose what the agent may do." |
+| 0:50-1:10 | In the agent, paste: *"Use Atlas One to add a medicine-label reader to this app: paste a label, get the dosing as JSON and a plain Hausa explanation. Keep the key server-side, then test and verify it."* | "One instruction, in plain words." |
+| 1:10-1:50 | Agent calls `atlas_discover`, then `atlas_bind_project`: a link. Open it, Confirm, copy the two lines into `.env.local` at the path the agent names (sped up) | "The key never passes through the AI. Atlas One shows it once, to me, in my browser." |
+| 1:50-2:40 | Agent writes the route (sped up), runs `atlas_test` (request id, model revision, latency), then the nonce check and `verify_app` → `verified: true`; it saves `ATLAS_VERIFICATION.jwt` | "It tests on the real model and proves my own route reached genuine N-ATLaS, with a signed receipt anyone can check." |
+| 2:40-3:40 | **Real user.** Open http://localhost:3000/label (or the page the agent made). The user types or pastes their medicine label and reads the Hausa explanation aloud, then says in Hausa whether it is clear | "A real Hausa speaker, a real label." Subtitle what they say in English |
+| 3:40-4:10 | Site `/evidence`: external testers, their builds and verified request ids; terminal: `node scripts/verify-evidence.mjs` → ALL CHECKS PASSED | "Independent developers have built with it, and anyone can verify that." |
+| 4:10-4:30 | Docs: Capabilities (structured output, function calling), then home page | "Any agent, any stack, the full model, verified. Atlas One: connect the world to N-ATLaS." |
 
-## 3:05-3:35 Honest failure
-**Show:** stop the Kaggle run. `atlas_test` → `MODEL_OFFLINE` (or `BACKEND_WARMING` with live stages), no answer;
-`atlas_inspect` shows the error, marked retryable.
-**Say:** "When the model is down, Atlas One says so. It never substitutes another model."
+## If something goes wrong on camera
 
-## 3:35-4:00 Real users
-**Show:** `/evidence`: external testers, their builds, verified request ids, feedback; `node scripts/verify-evidence.mjs`
-printing ALL CHECKS PASSED.
-**Say:** "Independent developers built with it, and anyone can verify that. Atlas One: connect the world to N-ATLaS."
+- `BACKEND_WARMING`: keep recording; the agent retries. Cut the wait and label it ("model starting, about 4 min").
+- A wrong or odd Hausa answer: keep it. Say "verified means genuine N-ATLaS; answer quality is the model's, and
+  we test it". Honesty is part of the product.
+- Sign-in error in Codex: `codex mcp logout atlas-one`, then `codex mcp login atlas-one`.
+
+## After recording
+
+Export 1080p MP4, upload to YouTube as **Unlisted** (or Google Drive, "anyone with the link"), and paste the URL
+into item 5 of the form. Add English subtitles for the Hausa part.
