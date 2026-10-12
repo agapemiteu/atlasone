@@ -93,6 +93,13 @@ Checks the signed tester log against the published key and the live server. [doc
 covers both claims: the model is genuine N-ATLaS (pinned revision, request ids) and independent developers
 used Atlas One (append-only log, signed with EdDSA, JWKS at `/.well-known/jwks.json`).
 
+## Submission documents (NAIC 2026)
+
+[N-ATLaS integration evidence](https://atlas-one.collins-coordinator-worker.workers.dev/submission/n-atlas-integration-evidence.pdf) ·
+[Real-world validation](https://atlas-one.collins-coordinator-worker.workers.dev/submission/real-world-validation.pdf) ·
+[Technical documentation](https://atlas-one.collins-coordinator-worker.workers.dev/submission/technical-documentation.pdf)
+(PDF, generated from the signed evidence by `npm run submission:pdfs`).
+
 ## Develop
 
 ```bash
@@ -114,6 +121,8 @@ npm run deploy    # builds web/, deploys the Worker
 Self-hosting, secrets and infrastructure: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#run-your-own).
 
 ## Licence and attribution
+
+Atlas One is MIT licensed ([LICENSE](LICENSE)); contributions welcome ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 N-ATLaS is an initiative of the Federal Ministry of Communications, Innovation and Digital Economy, and
 powered by Awarri Technologies. Its [terms](https://huggingface.co/NCAIR1/N-ATLaS) allow up to 1,000 active

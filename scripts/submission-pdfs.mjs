@@ -1,6 +1,6 @@
 // Builds the three NAIC submission PDFs (integration evidence, real-world validation, technical documentation)
 // from the signed evidence snapshot in evidence/, so every figure in them comes from the verified log.
-//   node scripts/submission-pdfs.mjs [outDir]      (needs Google Chrome; Node 22.18+)
+//   npm run submission:pdfs   (writes web/public/submission/*.pdf; needs Google Chrome; Node 22.18+)
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -381,10 +381,11 @@ and evidence tools · ${code("docs/")} architecture, evidence, PRD.</p>
 // Render with Chrome over the DevTools protocol (A4, page numbers in the footer).
 
 mkdirSync(OUT, { recursive: true });
+// [file name, footer title, html]; published by the site at /submission/<file>.pdf
 const DOCS = [
-  ["Atlas One - N-ATLaS Integration Evidence", integration],
-  ["Atlas One - Real-World Validation", validation],
-  ["Atlas One - Technical Documentation", technical],
+  ["n-atlas-integration-evidence", "Atlas One - N-ATLaS Integration Evidence", integration],
+  ["real-world-validation", "Atlas One - Real-World Validation", validation],
+  ["technical-documentation", "Atlas One - Technical Documentation", technical],
 ];
 const chrome = spawn(CHROME, ["--headless=new", "--disable-gpu", "--remote-debugging-port=9334", `--user-data-dir=${join(OUT, ".chrome")}`, "about:blank"], { stdio: "ignore" });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -405,8 +406,8 @@ ws.addEventListener("message", (e) => {
 });
 const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 await send("Page.enable");
-for (const [name, html] of DOCS) {
-  const htmlPath = join(OUT, `${name}.html`);
+for (const [file, name, html] of DOCS) {
+  const htmlPath = join(OUT, `${file}.html`);
   writeFileSync(htmlPath, html);
   await send("Page.navigate", { url: pathToFileURL(htmlPath).href });
   await sleep(1200);
@@ -415,9 +416,9 @@ for (const [name, html] of DOCS) {
     printBackground: true, preferCSSPageSize: true, displayHeaderFooter: true,
     headerTemplate: "<div></div>", footerTemplate: footer,
   });
-  writeFileSync(join(OUT, `${name}.pdf`), Buffer.from(pdf.result.data, "base64"));
+  writeFileSync(join(OUT, `${file}.pdf`), Buffer.from(pdf.result.data, "base64"));
   rmSync(htmlPath);
-  console.log("wrote", join(OUT, `${name}.pdf`));
+  console.log("wrote", join(OUT, `${file}.pdf`), `(${ORIGIN}/submission/${file}.pdf)`);
 }
 ws.close();
 chrome.kill();
