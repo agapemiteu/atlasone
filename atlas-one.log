@@ -298,3 +298,11 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
     builds (one per project, name and slug merged), verified request ids per build, feedback status, and every event in
     order (time, step, project, result, request id, duration); "N apps verified" in the summary row.
   Tests 129 + 6 pass; deployed.
+
+[2026-10-12 13:50 WAT] BLOCKER from a second external tester (Tobi, Codex): sign-in finished in the browser, then Codex failed
+  with "Authorization server response missing required issuer". Checked live: our redirect carries
+  iss=https://atlas-one.collins-coordinator-worker.workers.dev, exactly the advertised issuer (RFC 9207 compliant). Known
+  Codex bug (openai/codex#31573, #34684): some versions drop iss in the loopback callback and then reject any server that
+  advertises authorization_response_iss_parameter_supported. Fix D25: the AS metadata no longer advertises the optional
+  flag (iss still sent). Test added; deployed; live metadata confirmed. Guide FAQ: logout/login again. Tester must sign
+  in again so Codex re-reads the metadata.

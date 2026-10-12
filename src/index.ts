@@ -154,6 +154,22 @@ function oauthProvider(env: Env): OAuthProvider<Env> {
 }
 
 const ROOT_PRM = "/.well-known/oauth-protected-resource";
+const AS_METADATA = "/.well-known/oauth-authorization-server";
+
+/**
+ * D25: do not advertise RFC 9207 (`authorization_response_iss_parameter_supported`). It is optional, and some
+ * Codex CLI versions drop `iss` from their loopback callback, then refuse any server that advertises it
+ * ("Authorization server response missing required issuer"; openai/codex#31573, #34684). Unadvertised, every
+ * client takes its ordinary path. The redirect still carries `iss`, which clients may check or ignore.
+ */
+async function withoutIssParameterFlag(res: Response): Promise<Response> {
+  if (!res.ok) return res;
+  const meta = (await res.json()) as Record<string, unknown>;
+  delete meta.authorization_response_iss_parameter_supported;
+  const headers = new Headers(res.headers);
+  headers.delete("content-length");
+  return new Response(JSON.stringify(meta), { status: res.status, headers });
+}
 // Sign-in, consent, token and registration endpoints: limited per client IP (wrangler AUTH_LIMITER).
 const AUTH_PATHS = new Set(["/register", "/authorize", "/token", "/login", "/auth/github/mcp", "/auth/github/web"]);
 
@@ -171,6 +187,7 @@ export default {
       url.pathname = `${ROOT_PRM}${MCP_PATH}`;
       return oauthProvider(env).fetch(new Request(url, request), env, ctx);
     }
+    if (url.pathname === AS_METADATA) return withoutIssParameterFlag(await oauthProvider(env).fetch(request, env, ctx));
     return oauthProvider(env).fetch(request, env, ctx);
   },
 } satisfies ExportedHandler<Env>;

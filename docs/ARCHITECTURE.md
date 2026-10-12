@@ -89,6 +89,7 @@ Each case has a test.
 | D20 | Verifiable evidence with standards only: JSON Lines log, EdDSA-signed JWT receipts and snapshot, JWKS; see [EVIDENCE.md](EVIDENCE.md) |
 | D21 | Public beta: `ACCESS=open` admits any GitHub account; quotas, the per-account project cap and logging bound abuse |
 | D22 | `atlas_discover` starts waking a sleeping model, so the cold start overlaps with integrating instead of blocking the first test |
+| D25 | Authorization-server metadata omits RFC 9207 `authorization_response_iss_parameter_supported` (optional): some Codex versions drop `iss` in their callback and reject servers that advertise it. `iss` is still sent |
 | D24 | In-session feedback: results carry `feedback_request` once per session (verified app, or 12th/40th call); the agent asks at a pause and sends the answer with `atlas_feedback` into the same `feedback` row as the web form (`source`, `session_id`). A fifth tool, because a form people forget is weaker evidence than a question asked in the flow |
 | D23 | Full OpenAI surface the model supports: `response_format` (JSON Schema) and `tools`/`tool_calls`, validated by allowlist; both verified live |
 

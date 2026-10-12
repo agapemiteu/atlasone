@@ -67,6 +67,9 @@ describe("discovery (any MCP client starts here)", () => {
     });
     expect(as.code_challenge_methods_supported).toContain("S256");
     expect(as.scopes_supported).toEqual(expect.arrayContaining(["atlas:read", "atlas:test", "atlas:projects"]));
+    // D25: RFC 9207 support is not advertised, so Codex versions that drop `iss` from their callback can still sign in.
+    expect(as.issuer).toBe(ORIGIN);
+    expect(as).not.toHaveProperty("authorization_response_iss_parameter_supported");
   });
 
   it("challenges unauthenticated MCP requests with a pointer to the metadata", async () => {

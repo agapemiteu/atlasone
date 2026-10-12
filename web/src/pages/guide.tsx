@@ -53,6 +53,10 @@ const FAQ: [string, ReactNode][] = [
     <>Ask your agent to use Atlas One again; it opens the sign-in when needed. In Claude Code you can also type <code>/mcp</code>, pick atlas-one and choose Authenticate.</>,
   ],
   [
+    "Codex says \"missing required issuer\" after signing in",
+    <>Fixed on our side on 12 Oct 2026. Sign in again: run <code>codex mcp logout atlas-one</code>, then <code>codex mcp login atlas-one</code>. Updating Codex (<code>npm i -g @openai/codex</code>) also helps.</>,
+  ],
+  [
     "It says N-ATLaS is waking up",
     <>That's normal. To save free GPU time, N-ATLaS sleeps when nobody uses it and wakes as soon as your agent connects. It takes about 4 minutes; you can watch each stage at the top of this page. Your agent should wait and try again. It must never invent an answer.</>,
   ],
