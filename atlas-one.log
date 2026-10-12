@@ -306,3 +306,13 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   advertises authorization_response_iss_parameter_supported. Fix D25: the AS metadata no longer advertises the optional
   flag (iss still sent). Test added; deployed; live metadata confirmed. Guide FAQ: logout/login again. Tester must sign
   in again so Codex re-reads the metadata.
+
+[2026-10-12 14:30 WAT] Standards audit (owner: "make things standard, as a proper agent and MCP should behave"). Live probe with a
+  personal token: initialize negotiates 2025-03-26 / 2025-06-18 / 2025-11-25; ping, unknown tool/method -> JSON-RPC
+  errors; bad args -> readable isError; CORS on /mcp, /token and metadata; 401 carries resource_metadata. Gaps closed (D26):
+  serverInfo title + websiteUrl; outputSchema on all five tools (results validated by the SDK, checked live for success
+  and error); MCP prompts build_with_n_atlas and diagnose_n_atlas; /access page listing every connected agent (OAuth
+  grants, client name kept in grant metadata) with Sign out, CSRF-protected and scoped to the signed-in account;
+  guide FAQ with sign-in/out per agent (Codex login/logout, Claude Code /mcp, Gemini CLI /mcp auth). Tried listing all
+  scopes in resource metadata: the OAuth library forbids it by design (PRM lists the required minimum; consent offers
+  the rest), reverted. Tests 132 + 6 pass; deployed.

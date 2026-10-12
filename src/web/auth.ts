@@ -144,7 +144,7 @@ export async function handleAuth(request: Request, deps: AuthDeps): Promise<Resp
       const { redirectTo } = await deps.oauth.completeAuthorization({
         request: resumed.request,
         userId: user.id,
-        metadata: { login: user.login },
+        metadata: { login: user.login, client },
         scope: scopes,
         props: { githubId: user.id, login: user.login, scopes, client, session },
       });

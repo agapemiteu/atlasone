@@ -79,10 +79,42 @@ async function withFeedbackRequest(deps: ToolDeps, tool: string, r: ToolResult):
   });
 }
 
+/**
+ * Output schemas (MCP 2025-06-18+): every result is a JSON object with `ok`; the documented fields are listed so
+ * clients can rely on them, and extra fields are allowed. Errors (isError) carry { ok: false, error }.
+ */
+const ERROR = z.object({ code: z.string(), message: z.string(), retryable: z.boolean() }).loose();
+const result = (fields: Record<string, z.ZodType>) => z.looseObject({ ok: z.boolean(), error: ERROR.optional(), ...fields });
+const OUT = {
+  discover: result({
+    backend: z.looseObject({ state: z.string(), checked_at: z.string() }).optional(),
+    model: z.looseObject({ id: z.string() }).optional(),
+    api: z.looseObject({ base_url: z.string() }).optional(),
+    projects: z.array(z.looseObject({ slug: z.string() })).optional(),
+    recipe: z.string().optional(),
+  }),
+  bind: result({
+    project: z.looseObject({ id: z.string(), slug: z.string() }).optional(),
+    action_required: z.boolean().optional(),
+    claim_url: z.string().optional(),
+  }),
+  test: result({
+    request_id: z.string().optional(),
+    verified: z.union([z.boolean(), z.string()]).optional(),
+    nonce: z.string().optional(),
+    receipt: z.string().optional(),
+  }),
+  inspect: result({ requests: z.looseObject({ total: z.number() }).optional() }),
+  feedback: result({ recorded: z.boolean().optional() }),
+};
+
 const recipeNames = Object.keys(RECIPES) as [keyof typeof RECIPES, ...(keyof typeof RECIPES)[]];
 
 export function buildServer(deps: ToolDeps): McpServer {
-  const server = new McpServer({ name: "atlas-one", version: "0.1.0" }, { instructions: INSTRUCTIONS });
+  const server = new McpServer(
+    { name: "atlas-one", title: "Atlas One", version: "1.0.0", websiteUrl: deps.origin },
+    { instructions: INSTRUCTIONS },
+  );
 
   server.registerTool(
     "atlas_discover",
@@ -95,6 +127,7 @@ export function buildServer(deps: ToolDeps): McpServer {
         recipe: z.enum(recipeNames).optional()
           .describe("Return this integration recipe: 'nextjs' (App Router) or 'generic' (Node, Python, curl)."),
       }),
+      outputSchema: OUT.discover,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (args) =>
@@ -118,6 +151,7 @@ export function buildServer(deps: ToolDeps): McpServer {
         name: z.string().min(1).max(64).describe("Project name, e.g. the app's name. Same name = same project."),
         action: z.enum(["bind", "rotate_key", "revoke_key"]).default("bind"),
       }),
+      outputSchema: OUT.bind,
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
     async (args) =>
@@ -145,6 +179,7 @@ export function buildServer(deps: ToolDeps): McpServer {
         prompt: z.string().max(2000).optional().describe("Optional custom user prompt for the inference probe."),
         nonce: z.string().optional().describe("Nonce from issue_app_nonce (required for verify_app)."),
       }),
+      outputSchema: OUT.test,
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     async (args, ctx) => {
@@ -175,6 +210,7 @@ export function buildServer(deps: ToolDeps): McpServer {
         project: z.string().min(1).describe("Project slug or id (see atlas_discover)."),
         window_minutes: z.number().int().min(1).max(10080).default(60).describe("Look-back window (default 60, max 7 days)."),
       }),
+      outputSchema: OUT.inspect,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (args) =>
@@ -199,6 +235,7 @@ export function buildServer(deps: ToolDeps): McpServer {
         manual_steps: z.string().max(1000).optional().describe("What the developer had to do by hand, if they said."),
         stack: z.string().max(200).optional().describe("The app's stack, e.g. 'Node, no framework'."),
       }),
+      outputSchema: OUT.feedback,
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async (args) =>
@@ -214,6 +251,57 @@ export function buildServer(deps: ToolDeps): McpServer {
           };
         }),
       ),
+  );
+
+  // Prompts: clients list these as ready-made commands (e.g. a slash command), the quickest way in.
+  server.registerPrompt(
+    "build_with_n_atlas",
+    {
+      title: "Build a feature with N-ATLaS",
+      description: "Adds an N-ATLaS feature to this app end to end: project, key, code, real test, verified route.",
+      argsSchema: z.object({
+        feature: z.string().describe("What to build, e.g. 'a medicine-label reader that explains dosing in Hausa'."),
+        language: z.string().optional().describe("Reply language: English, Hausa, Igbo or Yoruba."),
+      }),
+    },
+    ({ feature, language }) => ({
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text:
+              `Using Atlas One, add this to my app with N-ATLaS: ${feature}${language ? `, replying in ${language}` : ""}.\n` +
+              "Follow the Atlas One workflow: atlas_discover (pick the recipe for this stack), atlas_bind_project (I confirm the " +
+              "key in my browser; never ask me to paste it here), write the server-side code, atlas_test inference, then " +
+              "issue_app_nonce, call my route with x-atlas-verify, and verify_app. Report success only with verified: true.",
+          },
+        },
+      ],
+    }),
+  );
+
+  server.registerPrompt(
+    "diagnose_n_atlas",
+    {
+      title: "Diagnose my N-ATLaS integration",
+      description: "Finds why an N-ATLaS integration is failing, from real request logs, and fixes it.",
+      argsSchema: z.object({ project: z.string().describe("Project slug or id.") }),
+    },
+    ({ project }) => ({
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text:
+              `My N-ATLaS integration for project "${project}" is not working. Call atlas_discover for the live backend state ` +
+              "and atlas_inspect for its recent errors, explain the cause in plain words, fix my code if the fault is there, " +
+              "then prove the fix with atlas_test (inference, then verify_app).",
+          },
+        },
+      ],
+    }),
   );
 
   for (const name of recipeNames) {

@@ -80,6 +80,19 @@ for (const [era, mode] of ERAS) {
       expect(byName.atlas_test!.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false });
       expect(byName.atlas_test!.inputSchema.required).toContain("project");
       expect(byName.atlas_bind_project!.annotations).toMatchObject({ destructiveHint: true, idempotentHint: true });
+      // Every tool declares its result shape (structuredContent conforms; checked by the SDK client).
+      for (const t of tools) expect(t.outputSchema).toMatchObject({ type: "object", required: ["ok"] });
+    });
+
+    it("identifies itself and offers ready-made prompts, like any well-built MCP server", async () => {
+      const { client } = await world("ok", mode);
+      expect(client.getServerVersion()).toMatchObject({ name: "atlas-one", title: "Atlas One", websiteUrl: ORIGIN });
+      const { prompts } = await client.listPrompts();
+      expect(prompts.map((p) => p.name).sort()).toEqual(["build_with_n_atlas", "diagnose_n_atlas"]);
+      const got = await client.getPrompt({ name: "build_with_n_atlas", arguments: { feature: "a medicine-label reader", language: "Hausa" } });
+      const text = (got.messages[0]!.content as { text: string }).text;
+      expect(text).toContain("a medicine-label reader, replying in Hausa");
+      expect(text).toContain("verified: true");
     });
 
     it("atlas_discover reports live backend, own projects only, and a ready-to-use recipe", async () => {

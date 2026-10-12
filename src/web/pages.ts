@@ -1,9 +1,11 @@
-// Signed-in pages: confirm a claim link (D13, D16), manage personal access tokens (D5), beta feedback.
+// Signed-in pages: confirm a claim link (D13, D16), manage access (connected agents D26, personal tokens D5),
+// beta feedback.
 // Every POST carries a CSRF token bound to the signed-in session and the purpose.
 
 import { ACTION_TEXT, loadClaim, redeemClaim } from "../lib/claims.ts";
 import { createPersonalToken } from "../lib/credentials.ts";
 import { AtlasError } from "../lib/errors.ts";
+import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { checkCsrf, csrfToken, readSession, type Session } from "../lib/session.ts";
 import { esc, messagePage, page, secretBlock } from "./html.ts";
 import { feedbackPage } from "./evidence.ts";
@@ -11,6 +13,23 @@ import { playgroundPage, type PlaygroundDeps } from "./playground.ts";
 
 export interface PageDeps extends PlaygroundDeps {
   origin: string;
+  /** Connected agents (OAuth grants); absent in tests that do not need them. */
+  oauth?: Pick<OAuthHelpers, "listUserGrants" | "revokeGrant" | "lookupClient">;
+}
+
+/** Every agent signed in to this account, newest first (grant times are in seconds): the same for every MCP client (D26). */
+async function connectedAgents(deps: PageDeps, session: Session) {
+  if (!deps.oauth) return [];
+  const { items } = await deps.oauth.listUserGrants(session.githubId, { limit: 100 });
+  const named = await Promise.all(
+    items.map(async (g) => ({
+      id: g.id,
+      name: (g.metadata as { client?: string } | null)?.client ?? (await deps.oauth!.lookupClient(g.clientId).catch(() => null))?.clientName ?? "MCP client",
+      scope: g.scope,
+      createdAt: g.createdAt,
+    })),
+  );
+  return named.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 const loginRedirect = (path: string) =>
@@ -75,6 +94,9 @@ async function tokensPage(request: Request, deps: PageDeps, session: Session): P
 <p class="warn">Shown once. Use it only for MCP clients that cannot sign in with a browser (CI, containers).</p>
 ${secretBlock("pat", pat.secret)}
 <p>Example (Claude Code):</p><pre>claude mcp add --transport http atlas-one ${esc(deps.origin)}/mcp --header "Authorization: Bearer ${esc(pat.secret)}"</pre></div><p></p>`;
+    } else if (form.get("op") === "disconnect" && deps.oauth) {
+      // Signs that agent out: its tokens stop working; it asks to sign in again next time it is used.
+      await deps.oauth.revokeGrant(String(form.get("id")), session.githubId);
     } else if (form.get("op") === "revoke") {
       await deps.db
         .prepare("UPDATE personal_tokens SET revoked_at = ? WHERE id = ? AND owner_github_id = ? AND revoked_at IS NULL")
@@ -87,14 +109,24 @@ ${secretBlock("pat", pat.secret)}
     .bind(session.githubId)
     .all<{ id: string; prefix: string; created_at: number; last_used_at: number | null; revoked_at: number | null }>();
   const csrf = await csrfToken(deps.sessionSecret, session, purpose);
+  const agents = (await connectedAgents(deps, session))
+    .map(
+      (a) => `<tr><td>${esc(a.name)}</td><td>${new Date(a.createdAt * 1000).toISOString().slice(0, 10)}</td><td><small>${esc(a.scope.join(" "))}</small></td>
+<td><form method="post"><input type="hidden" name="csrf" value="${csrf}"><input type="hidden" name="op" value="disconnect"><input type="hidden" name="id" value="${esc(a.id)}"><button class="danger">Sign out</button></form></td></tr>`,
+    )
+    .join("");
   const rows = results
     .map(
       (t) => `<tr><td><code>${esc(t.prefix)}…</code></td><td>${new Date(t.created_at).toISOString().slice(0, 10)}</td>
 <td>${t.revoked_at ? "revoked" : `<form method="post"><input type="hidden" name="csrf" value="${csrf}"><input type="hidden" name="op" value="revoke"><input type="hidden" name="id" value="${esc(t.id)}"><button class="danger">Revoke</button></form>`}</td></tr>`,
     )
     .join("");
-  return page("Personal access tokens", `${created}<div class="card"><h1>Personal access tokens</h1>
-<p class="muted">Most MCP clients sign in with the Connect button and need no token. Tokens are for clients that cannot open a browser. Signed in as @${esc(session.login)}.</p>
+  return page("Access", `${created}<div class="card"><h1>Connected agents</h1>
+<p class="muted">Every coding agent signed in to Atlas One as @${esc(session.login)}. Sign one out here and it asks you to sign in
+again next time; this works the same for every agent.</p>
+<table><tr><th>Agent</th><th>Connected</th><th>Permissions</th><th></th></tr>${agents || '<tr><td colspan="4" class="muted">No agents connected.</td></tr>'}</table></div><p></p>
+<div class="card"><h1>Personal access tokens</h1>
+<p class="muted">Most MCP clients sign in with the browser and need no token. Tokens are for clients that cannot open a browser.</p>
 <form method="post"><input type="hidden" name="csrf" value="${csrf}"><input type="hidden" name="op" value="create"><button class="primary">Create token</button></form>
 <table><tr><th>Token</th><th>Created</th><th></th></tr>${rows || '<tr><td colspan="3" class="muted">No tokens yet.</td></tr>'}</table></div>`);
 }
@@ -102,7 +134,7 @@ ${secretBlock("pat", pat.secret)}
 export async function handlePages(request: Request, deps: PageDeps): Promise<Response | null> {
   const url = new URL(request.url);
   const claim = /^\/claim\/(cl_[A-Za-z0-9_-]{43})$/.exec(url.pathname);
-  if (!claim && !["/tokens", "/playground", "/feedback"].includes(url.pathname)) return null;
+  if (!claim && !["/access", "/tokens", "/playground", "/feedback"].includes(url.pathname)) return null;
   const session = await readSession(request, deps.sessionSecret);
   if (!session) return loginRedirect(url.pathname);
   if (claim) return claimPage(request, deps, claim[1]!, session);

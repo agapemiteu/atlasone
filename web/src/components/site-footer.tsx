@@ -13,7 +13,7 @@ export function SiteFooter({ lang }: { lang?: Lang }) {
           <a className="hover:text-foreground" href="/docs">Docs</a>
           <a className="hover:text-foreground" href="/evidence">Beta evidence</a>
           <a className="hover:text-foreground" href="/playground">Playground</a>
-          <a className="hover:text-foreground" href="/tokens">Tokens</a>
+          <a className="hover:text-foreground" href="/access">Access</a>
           <a className="hover:text-foreground" href="https://huggingface.co/NCAIR1/N-ATLaS">Licence</a>
           <a className="hover:text-foreground" href={REPO}>GitHub</a>
         </div>

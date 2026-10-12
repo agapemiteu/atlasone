@@ -89,6 +89,7 @@ async function app(request: Request, env: Env, ctx: ExecutionContext): Promise<R
       sessionSecret: env.SESSION_SECRET,
       origin: env.PUBLIC_ORIGIN,
       kaggle,
+      oauth: env.OAUTH_PROVIDER,
     }));
   if (response) return response;
 

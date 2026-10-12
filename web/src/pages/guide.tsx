@@ -53,6 +53,15 @@ const FAQ: [string, ReactNode][] = [
     <>Ask your agent to use Atlas One again; it opens the sign-in when needed. In Claude Code you can also type <code>/mcp</code>, pick atlas-one and choose Authenticate.</>,
   ],
   [
+    "How do I sign in again, or sign out?",
+    <>
+      Every agent can: <b>Codex</b> <code>codex mcp login atlas-one</code> and <code>codex mcp logout atlas-one</code>. <b>Claude Code</b>: type{" "}
+      <code>/mcp</code>, pick atlas-one, then Authenticate or Clear authentication. <b>Gemini CLI</b>: <code>/mcp auth atlas-one</code>. Cursor, VS Code
+      and others: in their MCP settings. For any agent, you can also see and sign out everything connected to your account on the{" "}
+      <a className="underline underline-offset-4" href="/access">Access</a> page.
+    </>,
+  ],
+  [
     "Codex says \"missing required issuer\" after signing in",
     <>Fixed on our side on 12 Oct 2026. Sign in again: run <code>codex mcp logout atlas-one</code>, then <code>codex mcp login atlas-one</code>. Updating Codex (<code>npm i -g @openai/codex</code>) also helps.</>,
   ],

@@ -4,7 +4,7 @@ import { createClaim, loadClaim, redeemClaim } from "../src/lib/claims.ts";
 import { createProjectKey, verifyProjectKey } from "../src/lib/credentials.ts";
 import { AtlasError } from "../src/lib/errors.ts";
 import { checkCsrf, csrfToken, readSession, sessionCookie, signValue, verifyValue } from "../src/lib/session.ts";
-import { handlePages } from "../src/web/pages.ts";
+import { handlePages, type PageDeps } from "../src/web/pages.ts";
 import { fakeUpstream } from "./fake-upstream.ts";
 import { makeProject } from "./helpers.ts";
 
@@ -151,5 +151,29 @@ describe("claim and token pages", () => {
     await as("/tokens", { method: "POST", body: new URLSearchParams({ csrf, op: "revoke", id: row!.id }) });
     const revoked = await env.DB.prepare("SELECT revoked_at FROM personal_tokens WHERE id = ?").bind(row!.id).first<number | null>("revoked_at");
     expect(revoked).toBeTypeOf("number");
+  });
+
+  it("connected agents: lists every agent signed in, and signs one out for that account only (any MCP client)", async () => {
+    const grants = [
+      { id: "g1", clientId: "c1", userId: "gh-12", scope: ["atlas:read", "atlas:test"], metadata: { login: "dev", client: "Codex" }, createdAt: 1_791_800_000 },
+      { id: "g2", clientId: "c2", userId: "gh-12", scope: ["atlas:read"], metadata: { login: "dev" }, createdAt: 1_791_700_000 },
+    ];
+    const revoked: [string, string][] = [];
+    const oauth = {
+      listUserGrants: async (userId: string) => ({ items: grants.filter((g) => g.userId === userId) }),
+      revokeGrant: async (id: string, userId: string) => void revoked.push([id, userId]),
+      lookupClient: async (id: string) => (id === "c2" ? { clientName: "<b>Claude Code</b>" } : null),
+    } as unknown as NonNullable<PageDeps["oauth"]>;
+    const cookie = (await sessionCookie(SECRET, { githubId: "gh-12", login: "dev" })).split(";")[0]!;
+    const as = (path: string, init: RequestInit = {}) =>
+      handlePages(new Request(`${ORIGIN}${path}`, { ...init, headers: { cookie } }), { ...PAGE_DEPS, oauth });
+    const page = await (await as("/access"))!.text();
+    expect(page).toContain("Connected agents");
+    expect(page).toContain("Codex");
+    expect(page).toContain("&#60;b&#62;Claude Code"); // names from client registration are escaped
+    const csrf = /name="csrf" value="([^"]+)"/.exec(page)![1]!;
+    expect((await as("/access", { method: "POST", body: new URLSearchParams({ csrf: "forged", op: "disconnect", id: "g1" }) }))!.status).toBe(403);
+    await as("/access", { method: "POST", body: new URLSearchParams({ csrf, op: "disconnect", id: "g1" }) });
+    expect(revoked).toEqual([["g1", "gh-12"]]); // always scoped to the signed-in account
   });
 });
