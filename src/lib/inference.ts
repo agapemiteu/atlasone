@@ -89,12 +89,15 @@ export async function runInference(ctx: InferenceContext, req: ChatRequest): Pro
     }
 
     const json = (await res.json()) as {
-      choices?: { message?: { content?: unknown }; finish_reason?: string | null }[];
+      choices?: { message?: { content?: unknown; tool_calls?: unknown[] }; finish_reason?: string | null }[];
       usage?: Usage;
     };
     const choice = json.choices?.[0];
-    const content = choice?.message?.content;
-    if (typeof content !== "string" || content.trim() === "") {
+    const raw = choice?.message?.content;
+    const toolCalls = choice?.message?.tool_calls;
+    const content = typeof raw === "string" ? raw : "";
+    // A completion is either text or tool calls for the caller to run; neither is an empty answer.
+    if (content.trim() === "" && !(Array.isArray(toolCalls) && toolCalls.length > 0)) {
       throw new AtlasError("INVALID_OUTPUT", "The model returned an empty completion.");
     }
     const usage = json.usage ?? {};

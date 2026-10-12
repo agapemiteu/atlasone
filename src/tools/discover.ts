@@ -55,6 +55,12 @@ export async function discover(deps: ToolDeps, args: { recipe?: RecipeName }) {
       weights: backend.upstream ? `${backend.upstream.model_id}@${backend.upstream.model_revision}` : "NCAIR1/N-ATLaS",
       runtime: backend.upstream?.runtime ?? null,
       modalities: ["text"],
+      capabilities: {
+        chat: "messages with system, user, assistant; multi-turn",
+        streaming: "stream: true (Server-Sent Events)",
+        structured_output: "response_format json_object or json_schema; grammar-constrained, always parses",
+        function_calling: "tools + tool_choice; returns tool_calls, accepts role 'tool' results",
+      },
       ...MODEL_CARD,
       note: "Always set a system message naming the reply language; N-ATLaS follows it.",
     },

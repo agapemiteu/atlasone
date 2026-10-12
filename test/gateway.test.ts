@@ -98,6 +98,40 @@ describe("POST /v1/chat/completions: success", () => {
     expect(sent).not.toHaveProperty("n_probs");
   });
 
+  it("forwards structured output (response_format) in the OpenAI shape and rejects malformed ones", async () => {
+    const t = await setup("ok");
+    const schema = { type: "object", properties: { sentiment: { enum: ["positive", "negative"] } }, required: ["sentiment"] };
+    await t.call({ ...HAUSA, response_format: { type: "json_schema", json_schema: { name: "review", schema, strict: true, extra: 1 } } });
+    const sent = t.up.calls.find((c) => c.path === "/v1/chat/completions")!.body!;
+    expect(sent.response_format).toEqual({ type: "json_schema", json_schema: { name: "review", schema, strict: true } });
+    expect(await errorCode(await t.call({ ...HAUSA, response_format: { type: "xml" } }))).toBe("VALIDATION_FAILED");
+    expect(await errorCode(await t.call({ ...HAUSA, response_format: { type: "json_schema", json_schema: { name: "x" } } }))).toBe("VALIDATION_FAILED");
+    expect(t.up.calls.filter((c) => c.path === "/v1/chat/completions")).toHaveLength(1);
+  });
+
+  it("forwards function calling (tools, tool_choice, the tool-result round trip) and rejects malformed ones", async () => {
+    const t = await setup("ok");
+    const tool = { type: "function", function: { name: "track_order", description: "Order status", parameters: { type: "object" } } };
+    const call = { id: "call_1", type: "function", function: { name: "track_order", arguments: '{"order_id":"KF-1042"}' } };
+    await t.call({
+      messages: [
+        { role: "user", content: "Ina odar KF-1042?" },
+        { role: "assistant", content: null, tool_calls: [call] },
+        { role: "tool", tool_call_id: "call_1", content: '{"status":"shipped"}' },
+      ],
+      tools: [tool],
+      tool_choice: { type: "function", function: { name: "track_order" } },
+    });
+    const sent = t.up.calls.find((c) => c.path === "/v1/chat/completions")!.body!;
+    expect(sent.tools).toEqual([tool]);
+    expect(sent.tool_choice).toEqual({ type: "function", function: { name: "track_order" } });
+    expect(sent.messages[1]).toEqual({ role: "assistant", content: null, tool_calls: [call] });
+    expect(sent.messages[2]).toEqual({ role: "tool", tool_call_id: "call_1", content: '{"status":"shipped"}' });
+    expect(await errorCode(await t.call({ ...HAUSA, tools: [{ type: "function", function: { name: "bad name!" } }] }))).toBe("VALIDATION_FAILED");
+    expect(await errorCode(await t.call({ ...HAUSA, tools: [tool], tool_choice: { type: "function", function: { name: "other" } } }))).toBe("VALIDATION_FAILED");
+    expect(await errorCode(await t.call({ messages: [{ role: "assistant", content: null }] }))).toBe("VALIDATION_FAILED");
+  });
+
   it("streams SSE through untouched and logs usage at the end", async () => {
     const t = await setup("ok");
     const res = await t.call({ ...HAUSA, stream: true });

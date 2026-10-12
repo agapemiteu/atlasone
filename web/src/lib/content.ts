@@ -70,14 +70,14 @@ export const IDEAS: { title: string; line: string; prompt: string }[] = [
     prompt: `Add a page where someone pastes an English message, like a bank alert or an official notice, and gets a simple explanation in Igbo, ${VERIFY}`,
   },
   {
-    title: "Delivery updates in the customer's language",
-    line: "Order messages in Hausa, Igbo or Yoruba.",
-    prompt: `Add an endpoint that writes a friendly order-delivery message in the customer's language (Hausa, Igbo or Yoruba), ${VERIFY}`,
+    title: "An order-tracking agent",
+    line: "Function calling: N-ATLaS calls your code, then answers.",
+    prompt: `Add a few sample orders and an order-tracking assistant that uses N-ATLaS function calling to look an order up, then replies in the customer's language (Hausa, Igbo or Yoruba), ${VERIFY}`,
   },
   {
-    title: "Farm advice in Hausa",
-    line: "A chat that answers farmers from a short crop guide.",
-    prompt: `Add a short maize-farming guide to this project and a Hausa chat that answers farmers' questions from it, ${VERIFY}`,
+    title: "Reviews to data",
+    line: "Structured output: any of four languages in, JSON out.",
+    prompt: `Add an endpoint that turns a customer review in Hausa, Igbo or Yoruba into JSON (sentiment, product, English summary) with N-ATLaS structured output, ${VERIFY}`,
   },
 ];
 
@@ -100,7 +100,7 @@ export const DEMO = {
   ] as [string, string][],
 };
 
-export const USE_CASES: { icon: "chat" | "translate" | "plant"; title: string; line: string; ask: string }[] = [
+export const USE_CASES: { icon: "chat" | "agent" | "data"; title: string; line: string; ask: string }[] = [
   {
     icon: "chat",
     title: "Support in Hausa",
@@ -108,16 +108,16 @@ export const USE_CASES: { icon: "chat" | "translate" | "plant"; title: string; l
     ask: DEMO.instruction,
   },
   {
-    icon: "translate",
-    title: "Order updates in Yoruba and Igbo",
-    line: "Notifications in each customer's language.",
-    ask: "Rewrite our order-status messages in Yoruba or Igbo with N-ATLaS, based on the customer's language setting, and test it.",
+    icon: "agent",
+    title: "Agents that act",
+    line: "Function calling: N-ATLaS calls your code to check orders or book deliveries, then replies in the customer's language.",
+    ask: "Add an order-tracking assistant that uses N-ATLaS function calling to call our order lookup, replies in Yoruba or Igbo, and verify it.",
   },
   {
-    icon: "plant",
-    title: "Farm advice in Igbo",
-    line: "A chat that explains your guides.",
-    ask: "Add an Igbo chat endpoint that answers farmers' questions from our crop guide, powered by N-ATLaS, and verify it.",
+    icon: "data",
+    title: "Text to data",
+    line: "Structured output: reviews and messages in four languages become JSON your code can trust.",
+    ask: "Classify incoming Hausa, Igbo and Yoruba reviews into JSON (sentiment, topic, English summary) with N-ATLaS structured output, and verify it.",
   },
 ];
 
@@ -172,4 +172,51 @@ r = atlas.chat.completions.create(
 
 export function langFromSearch(search: string): Lang {
   return new URLSearchParams(search).get("lang") === "ha" ? "ha" : "en";
+}
+
+/** Structured output and function calling, both checked on the live model (atlas-one.log, 2026-10-12). */
+export function capabilitySnippets(api: string): [string, string][] {
+  return [
+    [
+      "Structured output",
+      `const res = await fetch("${api}/chat/completions", {
+  method: "POST",
+  headers: { authorization: \`Bearer \${process.env.ATLAS_ONE_API_KEY}\`, "content-type": "application/json" },
+  body: JSON.stringify({
+    model: "n-atlas-8b",
+    messages: [
+      { role: "system", content: "Classify the customer review." },
+      { role: "user", content: "Kayan nan ba su da kyau ko kadan." },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "review",
+        schema: {
+          type: "object",
+          properties: { sentiment: { enum: ["positive", "negative", "neutral"] }, english: { type: "string" } },
+          required: ["sentiment", "english"],
+        },
+      },
+    },
+  }),
+});
+const review = JSON.parse((await res.json()).choices[0].message.content);`,
+    ],
+    [
+      "Function calling",
+      `const tools = [{
+  type: "function",
+  function: {
+    name: "track_order",
+    description: "Look up an order by id",
+    parameters: { type: "object", properties: { order_id: { type: "string" } }, required: ["order_id"] },
+  },
+}];
+// 1. The model asks for a tool: message.tool_calls = [{ id, function: { name: "track_order", arguments } }]
+// 2. Run it yourself, then send the result back:
+messages.push(message, { role: "tool", tool_call_id: message.tool_calls[0].id, content: JSON.stringify(order) });
+// 3. Call again with the same tools: the model answers in the user's language.`,
+    ],
+  ];
 }

@@ -54,6 +54,9 @@ describe("docs", () => {
     expect(html).toContain("30 per minute, 500 per day");
     expect(html).toContain("1,000 active end users");
     expect(html.match(/href="#[a-z]+"/g)).toHaveLength(5);
+    for (const capability of ["Structured output", "Function calling", "response_format", "tool_calls", "does not grade answers"]) {
+      expect(html).toContain(capability);
+    }
   });
 });
 

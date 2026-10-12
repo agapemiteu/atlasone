@@ -13,7 +13,7 @@ NAIC 2026, PS1 Developer Infrastructure: *"Build the tools that make N-ATLAS eas
 
 ## How it works
 
-1. **Connect** any MCP client (Claude Code, Codex, Cursor, VS Code, Windsurf, Gemini CLI) to
+1. **Connect once:** any MCP client (Claude Code, Codex, Cursor, VS Code, Windsurf, Gemini CLI) to
    `https://atlas-one.collins-coordinator-worker.workers.dev/mcp` and sign in with GitHub.
 2. **Ask** your agent for a feature in plain words.
 3. **Verified:** the agent integrates a server-side route, runs genuine N-ATLaS, and proves your route
@@ -26,7 +26,9 @@ NAIC 2026, PS1 Developer Infrastructure: *"Build the tools that make N-ATLAS eas
 | `atlas_test` | Genuine inference with provenance; nonce-based proof that a specific app route reached N-ATLaS |
 | `atlas_inspect` | Requests, latency, errors with request ids, quota, keys |
 
-Apps call a standard Chat Completions API, so any language or SDK works. N-ATLaS runs on free Kaggle
+Apps call a standard Chat Completions API, so any language or SDK works, with the full surface the model
+supports: streaming, structured output (`response_format` JSON Schema, grammar-enforced) and function calling
+(`tools`), each checked on the live model. N-ATLaS runs on free Kaggle
 GPUs and wakes itself on the first request (about 4 minutes, progress shown live); outages return a clear
 error, never a substitute answer.
 

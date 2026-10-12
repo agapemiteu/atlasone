@@ -88,6 +88,8 @@ Each case has a test.
 | D19 | Beta evidence: `activity` log of sign-ins and tool outcomes (metadata only), `/feedback`, live `/evidence` |
 | D20 | Verifiable evidence with standards only: JSON Lines log, EdDSA-signed JWT receipts and snapshot, JWKS; see [EVIDENCE.md](EVIDENCE.md) |
 | D21 | Public beta: `ACCESS=open` admits any GitHub account; quotas, the per-account project cap and logging bound abuse |
+| D22 | `atlas_discover` starts waking a sleeping model, so the cold start overlaps with integrating instead of blocking the first test |
+| D23 | Full OpenAI surface the model supports: `response_format` (JSON Schema) and `tools`/`tool_calls`, validated by allowlist; both verified live |
 
 ## Run your own
 

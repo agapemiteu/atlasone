@@ -234,3 +234,25 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   Fix: verifier now prints "not recorded (connection made before session tracking began)" instead of "?" for
   receipts from pre-session grants. Evidence snapshot refreshed: 19 events, ALL CHECKS PASSED. Key-bearing scratch
   copy deleted.
+
+[2026-10-12 10:30 WAT] FIRST EXTERNAL BETA TESTER (GitHub id 257007384, Codex on Windows, own account): built a Hausa
+  support route on the starter, verify_app true (req_eb17493a888e4891a96ef3ea), receipt independently verified against
+  the JWKS, unused nonce correctly false; 12 successful requests, en/ha/ig/yo probes all correct. Findings and actions:
+  - "Discover said ready, then BACKEND_WARMING": confirmed from backend_wakes: the previous run auto-slept (idle 40 min)
+    66 s after their discover; their test woke it (232 s cold start). Fix D22: atlas_discover now starts the wake and
+    reports checked_at, so the cold start overlaps with coding.
+  - Grounded-support answer quality (missed an explicit Abuja fact, invented "periodic sales", switched to English when
+    told to): model behaviour, not gateway. Recipes + MCP instructions now give grounding guidance (facts in system
+    message, "say you don't know", restate language last); verify_app returns `scope`: verified proves genuine use,
+    not answer correctness; guide says the same. Support idea prompt now asks for facts-only answers.
+  - Key landed in the wrong file (env.local in parent dir): bind tells the agent to create the gitignored .env.local,
+    give the developer its full path, and restart the app after "done".
+  - Owner: setup "too long", wants "connect once". Guide cut from 7 steps to 3 (Connect once, Ask, Confirm); starter is
+    optional inside step 2; receipt/feedback moved to a short "Then, 2 minutes".
+  - Owner: "never intended a chatbot... like OpenRouter / big-org MCPs". Gateway now forwards the full OpenAI surface
+    the model supports (D23). LIVE: structured output (json_schema) on a Hausa review -> parseable JSON, sentiment
+    negative, faithful English (req_e77d8a9a9b4647799d092fb5; it mislabelled language "en"). Function calling: model
+    emitted track_order({"order_id":"KF-1042"}) (req_b4714f8393c04836aa6dbaa3) and answered from the tool result in
+    Hausa (req_c20473f1dfdc4683b860865c; omitted the delivery day). Docs: Capabilities; home and guide ideas now include
+    an order-tracking agent and reviews-to-data. Tests 127 + 6 pass; deployed.
+  - Unexplained: tester saw quota 13 used vs 12 request rows; not reproduced, noted only.

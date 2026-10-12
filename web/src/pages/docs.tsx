@@ -5,7 +5,7 @@ import { LIMITS } from "@atlas/limits.ts";
 import { CodeTabs } from "@/components/code-tabs";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { appSnippets, clientSnippets } from "@/lib/content";
+import { appSnippets, capabilitySnippets, clientSnippets } from "@/lib/content";
 
 // Limits and error codes render from the modules that enforce them, so the docs cannot drift.
 
@@ -77,7 +77,8 @@ export function Docs({ origin }: { origin: string }) {
         <article className="max-w-3xl min-w-0 text-[15px] leading-relaxed [&_li]:mt-2 [&_ol]:mt-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mt-3 [&_p]:text-foreground/80">
           <h1 className="text-4xl font-semibold tracking-[-0.035em] sm:text-5xl">Docs</h1>
           <p className="!mt-4 text-lg !text-muted-foreground">
-            Atlas One is an MCP server that lets coding agents add genuine N-ATLaS (English, Hausa, Igbo, Yoruba) to your app, then test and verify it.
+            Atlas One is the MCP server and standard API for N-ATLaS (English, Hausa, Igbo, Yoruba). Connect your agent once, then build anything
+            the model can do into your app: chat, translation, structured extraction, tool-using agents. Every result is tested on the real model and verifiable.
           </p>
 
           <div className="mt-14">
@@ -116,6 +117,24 @@ export function Docs({ origin }: { origin: string }) {
             <p>
               Set the reply language in a system message. Responses carry <C>x-atlas-request-id</C> and the exact model revision in <C>x-atlas-weights</C>.
               Call from your server; never ship the key to a browser.
+            </p>
+
+            <h3 id="capabilities" className="mt-10 text-lg font-semibold">Capabilities</h3>
+            <p>The full OpenAI-compatible surface the model supports, checked on the live model. Same endpoint, same key.</p>
+            <Table
+              head={["Capability", "How"]}
+              rows={[
+                ["Chat and multi-turn", <>A <C>messages</C> array; set the reply language in the system message.</>],
+                ["Streaming", <><C>stream: true</C> returns Server-Sent Events.</>],
+                ["Structured output", <><C>response_format</C> with <C>json_object</C> or <C>json_schema</C>: the reply is grammar-constrained, so it always parses. For extraction, classification and translation pipelines.</>],
+                ["Function calling", <><C>tools</C> and <C>tool_choice</C>: the model returns <C>tool_calls</C>, you run them and send back a <C>tool</C> message. For agents that look up orders, book, search.</>],
+                ["Sampling", <><C>temperature</C>, <C>top_p</C>, <C>seed</C>, <C>stop</C>, penalties, <C>max_tokens</C> up to {MAX_TOKENS_CAP}.</>],
+              ]}
+            />
+            <CodeTabs items={capabilitySnippets(api)} />
+            <p>
+              <C>verified: true</C> proves your app reached genuine N-ATLaS. It does not grade answers: for answers from your own facts, put the
+              facts in the system message, say "if the facts do not cover it, say you do not know", and check real questions yourself.
             </p>
 
             <H2 id="errors">Errors and limits</H2>
