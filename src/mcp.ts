@@ -19,6 +19,9 @@ const INSTRUCTIONS = `Atlas One gives you genuine N-ATLaS (Nigerian multilingual
 Workflow: atlas_discover -> atlas_bind_project (developer confirms the key link in the browser) -> pick a recipe
 (nextjs or generic) -> integrate server-side -> atlas_test (inference) -> atlas_test (issue_app_nonce) -> call the
 app route with x-atlas-verify -> atlas_test (verify_app). Use atlas_inspect to diagnose failures.
+Call atlas_discover first: it also starts waking N-ATLaS if it is asleep (about 4 minutes), so do it before writing code.
+Grounding: put the app's facts in the system message, name the reply language there, and tell the model to say it does
+not know when the facts do not cover a question. verified: true proves genuine N-ATLaS use, not answer quality.
 Never invent or simulate N-ATLaS output. If a tool reports MODEL_OFFLINE or any error, tell the developer and do
 not claim the integration works. Never ask the developer to paste keys into the chat. Ask before editing env files.`;
 

@@ -17,6 +17,10 @@ use the `nextjs` recipe instead.
 - Atlas One already applies the model-card settings (repetition penalty, low default temperature,
   current date); you only choose the language in the system message.
 - Always set a system message naming the reply language (English, Hausa, Igbo or Yoruba).
+- Answering from your own facts (support, FAQs): put the facts in the system message, keep each answer to one
+  question, and add "If the facts do not answer it, say you do not know and give the contact." Re-state the reply
+  language at the end of the system message; a user asking for another language can otherwise switch it.
+  Check a few real questions yourself: `verified: true` proves genuine N-ATLaS use, not that answers are right.
 
 Environment:
 

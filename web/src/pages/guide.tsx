@@ -54,7 +54,7 @@ const FAQ: [string, ReactNode][] = [
   ],
   [
     "It says N-ATLaS is waking up",
-    <>That's normal. To save free GPU time, N-ATLaS sleeps when nobody uses it, and your first request wakes it. It takes about 4 minutes; you can watch each stage at the top of this page. Your agent should wait and try again. It must never invent an answer.</>,
+    <>That's normal. To save free GPU time, N-ATLaS sleeps when nobody uses it and wakes as soon as your agent connects. It takes about 4 minutes; you can watch each stage at the top of this page. Your agent should wait and try again. It must never invent an answer.</>,
   ],
   [
     "It says MODEL_OFFLINE or another error",
@@ -66,7 +66,7 @@ const FAQ: [string, ReactNode][] = [
   ],
   [
     "Where exactly does the key go?",
-    <>In a file in your app's folder that is never shared, usually <code>.env.local</code>. The key page shows the two exact lines to paste. Never paste the key into the chat with your agent.</>,
+    <>In your app's folder, in a file named <code>.env.local</code> (with the dot at the start; your agent tells you the full path). Paste the two lines from the key page, save, and tell the agent "done": it restarts your app. Never paste the key into the chat.</>,
   ],
   [
     "Is my code or my chat shared with anyone?",
@@ -84,7 +84,7 @@ export function Guide({ origin }: { origin: string }) {
       <main className="mx-auto max-w-3xl px-4 pt-12 sm:px-6 sm:pt-16">
         <p className="text-sm font-medium text-success">Beginner's guide</p>
         <h1 className="mt-3 text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">Your first N-ATLaS feature, step by step.</h1>
-        <p className="mt-4 text-lg text-muted-foreground">No AI experience needed. About 15 minutes. Free. Every step is recorded as test evidence (never your code or prompts).</p>
+        <p className="mt-4 text-lg text-muted-foreground">Three steps, no AI experience needed. Free. Steps are recorded as test evidence, never your code or prompts.</p>
 
         <section className="mt-10 rounded-2xl border p-5 sm:p-6">
           <h2 className="font-semibold">What you need</h2>
@@ -103,27 +103,14 @@ export function Guide({ origin }: { origin: string }) {
               ))}
             </li>
             <li>
-              <b className="text-foreground">Node.js 20.11 or newer</b> to run the ready-made starter app. Free at{" "}
-              <a className="underline underline-offset-4" href="https://nodejs.org">nodejs.org</a>. Already have your own app? Use that instead.
+              <b className="text-foreground">An app,</b> or our ready-made shop (step 2).
             </li>
           </ul>
         </section>
 
         <ol className="mt-12 grid gap-12">
-          <Step n={1} title="Get the starter app">
-            <p>
-              A tiny online shop, ready for your agent. Open{" "}
-              <a className="font-medium underline underline-offset-4" href={STARTER_REPO}>atlas-one-starter</a>, click{" "}
-              <b>Use this template</b> to get your own copy, then copy it to your computer and start it:
-            </p>
-            <CopyBox text={"git clone https://github.com/<your-username>/<your-copy>\ncd <your-copy>\nnpm start"} />
-            <p className="text-sm text-muted-foreground">
-              Open http://localhost:3000 to see the shop. No install step. Short on time? <code>git clone {STARTER_REPO}</code> works too.
-            </p>
-          </Step>
-
-          <Step n={2} title="Connect Atlas One to your agent">
-            <p>Pick your agent, copy the line, and paste it where the note says. You only do this once.</p>
+          <Step n={1} title="Connect once">
+            <p>Pick your agent, copy the line and paste it where the note says. You do this once, for every project after.</p>
             <Tabs defaultValue={snippets[0]![0]} className="mt-1 min-w-0">
               <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0 [scrollbar-width:none]">
                 <TabsList>
@@ -139,17 +126,18 @@ export function Guide({ origin }: { origin: string }) {
                 </TabsContent>
               ))}
             </Tabs>
-          </Step>
-
-          <Step n={3} title="Sign in with GitHub">
-            <p>
-              The first time your agent uses Atlas One, your browser opens a page asking whether to allow it. Click <b>Allow and continue with GitHub</b>,
-              then sign in. That's all. Anyone with a GitHub account can use it.
+            <p className="text-sm text-muted-foreground">
+              The first time your agent uses Atlas One, your browser asks you to allow it: click <b>Allow and continue with GitHub</b>. That's
+              your only sign-in. N-ATLaS starts waking up at the same moment, so it's ready by the time your code is.
             </p>
           </Step>
 
-          <Step n={4} title="Pick an idea and ask your agent">
-            <p>Open the starter's folder in your agent, copy one idea and send it. Or describe your own idea in your own words.</p>
+          <Step n={2} title="Ask your agent">
+            <p>Open your app's folder in your agent, copy one idea and send it, or describe your own.</p>
+            <p className="text-sm text-muted-foreground">
+              No app? Use the ready-made shop (needs <a className="underline underline-offset-4" href="https://nodejs.org">Node.js</a>):{" "}
+              <code>git clone {STARTER_REPO}</code>, then <code>npm start</code> in its folder.
+            </p>
             <div className="grid gap-3 sm:grid-cols-2">
               {IDEAS.map((idea) => (
                 <div key={idea.title} className="flex flex-col gap-2 rounded-xl border p-4">
@@ -166,37 +154,40 @@ export function Guide({ origin }: { origin: string }) {
             </div>
           </Step>
 
-          <Step n={5} title="Confirm your key">
+          <Step n={3} title="Confirm your key">
             <p>
-              The agent gives you a link. Open it and click <b>Confirm</b>. You'll see two lines starting with <code>ATLAS_ONE_</code>: copy them into the file
-              the agent names (usually <code>.env.local</code>). Then tell the agent "done".
+              Your agent sends a link. Open it and click <b>Confirm</b>. Copy the two lines it shows into the file your agent names, usually{" "}
+              <code>.env.local</code> in your app's folder (the dot at the start matters), and tell the agent "done". It never sees the key.
             </p>
-            <p className="text-sm text-muted-foreground">The key is like a password for your app. Never paste it into the chat.</p>
-          </Step>
-
-          <Step n={6} title="Let it finish and check">
             <p>
-              The agent writes the code, then tests it on the real N-ATLaS model. You're done when it reports <code>verified: true</code>. If N-ATLaS is
-              asleep, the first test wakes it in about 4 minutes.
+              The agent then finishes on its own: it tests on the real N-ATLaS model and checks your app. You're done when it says{" "}
+              <code>verified: true</code>.
             </p>
             <div className="flex items-center gap-3 rounded-xl border px-4 py-3 text-sm">
-              <span className="text-muted-foreground">Right now:</span>
+              <span className="text-muted-foreground">N-ATLaS right now:</span>
               <StatusDot status={status} />
             </div>
           </Step>
+        </ol>
 
-          <Step n={7} title="Keep your receipt, tell us how it went">
-            <p>
-              The agent offers to save a signed receipt, <code>ATLAS_VERIFICATION.jwt</code>, in your app. Say yes, then push to your GitHub copy
-              (<code>git add -A && git commit -m "N-ATLaS feature" && git push</code>). It proves your app really used N-ATLaS, and anyone can check it.
-            </p>
-            <p>
-              Then take 2 minutes for the{" "}
+        <section className="mt-12 rounded-2xl border p-5 sm:p-6">
+          <h2 className="font-semibold">Then, 2 minutes</h2>
+          <ul className="mt-3 grid gap-3 text-[15px] leading-relaxed text-foreground/80">
+            <li>
+              <b className="text-foreground">Try your own questions.</b> <code>verified: true</code> proves your app really used N-ATLaS. It
+              doesn't grade the answers, so ask a few real questions and check them.
+            </li>
+            <li>
+              <b className="text-foreground">Keep the receipt.</b> Say yes when the agent offers to save <code>ATLAS_VERIFICATION.jwt</code>, then
+              push. Anyone can check it.
+            </li>
+            <li>
+              <b className="text-foreground">Tell us how it went</b> in the{" "}
               <a className="font-medium underline underline-offset-4" href="/feedback">feedback form</a>. Your result appears on the{" "}
               <a className="underline underline-offset-4" href="/evidence">evidence page</a>.
-            </p>
-          </Step>
-        </ol>
+            </li>
+          </ul>
+        </section>
 
         <section className="mt-16">
           <h2 className="text-2xl font-semibold tracking-tight">If something goes wrong</h2>

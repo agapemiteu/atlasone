@@ -83,6 +83,9 @@ export async function atlasTest(deps: ToolDeps, args: TestArgs, progress: Progre
             "With the developer's OK, save this receipt in the repository root as ATLAS_VERIFICATION.jwt and commit it. " +
             `It is an EdDSA-signed JWT; anyone can verify it against ${deps.origin}/.well-known/jwks.json.`,
         }),
+        scope:
+          "verified proves this app route reached genuine N-ATLaS. It does not grade answers: test correctness and " +
+          "reply language with your own examples.",
         next: `Tell the developer: share how it went (2 minutes) at ${deps.origin}/feedback`,
       };
     }

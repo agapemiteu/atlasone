@@ -9,6 +9,7 @@ import { checkKaggleRun, kaggleAuth, latestWake, redeemBootstrap, requestWake, r
 import { handleUpstreamRegister } from "../src/routes/upstream.ts";
 import { handleV1 } from "../src/routes/v1.ts";
 import { ALL_SCOPES } from "../src/tools/context.ts";
+import { discover } from "../src/tools/discover.ts";
 import { atlasTest } from "../src/tools/test.ts";
 import { publicStatus } from "../src/web/status.ts";
 import { strictFetch, UPSTREAM_URL } from "./fake-upstream.ts";
@@ -261,5 +262,16 @@ describe("callers see an honest waking state", () => {
     expect(messages).toContain("Waking N-ATLaS: GPU assigned, server notebook started");
     expect(messages).toContain("Waking N-ATLaS: Downloading N-ATLaS weights");
     expect(messages).not.toContain("Running a genuine N-ATLaS request");
+  });
+
+  it("atlas_discover starts the wake early, so the cold start overlaps with integrating", async () => {
+    const w = world();
+    const deps = { db: env.DB, fetcher: w.fetcher, upstreamKey: "k", waitUntil: () => {}, owner: "gh-early", origin: "https://atlas.test", scopes: ALL_SCOPES, kaggle: KAGGLE };
+    const first = await discover(deps, {});
+    expect(first.backend).toMatchObject({ state: "waking", wakes_on_demand: true });
+    expect(first.backend.meaning).toContain("Requesting a free GPU");
+    expect(Date.parse(first.backend.checked_at)).not.toBeNaN();
+    await discover(deps, {});
+    expect(w.kaggleCalls).toHaveLength(1); // a wake in flight is reused, never started twice
   });
 });

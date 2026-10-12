@@ -52,7 +52,7 @@ export const IDEAS: { title: string; line: string; prompt: string }[] = [
   {
     title: "Customer support in Hausa",
     line: "Answers shoppers' questions from the shop's own facts.",
-    prompt: `Add a customer-support chat to this shop that answers questions in Hausa from the facts in shop.json, ${VERIFY}`,
+    prompt: `Add a customer-support chat to this shop that answers in Hausa only from the facts in shop.json (and says it doesn't know otherwise), ${VERIFY}`,
   },
   {
     title: "One page, three languages",

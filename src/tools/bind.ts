@@ -64,11 +64,12 @@ export async function bindProject(deps: ToolDeps, args: { name: string; action?:
     expires_at: new Date(claim.expiresAt).toISOString(),
     pending_action: ACTION_TEXT[claimAction],
     instructions_for_agent:
-      "Ask the developer to open claim_url, sign in with GitHub, and confirm. " +
+      "Ask the developer to open claim_url and confirm (they are already signed in from connecting). " +
       (claimAction === "revoke_key"
         ? "Nothing else is needed after confirming."
-        : "The page shows the key once: the developer pastes it into the app's server-side env as ATLAS_ONE_API_KEY " +
-          "(e.g. .env.local, which must be gitignored). Never ask the developer to paste the key into this chat, " +
-          "and never commit it or expose it to client-side code."),
+        : "The page shows two lines (ATLAS_ONE_BASE_URL, ATLAS_ONE_API_KEY) once. Before sending the link, make sure the " +
+          "app's env file exists and is gitignored (usually .env.local in the app's root, with the leading dot), and tell " +
+          "the developer its full path so they paste the lines there. After they say done, restart the app so it loads " +
+          "the key. Never ask for the key in this chat, never commit it, never expose it to client-side code."),
   };
 }

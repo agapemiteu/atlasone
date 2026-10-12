@@ -1,11 +1,13 @@
 // atlas_discover: everything an agent needs before integrating, with LIVE backend state
 // (the gateway being up is reported separately from the model being reachable, PRD §6).
+// An agent that discovers is about to build, so a sleeping model starts waking now: the ~4 minute
+// cold start overlaps with writing code and confirming the key instead of blocking the first test.
 
 import { getBackend } from "../lib/backend.ts";
 import { DEFAULT_MAX_TOKENS, MAX_BODY_BYTES, MAX_TOKENS_CAP, MODEL_CARD, MODEL_ID } from "../lib/chat.ts";
 import { listProjects } from "../lib/projects.ts";
 import { LIMITS } from "../lib/quota.ts";
-import { latestWake, STAGE_TEXT, wakeInFlight } from "../lib/wake.ts";
+import { latestWake, requestWake, STAGE_TEXT, wakeInFlight } from "../lib/wake.ts";
 import generic from "../recipes/generic.md";
 import nextjs from "../recipes/nextjs.md";
 import type { ToolDeps } from "./context.ts";
@@ -25,11 +27,16 @@ const BACKEND_MEANING = {
 } as const;
 
 export async function discover(deps: ToolDeps, args: { recipe?: RecipeName }) {
-  const [backend, projects, wake] = await Promise.all([
+  const checkedAt = new Date().toISOString();
+  const [backend, projects, latest] = await Promise.all([
     getBackend(deps.db, deps.fetcher, { fresh: true }),
     listProjects(deps.db, deps.owner),
     latestWake(deps.db),
   ]);
+  const wake =
+    backend.state === "offline" && deps.kaggle && !wakeInFlight(latest)
+      ? await requestWake(deps.db, deps.fetcher, deps.kaggle, `user:${deps.owner}`).catch(() => latest)
+      : latest;
   const waking = backend.state !== "ready" && wakeInFlight(wake) ? wake : null;
   return {
     product: "Atlas One: the MCP server for N-ATLaS.",
@@ -37,9 +44,11 @@ export async function discover(deps: ToolDeps, args: { recipe?: RecipeName }) {
     backend: {
       state: waking ? "waking" : backend.state,
       meaning: waking
-        ? `N-ATLaS is waking up: ${STAGE_TEXT[waking.stage]}. Cold starts take about 4-5 minutes.`
+        ? `N-ATLaS is waking up: ${STAGE_TEXT[waking.stage]}. It takes about 4 minutes: keep integrating, it should be ready by atlas_test.`
         : BACKEND_MEANING[backend.state],
       wakes_on_demand: Boolean(deps.kaggle),
+      checked_at: checkedAt,
+      note: "Observed at checked_at. N-ATLaS sleeps after 40 idle minutes, so a later call can still meet a cold start; tools then say so with retry_after_s.",
     },
     model: {
       id: MODEL_ID,
