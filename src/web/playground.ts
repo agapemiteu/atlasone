@@ -7,7 +7,7 @@ import { getBackend } from "../lib/backend.ts";
 import { MODEL_CARD, MODEL_ID } from "../lib/chat.ts";
 import { AtlasError, toErrorBody } from "../lib/errors.ts";
 import { newRequestId, runInference } from "../lib/inference.ts";
-import { type KaggleConfig, requestWake } from "../lib/wake.ts";
+import { type ComputeConfig, requestWake } from "../lib/wake.ts";
 import { checkCsrf, csrfToken, type Session } from "../lib/session.ts";
 import { type Language, PROBES } from "../tools/test.ts";
 import { esc, messagePage, page } from "./html.ts";
@@ -18,7 +18,7 @@ export interface PlaygroundDeps {
   upstreamKey: string;
   waitUntil: (p: Promise<unknown>) => void;
   sessionSecret: string;
-  kaggle?: KaggleConfig | null;
+  compute?: ComputeConfig | null;
 }
 
 const LANGS: Record<Language, string> = { en: "English", ha: "Hausa", ig: "Igbo", yo: "Yoruba" };
@@ -68,7 +68,7 @@ export async function playgroundPage(request: Request, deps: PlaygroundDeps, ses
         fetcher: deps.fetcher,
         upstreamKey: deps.upstreamKey,
         waitUntil: deps.waitUntil,
-        wake: () => requestWake(deps.db, deps.fetcher, deps.kaggle ?? null, `user:${session.githubId}`),
+        wake: () => requestWake(deps.db, deps.fetcher, deps.compute ?? null, `user:${session.githubId}`),
         projectId,
         keyId: null,
         source: "atlas_test",

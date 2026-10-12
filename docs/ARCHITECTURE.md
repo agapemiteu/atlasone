@@ -89,6 +89,7 @@ Each case has a test.
 | D20 | Verifiable evidence with standards only: JSON Lines log, EdDSA-signed JWT receipts and snapshot, JWKS; see [EVIDENCE.md](EVIDENCE.md) |
 | D21 | Public beta: `ACCESS=open` admits any GitHub account; quotas, the per-account project cap and logging bound abuse |
 | D22 | `atlas_discover` starts waking a sleeping model, so the cold start overlaps with integrating instead of blocking the first test |
+| D27 | Compute is a setting: `COMPUTE=modal` (stable URL, scales to zero, L4 or A10G, 1-2 min cold start, paid credit) or `kaggle` (free 2x T4, can queue). Same llama.cpp release and F16 weights on both; only the active provider's hosts may register |
 | D26 | Standard MCP surface: server title and websiteUrl, `outputSchema` on every tool, two prompts (`build_with_n_atlas`, `diagnose_n_atlas`) that clients show as commands; an Access page lists every connected agent (OAuth grant) and signs any of them out, the same for all clients |
 | D25 | Authorization-server metadata omits RFC 9207 `authorization_response_iss_parameter_supported` (optional): some Codex versions drop `iss` in their callback and reject servers that advertise it. `iss` is still sent |
 | D24 | In-session feedback: results carry `feedback_request` once per session (verified app, or 12th/40th call); the agent asks at a pause and sends the answer with `atlas_feedback` into the same `feedback` row as the web form (`source`, `session_id`). A fifth tool, because a form people forget is weaker evidence than a question asked in the flow |
@@ -108,6 +109,12 @@ npx wrangler d1 migrations apply atlas-one --remote
 npx wrangler secret put <NAME>
 npm run deploy          # builds web/, then deploys the Worker
 ```
+
+Compute (D27). **Modal** (recommended): put `HF_TOKEN` and `ATLAS_UPSTREAM_KEY` in a Modal secret named `atlas-one`,
+run `modal deploy inference/modal_serve.py`, set `COMPUTE` to `modal`, `MODAL_URL` to the printed URL and
+`UPSTREAM_HOSTS` to `*.modal.run`, then register it once:
+`curl -X POST <origin>/api/upstream/register -H "authorization: Bearer $ATLAS_ADMIN_KEY" -H "content-type: application/json" -d '{"url":"<MODAL_URL>","model_id":"NCAIR1/N-ATLaS","model_revision":"e294476928aca9030e924ca27bb8e085e8581273","runtime":"llama.cpp@b11552 f16"}'`.
+**Kaggle** (free): `COMPUTE` `kaggle`, `UPSTREAM_HOSTS` `*.trycloudflare.com`; each run registers itself.
 
 Restrict sign-in with `"ACCESS": "invite"` in `wrangler.jsonc`, then
 `npx wrangler d1 execute atlas-one --remote --command "INSERT INTO allowlist VALUES ('<github-login>', 0)"`.

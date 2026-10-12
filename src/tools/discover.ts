@@ -34,8 +34,8 @@ export async function discover(deps: ToolDeps, args: { recipe?: RecipeName }) {
     latestWake(deps.db),
   ]);
   const wake =
-    backend.state === "offline" && deps.kaggle && !wakeInFlight(latest)
-      ? await requestWake(deps.db, deps.fetcher, deps.kaggle, `user:${deps.owner}`).catch(() => latest)
+    backend.state === "offline" && deps.compute && !wakeInFlight(latest)
+      ? await requestWake(deps.db, deps.fetcher, deps.compute, `user:${deps.owner}`).catch(() => latest)
       : latest;
   const waking = backend.state !== "ready" && wakeInFlight(wake) ? wake : null;
   return {
@@ -46,7 +46,7 @@ export async function discover(deps: ToolDeps, args: { recipe?: RecipeName }) {
       meaning: waking
         ? `N-ATLaS is waking up: ${STAGE_TEXT[waking.stage]}. It takes about 4 minutes: keep integrating, it should be ready by atlas_test.`
         : BACKEND_MEANING[backend.state],
-      wakes_on_demand: Boolean(deps.kaggle),
+      wakes_on_demand: Boolean(deps.compute),
       checked_at: checkedAt,
       note: "Observed at checked_at. N-ATLaS sleeps after 40 idle minutes, so a later call can still meet a cold start; tools then say so with retry_after_s.",
     },

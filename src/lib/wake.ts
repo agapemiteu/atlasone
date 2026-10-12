@@ -48,7 +48,17 @@ export const STAGE_TEXT: Record<WakeStage, string> = {
  */
 const WAKE_TIMEOUT_MS = 20 * 60_000;
 
+/** Where N-ATLaS runs (D27): one setting, COMPUTE, picks the provider; the gateway is the same for both. */
+export type ComputeConfig = KaggleConfig | ModalConfig;
+
+export interface ModalConfig {
+  provider: "modal";
+  /** The Modal web endpoint (stable). Any request to it starts a GPU container if none is running. */
+  url: string;
+}
+
 export interface KaggleConfig {
+  provider?: "kaggle";
   username: string;
   key: string;
   kernelSlug: string;
@@ -112,11 +122,11 @@ export function kaggleAuth(kaggle: KaggleConfig): string {
 export async function requestWake(
   db: D1Database,
   fetcher: typeof fetch,
-  kaggle: KaggleConfig | null,
+  compute: ComputeConfig | null,
   requestedBy: string,
   now = Date.now(),
 ): Promise<Wake | null> {
-  if (!kaggle) return null;
+  if (!compute) return null;
   const current = await latestWake(db);
   if (wakeInFlight(current, now)) return current;
 
@@ -132,6 +142,8 @@ export async function requestWake(
     .bind(id, now, requestedBy, now - WAKE_TIMEOUT_MS, await sha256Hex(bootstrap))
     .run();
   if (claimed.meta.changes !== 1) return latestWake(db);
+  if (compute.provider === "modal") return startModal(db, fetcher, compute, id, now);
+  const kaggle = compute;
 
   try {
     const res = await fetcher("https://api.kaggle.com/v1/kernels.KernelsApiService/SaveKernel", {
@@ -218,8 +230,9 @@ const NO_PROGRESS_GRACE_MS = 45_000;
  * If a wake shows no progress from the model server, ask Kaggle how the run is doing (throttled): record a failure
  * Kaggle reports, so nobody is told "waking" about a run that already died, and show a queued run as queued.
  */
-export async function checkKaggleRun(db: D1Database, fetcher: typeof fetch, kaggle: KaggleConfig | null, now = Date.now()) {
-  if (!kaggle || now - lastKaggleCheck < KAGGLE_CHECK_EVERY_MS) return;
+export async function checkKaggleRun(db: D1Database, fetcher: typeof fetch, compute: ComputeConfig | null, now = Date.now()) {
+  if (!compute || compute.provider === "modal" || now - lastKaggleCheck < KAGGLE_CHECK_EVERY_MS) return;
+  const kaggle = compute;
   const wake = await latestWake(db);
   if (!wake || !wakeInFlight(wake, now) || wake.stage !== "gpu_requested" || now - wake.updated_at < NO_PROGRESS_GRACE_MS) return;
   lastKaggleCheck = now;
@@ -241,6 +254,27 @@ export async function checkKaggleRun(db: D1Database, fetcher: typeof fetch, kagg
   } catch {
     // Kaggle unreachable: keep the current stage; the wake still times out after 20 minutes.
   }
+}
+
+/**
+ * Modal: a request to the endpoint starts a GPU container (Modal holds it until the server listens), so the wake
+ * is that first request. It is not awaited to completion: the container keeps starting after we stop waiting.
+ */
+async function startModal(db: D1Database, fetcher: typeof fetch, modal: ModalConfig, wakeId: string, now: number): Promise<Wake | null> {
+  await recordStage(db, "gpu_requested", "Modal: starting a GPU (about 1-2 minutes)", wakeId, now);
+  await fetcher(new URL("/health", modal.url), { signal: AbortSignal.timeout(3_000) }).catch(() => undefined);
+  return latestWake(db);
+}
+
+/**
+ * Records what a health probe observed on a wake in progress, for providers whose server does not report its own
+ * stages (Modal): loading means the weights are going onto the GPU, ready ends the wake.
+ */
+export async function settleWake(db: D1Database, state: "ready" | "loading" | "offline", now = Date.now()): Promise<void> {
+  const wake = await latestWake(db);
+  if (!wake || !wakeInFlight(wake, now)) return;
+  if (state === "ready") await recordStage(db, "ready", wake.detail, wake.id, now);
+  else if (state === "loading" && wake.stage === "gpu_requested") await recordStage(db, "loading_weights", "Loading N-ATLaS onto the GPU", wake.id, now);
 }
 
 /** Test hook. */

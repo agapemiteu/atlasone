@@ -32,7 +32,9 @@ Before submitting: `npm run evidence:snapshot`, commit `evidence/`.
 - D1 `atlas-one` 130399d4-7b16-4f28-946f-e40f90e1f6e7 (migrations 0001-0007 applied); KV `OAUTH_KV` 3dda9cfc00b0490a817ca93ed39694ac.
 - Secrets: `ATLAS_UPSTREAM_KEY`, `ATLAS_ADMIN_KEY`, `SESSION_SECRET`, `GITHUB_CLIENT_SECRET`, `KAGGLE_KEY` (KGAT bearer), `HF_TOKEN`, `RECEIPT_SIGNING_KEY` (Ed25519 JWK, kid `atlas-one-2026-10`; exists only as the Worker secret).
 - GitHub OAuth App "Atlas One" (id 3923042), callbacks `/auth/github/mcp` and `/auth/github/web`. Owner GitHub id 114285882 (`agapemiteu`), listed in `TEAM_GITHUB_LOGINS`.
-- Kaggle notebook `agapemiteu/notebookf585471141` (2x T4), started by the Worker; GGUF cache in HF repo `Agapemiteu/n-atlas-gguf-cache`. Free quota 30 GPU-hours/week.
+- Compute (D27): `COMPUTE=modal` live. Modal app `atlas-one-n-atlas` (workspace miteuagape, $30/mo credit), URL
+  https://miteuagape--atlas-one-n-atlas-serve.modal.run, L4 or A10G, Volume `n-atlas-weights`, secret `atlas-one`; registered
+  as the active upstream (stable). Fallback: Kaggle notebook `agapemiteu/notebookf585471141` (2x T4), started by the Worker; GGUF cache in HF repo `Agapemiteu/n-atlas-gguf-cache`. Free quota 30 GPU-hours/week.
 - Local, gitignored: `.env.local` (keys for the e2e scripts), `.dev.vars` (Worker local secrets incl. a dev signing key). Sample app: sibling folder `atlas-demo-shop`.
 
 ## Pitfalls already learned

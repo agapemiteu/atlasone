@@ -5,7 +5,7 @@ import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetBackendCache } from "../src/lib/backend.ts";
 import { createProjectKey } from "../src/lib/credentials.ts";
-import { checkKaggleRun, kaggleAuth, latestWake, redeemBootstrap, requestWake, resetKaggleCheck } from "../src/lib/wake.ts";
+import { checkKaggleRun, kaggleAuth, latestWake, redeemBootstrap, requestWake, resetKaggleCheck, settleWake } from "../src/lib/wake.ts";
 import { handleUpstreamRegister } from "../src/routes/upstream.ts";
 import { handleV1 } from "../src/routes/v1.ts";
 import { ALL_SCOPES } from "../src/tools/context.ts";
@@ -228,7 +228,7 @@ describe("callers see an honest waking state", () => {
         headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" },
         body: JSON.stringify({ messages: [{ role: "user", content: "Sannu" }] }),
       }),
-      { db: env.DB, fetcher: w.fetcher, upstreamKey: "k", waitUntil: () => {}, kaggle: KAGGLE },
+      { db: env.DB, fetcher: w.fetcher, upstreamKey: "k", waitUntil: () => {}, compute: KAGGLE },
     ))!;
     expect(res.status).toBe(503);
     expect(res.headers.get("retry-after")).toBe("90");
@@ -270,7 +270,7 @@ describe("callers see an honest waking state", () => {
     // The wait is bounded by poll count (45s / 3s), so the fake sleep runs out the budget instantly.
     await expect(
       atlasTest(
-        { db: env.DB, fetcher: w.fetcher, upstreamKey: "k", waitUntil: () => {}, owner, origin: "https://atlas.test", scopes: ALL_SCOPES, kaggle: KAGGLE },
+        { db: env.DB, fetcher: w.fetcher, upstreamKey: "k", waitUntil: () => {}, owner, origin: "https://atlas.test", scopes: ALL_SCOPES, compute: KAGGLE },
         { project: "wake-app" },
         async (_s, m) => void messages.push(m),
         sleep,
@@ -285,12 +285,33 @@ describe("callers see an honest waking state", () => {
 
   it("atlas_discover starts the wake early, so the cold start overlaps with integrating", async () => {
     const w = world();
-    const deps = { db: env.DB, fetcher: w.fetcher, upstreamKey: "k", waitUntil: () => {}, owner: "gh-early", origin: "https://atlas.test", scopes: ALL_SCOPES, kaggle: KAGGLE };
+    const deps = { db: env.DB, fetcher: w.fetcher, upstreamKey: "k", waitUntil: () => {}, owner: "gh-early", origin: "https://atlas.test", scopes: ALL_SCOPES, compute: KAGGLE };
     const first = await discover(deps, {});
     expect(first.backend).toMatchObject({ state: "waking", wakes_on_demand: true });
     expect(first.backend.meaning).toContain("Requesting a free GPU");
     expect(Date.parse(first.backend.checked_at)).not.toBeNaN();
     await discover(deps, {});
     expect(w.kaggleCalls).toHaveLength(1); // a wake in flight is reused, never started twice
+  });
+});
+
+describe("Modal (COMPUTE=modal, D27)", () => {
+  it("wakes by calling the stable endpoint once, then follows the health probe: loading, then ready", async () => {
+    const calls: string[] = [];
+    const modal = strictFetch(async (input) => {
+      calls.push(input.toString());
+      return new Response("Loading model", { status: 503 });
+    });
+    const wake = await requestWake(env.DB, modal, { provider: "modal", url: "https://me--atlas-one-n-atlas-serve.modal.run" }, "user:1");
+    expect(wake).toMatchObject({ stage: "gpu_requested", detail: "Modal: starting a GPU (about 1-2 minutes)" });
+    expect(calls).toEqual(["https://me--atlas-one-n-atlas-serve.modal.run/health"]);
+    await requestWake(env.DB, modal, { provider: "modal", url: "https://me--atlas-one-n-atlas-serve.modal.run" }, "user:2");
+    expect(calls).toHaveLength(1); // one wake at a time
+    await settleWake(env.DB, "loading");
+    expect((await latestWake(env.DB))!.stage).toBe("loading_weights");
+    await settleWake(env.DB, "ready");
+    expect((await latestWake(env.DB))!.stage).toBe("ready");
+    await checkKaggleRun(env.DB, modal, { provider: "modal", url: "https://x.modal.run" }); // no Kaggle calls for Modal
+    expect(calls).toHaveLength(1);
   });
 });

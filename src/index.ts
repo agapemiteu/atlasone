@@ -16,7 +16,7 @@ import { ALL_SCOPES } from "./tools/context.ts";
 import { handleAuth } from "./web/auth.ts";
 import { handleEvidence } from "./web/evidence.ts";
 import { loadSigner } from "./lib/receipts.ts";
-import type { KaggleConfig } from "./lib/wake.ts";
+import type { ComputeConfig } from "./lib/wake.ts";
 import { handlePages } from "./web/pages.ts";
 import { publicStatus } from "./web/status.ts";
 
@@ -36,14 +36,18 @@ export interface AtlasProps {
 const fetcher: typeof fetch = (input, init) => fetch(input, init);
 
 /** Wake-on-demand is on only when the Kaggle key secret is set. */
-function kaggleConfig(env: Env): KaggleConfig | null {
-  return env.KAGGLE_KEY ? { username: env.KAGGLE_USERNAME, key: env.KAGGLE_KEY, kernelSlug: env.KAGGLE_KERNEL, atlasOrigin: env.PUBLIC_ORIGIN } : null;
+/** COMPUTE picks where N-ATLaS runs (D27): "modal" (stable URL, starts in 1-2 min) or "kaggle" (free, can queue). */
+function computeConfig(env: Env): ComputeConfig | null {
+  if ((env.COMPUTE as string) === "modal" && env.MODAL_URL) return { provider: "modal", url: env.MODAL_URL };
+  return env.KAGGLE_KEY
+    ? { provider: "kaggle", username: env.KAGGLE_USERNAME, key: env.KAGGLE_KEY, kernelSlug: env.KAGGLE_KERNEL, atlasOrigin: env.PUBLIC_ORIGIN }
+    : null;
 }
 
 async function app(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const waitUntil = (p: Promise<unknown>) => ctx.waitUntil(p);
-  const kaggle = kaggleConfig(env);
+  const compute = computeConfig(env);
   if (request.method === "GET" && url.pathname === "/health") {
     return Response.json({ service: "atlas-one", gateway: "ok" });
   }
@@ -58,11 +62,11 @@ async function app(request: Request, env: Env, ctx: ExecutionContext): Promise<R
     if (evidence) return evidence;
   }
   if (request.method === "GET" && url.pathname === "/api/status") {
-    return Response.json(await publicStatus(env.DB, fetcher, kaggle), { headers: { "cache-control": "no-store" } });
+    return Response.json(await publicStatus(env.DB, fetcher, compute), { headers: { "cache-control": "no-store" } });
   }
 
   const response =
-    (await handleV1(request, { db: env.DB, fetcher, upstreamKey: env.ATLAS_UPSTREAM_KEY, waitUntil, kaggle })) ??
+    (await handleV1(request, { db: env.DB, fetcher, upstreamKey: env.ATLAS_UPSTREAM_KEY, waitUntil, compute })) ??
     (await handleUpstreamRegister(request, {
       db: env.DB,
       fetcher,
@@ -88,7 +92,7 @@ async function app(request: Request, env: Env, ctx: ExecutionContext): Promise<R
       waitUntil,
       sessionSecret: env.SESSION_SECRET,
       origin: env.PUBLIC_ORIGIN,
-      kaggle,
+      compute,
       oauth: env.OAUTH_PROVIDER,
     }));
   if (response) return response;
@@ -118,7 +122,7 @@ function oauthProvider(env: Env): OAuthProvider<Env> {
             signer: await loadSigner(env.RECEIPT_SIGNING_KEY),
             origin: env.PUBLIC_ORIGIN,
             scopes: props.scopes,
-            kaggle: kaggleConfig(env),
+            compute: computeConfig(env),
           },
           env,
           ctx,

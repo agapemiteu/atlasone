@@ -13,7 +13,7 @@ import { sha256Hex } from "../lib/credentials.ts";
 import { AtlasError } from "../lib/errors.ts";
 import { newRequestId, runInference } from "../lib/inference.ts";
 import { type ProjectSummary, resolveProject } from "../lib/projects.ts";
-import { checkKaggleRun, latestWake, requestWake, retryAfterFor, STAGE_TEXT, wakeInFlight } from "../lib/wake.ts";
+import { checkKaggleRun, latestWake, requestWake, retryAfterFor, settleWake, STAGE_TEXT, wakeInFlight } from "../lib/wake.ts";
 import type { ToolDeps } from "./context.ts";
 
 export type Language = "en" | "ha" | "ig" | "yo";
@@ -109,21 +109,24 @@ async function inference(deps: ToolDeps, projectId: string, args: TestArgs, prog
   if (backend.state === "loading") throw new AtlasError("BACKEND_WARMING", undefined, { retryAfterS: 15 });
 
   // Asleep: wake it, then relay the server's own progress until it is ready or our wait budget ends.
-  if (backend.state === "offline" && deps.kaggle) {
-    let wake = await requestWake(deps.db, deps.fetcher, deps.kaggle, `user:${deps.owner}`);
+  if (backend.state === "offline" && deps.compute) {
+    let wake = await requestWake(deps.db, deps.fetcher, deps.compute, `user:${deps.owner}`);
     let shown = "";
     for (let poll = 0; wake && wakeInFlight(wake) && poll < WARM_WAIT_MS / POLL_MS; poll++) {
       if (wake.stage !== shown) await progress(2, `Waking N-ATLaS: ${STAGE_TEXT[wake.stage]}`);
       shown = wake.stage;
       await sleep(POLL_MS);
-      await checkKaggleRun(deps.db, deps.fetcher, deps.kaggle ?? null);
+      await checkKaggleRun(deps.db, deps.fetcher, deps.compute ?? null);
+      backend = await getBackend(deps.db, deps.fetcher, { fresh: true });
+      await settleWake(deps.db, backend.state);
+      if (backend.state === "ready") break;
       wake = await latestWake(deps.db);
     }
     backend = await getBackend(deps.db, deps.fetcher, { fresh: true });
     if (backend.state !== "ready" && wake && wake.stage !== "failed") {
       throw new AtlasError(
         "BACKEND_WARMING",
-        `N-ATLaS is waking up (${STAGE_TEXT[wake.stage]}). A cold start takes about 4-5 minutes; call atlas_test again shortly.`,
+        `N-ATLaS is waking up (${STAGE_TEXT[wake.stage]}). A cold start takes a few minutes; call atlas_test again shortly.`,
         { retryAfterS: retryAfterFor(wake) },
       );
     }

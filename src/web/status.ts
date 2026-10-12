@@ -4,7 +4,8 @@
 import { getBackend } from "../lib/backend.ts";
 import {
   checkKaggleRun,
-  type KaggleConfig,
+  settleWake,
+  type ComputeConfig,
   latestWake,
   STAGE_TEXT,
   WAKE_STAGES,
@@ -16,9 +17,11 @@ import type { PublicStatus } from "../lib/public-status.ts";
 export type { PublicStatus };
 
 
-export async function publicStatus(db: D1Database, fetcher: typeof fetch, kaggle: KaggleConfig | null = null): Promise<PublicStatus> {
-  await checkKaggleRun(db, fetcher, kaggle); // a dead Kaggle run shows as failed, not "waking" forever
-  const [backend, wake] = await Promise.all([getBackend(db, fetcher), latestWake(db)]);
+export async function publicStatus(db: D1Database, fetcher: typeof fetch, compute: ComputeConfig | null = null): Promise<PublicStatus> {
+  await checkKaggleRun(db, fetcher, compute); // a dead Kaggle run shows as failed, not "waking" forever
+  const backend = await getBackend(db, fetcher);
+  await settleWake(db, backend.state);
+  const wake = await latestWake(db);
   const waking = backend.state !== "ready" && wakeInFlight(wake);
   const current = backend.state === "ready" ? WAKE_STAGES.length - 1 : waking ? WAKE_STAGES.indexOf(wake!.stage as never) : -1;
   return {

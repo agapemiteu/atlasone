@@ -337,3 +337,13 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   not register. Both now count from the last observation (model progress, or Kaggle confirming "queued"/"running"),
   and status shows "Kaggle: queued for a free GPU". Test added; 133 + 6 pass; deployed 13:55 UTC, before the old
   timeout would have fired.
+
+[2026-10-12 15:40 WAT] COMPUTE MOVED TO MODAL (owner added a card; $30/mo credit). Kaggle had queued two runs for 25+ min for
+  lack of free T4s. inference/modal_serve.py: same llama.cpp b11552 binaries and the same pinned F16 GGUF (copied once from
+  the private HF cache into Volume n-atlas-weights), 4 slots x 4096, --api-key = gateway upstream key; gpu=["L4","A10G"]
+  (fallback when one type is short), scaledown 15 min (no idle cost), max 1 container. First start 14:25-14:29 UTC incl.
+  the 16 GB copy; GPU assigned immediately. Gateway (D27): COMPUTE=modal|kaggle picks the provider; a Modal wake is one
+  request to the stable URL, status follows the health probe (gpu_requested -> loading_weights -> ready); UPSTREAM_HOSTS
+  limited to *.modal.run so a late Kaggle run cannot replace it. Registered (health + key + model checked). LIVE on Modal:
+  e2e-gateway 5/5 (Hausa req_f48ae97d5398433ba507939d 969 ms, Yoruba SSE, pinned weights); e2e-mcp ALL PASSED in both eras
+  (inference req_7b2f7b28977c40f18a8551d2 834 ms, verify_app true req_5ac15decbba847578dd3150d). Tests 134 + 6 pass.

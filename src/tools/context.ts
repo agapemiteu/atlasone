@@ -3,7 +3,7 @@
 import { AtlasError, toToolError } from "../lib/errors.ts";
 import type { Principal } from "../lib/activity.ts";
 import type { Signer } from "../lib/receipts.ts";
-import type { KaggleConfig } from "../lib/wake.ts";
+import type { ComputeConfig } from "../lib/wake.ts";
 
 /** OAuth scopes (D16). Shown on the consent screen; personal tokens carry all of them. */
 export const SCOPES = {
@@ -26,7 +26,7 @@ export interface ToolDeps {
   /** Scopes the developer granted to this client. */
   scopes: readonly string[];
   /** Wake-on-demand config; null or absent disables waking. */
-  kaggle?: KaggleConfig | null;
+  compute?: ComputeConfig | null;
   /** Who is calling, for the beta-evidence activity log; absent in unit tests that do not need it. */
   principal?: Principal;
   /** Signs verification receipts (D20); null or absent issues none. */

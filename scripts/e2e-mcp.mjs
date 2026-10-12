@@ -41,7 +41,7 @@ for (const [era, mode] of [["2025 (legacy)", undefined], ["2026-07-28", { pin: "
   check(client.getProtocolEra() === (mode ? "modern" : "legacy"), "protocol era", client.getNegotiatedProtocolVersion() ?? "");
 
   const { tools } = await client.listTools();
-  check(tools.map((t) => t.name).sort().join() === "atlas_bind_project,atlas_discover,atlas_inspect,atlas_test", "tools listed", tools.map((t) => t.name).join(", "));
+  check(tools.map((t) => t.name).sort().join() === "atlas_bind_project,atlas_discover,atlas_feedback,atlas_inspect,atlas_test", "tools listed", tools.map((t) => t.name).join(", "));
 
   const d = await call(client, "atlas_discover", { recipe: "nextjs" });
   check(d.ok && d.gateway === "ok", "atlas_discover", `backend=${d.backend?.state}  projects=${d.projects?.map((p) => p.slug).join(",")}`);

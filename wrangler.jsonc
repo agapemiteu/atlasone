@@ -19,7 +19,8 @@
   // GITHUB_CLIENT_SECRET and SESSION_SECRET are secrets too.
   "vars": {
     "PUBLIC_ORIGIN": "https://atlas-one.collins-coordinator-worker.workers.dev",
-    "UPSTREAM_HOSTS": "*.trycloudflare.com",
+    // Hosts a model server may register from: only the active provider's (Kaggle tunnels: "*.trycloudflare.com").
+    "UPSTREAM_HOSTS": "*.modal.run",
     "GITHUB_CLIENT_ID": "Ov23liEjUtXPbExZAqVJ",
     // Who can sign in (D15, D21): "open" = any GitHub account; "invite" = only ALLOWED_GITHUB_LOGINS plus the
     // allowlist table (see docs/ARCHITECTURE.md). Open is safe: every project is quota-limited and usage is logged.
@@ -27,6 +28,10 @@
     "ALLOWED_GITHUB_LOGINS": "agapemiteu",
     // Atlas One team members: shown as "team" on /evidence and excluded from the external-tester summary.
     "TEAM_GITHUB_LOGINS": "agapemiteu",
+    // Where N-ATLaS runs (D27): "modal" (inference/modal_serve.py, stable URL, 1-2 min cold start, paid credit) or
+    // "kaggle" (inference/kaggle_serve.py, free, can queue for a GPU). Same runtime and weights on both.
+    "COMPUTE": "modal",
+    "MODAL_URL": "https://miteuagape--atlas-one-n-atlas-serve.modal.run",
     // Wake-on-demand (KAGGLE_KEY is a secret). The notebook must have the HF_TOKEN, ATLAS_UPSTREAM_KEY
     // and ATLAS_ADMIN_KEY Kaggle secrets attached.
     "KAGGLE_USERNAME": "agapemiteu",
