@@ -123,6 +123,7 @@ Self-hosting, secrets and infrastructure: [docs/ARCHITECTURE.md](docs/ARCHITECTU
 ## Licence and attribution
 
 Atlas One is MIT licensed ([LICENSE](LICENSE)); contributions welcome ([CONTRIBUTING.md](CONTRIBUTING.md)).
+N-ATLaS itself is not covered by that licence: its weights and use follow the N-ATLaS Terms of Use.
 
 N-ATLaS is an initiative of the Federal Ministry of Communications, Innovation and Digital Economy, and
 powered by Awarri Technologies. Its [terms](https://huggingface.co/NCAIR1/N-ATLaS) allow up to 1,000 active
