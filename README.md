@@ -33,6 +33,14 @@ supports: streaming, structured output (`response_format` JSON Schema, grammar-e
 GPUs and wakes itself on the first request (about 4 minutes, progress shown live); outages return a clear
 error, never a substitute answer.
 
+## Next
+
+- **Fine-tuning through the agent:** it prepares the developer's examples, trains a LoRA adapter on N-ATLaS, serves it
+  per project, then tests and verifies it like today.
+- **Voice**, after that.
+
+Neither is live yet; everything above this section is.
+
 ## Verify it yourself
 
 ```bash

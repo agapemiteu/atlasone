@@ -138,6 +138,12 @@ export function Docs({ origin }: { origin: string }) {
               facts in the system message, say "if the facts do not cover it, say you do not know", and check real questions yourself.
             </p>
 
+            <h3 className="mt-10 text-lg font-semibold">Next</h3>
+            <p>
+              Fine-tuning through your agent: it prepares your examples, trains a small add-on (LoRA adapter) to N-ATLaS, and serves it on your
+              project only, then tests and verifies it like today. Voice comes after that. Neither is live yet.
+            </p>
+
             <H2 id="errors">Errors and limits</H2>
             <p>
               Errors look like <C>{'{ "error": { "code", "message", "retryable", "retry_after_s", "request_id" } }'}</C>. Retry only when{" "}

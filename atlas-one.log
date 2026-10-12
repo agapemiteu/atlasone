@@ -273,3 +273,7 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
     surveillance; "security" means scam protection.
   - D24 atlas_feedback + feedback_request (migration 0007 applied remotely). Tests 127 + 6 pass; deployed.
   - Owner asked that developers can fine-tune N-ATLaS through the agent. Not built today: see the reply to the owner.
+
+[2026-10-12 12:20 WAT] Owner decision: fine-tuning via the agent goes on the roadmap (docs "Next", README), not built for
+  the deadline: an 8B training run on free 2x T4 takes hours and per-project adapter serving is new infrastructure that
+  could not be proven live tonight. Voice stays after it.
