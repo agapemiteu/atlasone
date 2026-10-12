@@ -80,6 +80,15 @@ export async function feedbackDue(
   return LONG_USE_CALLS.includes((calls ?? 0) + 1) ? "long_session" : null;
 }
 
+/** Tool calls by a developer at which the agent offers to save the Atlas One skill: early, then once more later. */
+const SKILL_OFFER_CALLS = [3, 25];
+
+export async function skillOfferDue(db: D1Database, p: Principal): Promise<boolean> {
+  const calls = await db.prepare("SELECT count(*) AS n FROM activity WHERE github_id = ? AND kind = 'tool'").bind(p.githubId).first<number>("n");
+  // This call is recorded after the response, so it is call number calls + 1.
+  return SKILL_OFFER_CALLS.includes((calls ?? 0) + 1);
+}
+
 export interface AgentFeedback {
   rating: number;
   issues: string;

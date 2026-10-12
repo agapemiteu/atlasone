@@ -4,7 +4,7 @@
 
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { buildEvidence, exportEvents, feedbackDue, recordAgentFeedback, recordConnected, recordTool } from "../src/lib/activity.ts";
+import { buildEvidence, exportEvents, feedbackDue, recordAgentFeedback, recordConnected, recordTool, skillOfferDue } from "../src/lib/activity.ts";
 import { loadSigner, sha256Hex, verifyJwt } from "../src/lib/receipts.ts";
 import { sessionCookie } from "../src/lib/session.ts";
 import { handleEvidence, renderEvidence } from "../src/web/evidence.ts";
@@ -185,5 +185,18 @@ describe("in-session feedback prompt", () => {
     expect(await feedbackDue(env.DB, p, { verified: false }, min(11))).toBeNull(); // 11th call
     await recordTool(env.DB, p, { tool: "atlas_discover", action: null, project: null, ms: 1, payload }, min(11));
     expect(await feedbackDue(env.DB, p, { verified: false }, min(12))).toBe("long_session"); // 12th call
+  });
+});
+
+describe("agent skill offer", () => {
+  it("is offered on a developer's 3rd tool call and once more on the 25th, not otherwise", async () => {
+    const p = { githubId: "7", login: "zainab", client: "Claude Code", sessionId: "conn_7" };
+    const payload = { ok: true };
+    const due: number[] = [];
+    for (let n = 1; n <= 26; n++) {
+      if (await skillOfferDue(env.DB, p)) due.push(n);
+      await recordTool(env.DB, p, { tool: "atlas_discover", action: null, project: null, ms: 1, payload }, min(n));
+    }
+    expect(due).toEqual([3, 25]);
   });
 });

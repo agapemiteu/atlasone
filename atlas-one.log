@@ -373,3 +373,7 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   Claude Code auto mode (Shift+Tab). (2) Agent skill: standard SKILL.md at /skill.md (agent-neutral), "ask your agent
   once to save it". (3) D28 direct API keys: /access "Create API key" (sign in, name, confirm) reusing the same project
   and one-time key page; home, docs and README link it. Tests 135 + 6; deployed.
+
+[2026-10-12 18:10 WAT] Skill offer (owner: offer it during use, not only after a build): tool results carry a one-time
+  skill_offer on a developer's 3rd and 25th call; the agent asks at the next natural pause and saves /skill.md only if
+  they agree. Server instructions now include the server origin. Tests 136 + 6; e2e-mcp passes; deployed.

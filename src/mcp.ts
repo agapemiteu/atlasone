@@ -8,7 +8,7 @@ import { createMcpHandler } from "agents/mcp/server";
 import { z } from "zod";
 import { AtlasError } from "./lib/errors.ts";
 import { AVAILABILITY } from "./lib/limits.ts";
-import { feedbackDue, recordAgentFeedback, recordTool, toolOutcome } from "./lib/activity.ts";
+import { feedbackDue, recordAgentFeedback, recordTool, skillOfferDue, toolOutcome } from "./lib/activity.ts";
 import { bindProject } from "./tools/bind.ts";
 import { requireScope, runTool, toolResult, type ToolDeps } from "./tools/context.ts";
 import { discover, RECIPES, renderRecipe } from "./tools/discover.ts";
@@ -17,7 +17,8 @@ import { atlasTest } from "./tools/test.ts";
 
 export const MCP_PATH = "/mcp";
 
-const INSTRUCTIONS = `Atlas One gives you genuine N-ATLaS (Nigerian multilingual LLM: English, Hausa, Igbo, Yoruba).
+/** Server instructions every MCP client receives on connect: the same fast path for all agents. */
+const instructions = (origin: string) => `Atlas One gives you genuine N-ATLaS (Nigerian multilingual LLM: English, Hausa, Igbo, Yoruba).
 Fast path, four calls; everything you need is in their results, so do not browse the web, read Atlas One's site or
 search config files, and do not stop between steps unless the developer must act:
 1. atlas_discover: live state; it also wakes N-ATLaS if asleep (${AVAILABILITY.coldStart}).
@@ -29,6 +30,8 @@ Use atlas_inspect only to diagnose failures. Grounding: put the app's facts in t
 there, and tell the model to say it does not know when the facts do not cover a question. verified: true proves genuine
 N-ATLaS use, not answer quality. Never invent or simulate N-ATLaS output; on MODEL_OFFLINE or any error, tell the developer
 and do not claim the integration works. Never ask for keys in the chat, never overwrite existing env values.
+If a result has skill_offer, at the next natural pause ask the developer once whether to save the Atlas One agent skill
+(a standard SKILL.md at ${origin}/skill.md) into your skills folder; save it only if they agree.
 If a result has feedback_request, finish the current task first, then ask the developer its question once, in your
 own words. Send their answer with atlas_feedback only after showing them what you will send. If they decline, drop it.`;
 
@@ -72,7 +75,17 @@ async function withFeedbackRequest(deps: ToolDeps, tool: string, r: ToolResult):
   const p = deps.principal;
   if (!p || r.isError || tool === "atlas_feedback") return r;
   const due = await feedbackDue(deps.db, p, { verified: toolOutcome(r.structuredContent).verified === 1 }).catch(() => null);
-  if (!due) return r;
+  if (!due) {
+    // Otherwise, a few calls in: offer the agent skill once, so later sessions go straight to the result.
+    if (!(await skillOfferDue(deps.db, p).catch(() => false))) return r;
+    return toolResult({
+      ...r.structuredContent,
+      skill_offer: {
+        url: `${deps.origin}/skill.md`,
+        ask: "Want me to save the Atlas One skill, so next time I go straight to the result?",
+      },
+    });
+  }
   return toolResult({
     ...r.structuredContent,
     feedback_request: {
@@ -117,7 +130,7 @@ const recipeNames = Object.keys(RECIPES) as [keyof typeof RECIPES, ...(keyof typ
 export function buildServer(deps: ToolDeps): McpServer {
   const server = new McpServer(
     { name: "atlas-one", title: "Atlas One", version: "1.0.0", websiteUrl: deps.origin },
-    { instructions: INSTRUCTIONS },
+    { instructions: instructions(deps.origin) },
   );
 
   server.registerTool(
