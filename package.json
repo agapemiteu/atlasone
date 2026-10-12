@@ -18,7 +18,8 @@
     "db:migrate:remote": "wrangler d1 migrations apply atlas-one --remote",
     "seed": "node scripts/seed.ts",
     "evidence:snapshot": "node scripts/evidence-snapshot.mjs",
-    "evidence:verify": "node scripts/verify-evidence.mjs"
+    "evidence:verify": "node scripts/verify-evidence.mjs",
+    "submission:pdfs": "node scripts/submission-pdfs.mjs docs/submission"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.4.0",
