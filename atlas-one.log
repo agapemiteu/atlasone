@@ -394,3 +394,8 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   with the external testers' full event log as an appendix), Technical Documentation (4 pp). Every request id and figure is
   from the logs; error table checked against src/lib/errors.ts. Evidence format: PDF report + JSON Lines log + signed
   JWT snapshot + JWKS, no new database needed.
+
+[2026-10-12 21:20 WAT] Submission PDFs redesigned (owner: "overcrowded, not CEO-ready"): one pattern per page (title, one-sentence
+  lead, one visual), large type, aligned SVG diagrams (architecture, evidence pipeline, developer journey), 2-3 pages each;
+  appendix lists only the testers' model calls. Published at /submission/*.pdf and opened in the owner's Chrome. Repo now
+  MIT licensed (GitHub detects it) with CONTRIBUTING.md, as the NAIC PS1 form requires.

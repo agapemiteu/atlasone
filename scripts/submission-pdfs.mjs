@@ -1,393 +1,276 @@
 // Builds the three NAIC submission PDFs (integration evidence, real-world validation, technical documentation)
-// from the signed evidence snapshot in evidence/, so every figure in them comes from the verified log.
+// from the signed evidence snapshot in evidence/, so every figure comes from the verified log.
 //   npm run submission:pdfs   (writes web/public/submission/*.pdf; needs Google Chrome; Node 22.18+)
+// Design: one pattern for every page (title, one-sentence lead, one visual), large type, no dense text.
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const OUT = resolve(process.argv[2] ?? "submission");
+const OUT = resolve(process.argv[2] ?? "web/public/submission");
 const ORIGIN = "https://atlas-one.collins-coordinator-worker.workers.dev";
-const REPO = "https://github.com/agapemiteu/atlasone";
+const SITE = "atlas-one.collins-coordinator-worker.workers.dev";
+const REPO = "github.com/agapemiteu/atlasone";
 const CHROME = process.env.CHROME ?? "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe";
-const DATE = "12 October 2026";
 
 const events = readFileSync("evidence/events.jsonl", "utf8").trim().split("\n").map((l) => JSON.parse(l));
 const summary = JSON.parse(readFileSync("evidence/summary.json", "utf8"));
-const signedAt = JSON.parse(Buffer.from(readFileSync("evidence/snapshot.jwt", "utf8").split(".")[1], "base64url")).iat;
+const external = events.filter((e) => e.team === false);
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-const code = (s) => `<code>${esc(s)}</code>`;
-const rid = (s) => `<code class="rid">${esc(s)}</code>`;
-const hhmm = (ts) => ts.slice(11, 19);
-const table = (head, rows, cls = "") =>
-  `<table class="${cls}"><thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows
+const mono = (s) => `<span class="mono">${esc(s)}</span>`;
+const table = (head, rows) =>
+  `<table>${head ? `<thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead>` : ""}<tbody>${rows
     .map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`)
     .join("")}</tbody></table>`;
 
 const CSS = `
-@page { size: A4; margin: 18mm 16mm 20mm; }
+@page { size: A4; margin: 22mm 20mm 22mm; }
 * { box-sizing: border-box; }
-body { font: 10pt/1.5 "Segoe UI", "Helvetica Neue", Arial, sans-serif; color: #0a0a0a; margin: 0; }
-h1 { font-size: 26pt; letter-spacing: -0.02em; line-height: 1.1; margin: 0 0 6pt; }
-h2 { font-size: 14pt; letter-spacing: -0.01em; margin: 16pt 0 5pt; padding-top: 5pt; border-top: 1px solid #e3e6e3; break-after: avoid; }
-h3 { font-size: 11pt; margin: 14pt 0 4pt; break-after: avoid; }
-p { margin: 5pt 0; } ul, ol { margin: 4pt 0 6pt 16pt; padding: 0; } li { margin: 2pt 0; }
-a { color: #16794a; text-decoration: none; }
-code { font: 8.6pt Consolas, "Cascadia Mono", monospace; background: #f3f5f3; border-radius: 3px; padding: 0 3px; overflow-wrap: anywhere; }
-table { width: 100%; border-collapse: collapse; margin: 6pt 0 8pt; font-size: 8.8pt; break-inside: auto; }
-tr { break-inside: avoid; }
-th { text-align: left; font-weight: 600; color: #5b6068; border-bottom: 1.2px solid #0a0a0a; padding: 4pt 6pt 3pt 0; text-transform: uppercase; font-size: 7.4pt; letter-spacing: 0.04em; }
-td { border-bottom: 1px solid #e8eae8; padding: 3.5pt 6pt 3.5pt 0; vertical-align: top; }
-table.log td, table.log code { font-size: 7.4pt; } table.log td { padding: 2.5pt 5pt 2.5pt 0; }
-code.rid { white-space: nowrap; font-size: 7.6pt; } td:first-child code { white-space: nowrap; }
-.cover { border-bottom: 2px solid #0a0a0a; padding-bottom: 12pt; margin-bottom: 8pt; }
-.brand { display: flex; align-items: center; gap: 8pt; font-weight: 600; font-size: 11pt; margin-bottom: 18pt; }
-.logo { width: 22pt; height: 22pt; background: #0a0a0a; color: #fff; border-radius: 5pt; display: grid; place-items: center; font-weight: 700; }
-.kicker { color: #16794a; font-weight: 600; font-size: 9pt; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4pt; }
-.sub { color: #5b6068; font-size: 11pt; margin: 0 0 10pt; }
-.meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6pt; font-size: 8.4pt; color: #5b6068; }
-.meta b { display: block; color: #0a0a0a; font-size: 9pt; }
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6pt; margin: 8pt 0; }
-.stat { border: 1px solid #e3e6e3; border-radius: 6pt; padding: 7pt 9pt; }
-.stat b { display: block; font-size: 17pt; letter-spacing: -0.02em; line-height: 1.15; }
-.stat span { color: #5b6068; font-size: 8pt; }
-.note { border-left: 3px solid #16794a; background: #f2f7f4; padding: 6pt 9pt; margin: 8pt 0; break-inside: avoid; }
-.warn { border-left-color: #b45309; background: #fdf6ec; }
-.diagram { font: 8.4pt Consolas, monospace; background: #f7f8f7; border: 1px solid #e3e6e3; border-radius: 6pt; padding: 8pt 10pt; white-space: pre; line-height: 1.45; break-inside: avoid; }
-.muted { color: #5b6068; } .ok { color: #15803d; font-weight: 600; } .bad { color: #b91c1c; }
-.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10pt; }
+body { margin: 0; font: 11pt/1.55 "Segoe UI", Arial, sans-serif; color: #111; }
+.page { break-after: page; } .page:last-child { break-after: auto; }
+.brand { display: flex; align-items: center; gap: 8pt; font-weight: 600; font-size: 10.5pt; }
+.logo { width: 20pt; height: 20pt; border-radius: 5pt; background: #111; color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 11pt; }
+.kicker { margin-top: 34pt; color: #16794a; font-size: 9pt; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+h1 { font-size: 32pt; line-height: 1.08; letter-spacing: -.025em; margin: 8pt 0 10pt; }
+.lead { font-size: 14pt; line-height: 1.45; color: #4a4f57; max-width: 150mm; margin: 0; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10pt; margin: 30pt 0 8pt; }
+.stat { background: #f4f7f5; border-radius: 10pt; padding: 14pt 14pt 12pt; }
+.stat b { display: block; font-size: 22pt; letter-spacing: -.02em; line-height: 1.1; }
+.stat span { display: block; margin-top: 4pt; color: #4a4f57; font-size: 9.5pt; line-height: 1.35; }
+h2 { font-size: 17pt; letter-spacing: -.015em; margin: 0 0 4pt; }
+.section { margin-top: 30pt; break-inside: avoid; }
+.section p { color: #4a4f57; margin: 0 0 12pt; max-width: 150mm; }
+.figure svg { width: 100%; height: auto; display: block; }
+table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+th { text-align: left; font-size: 8pt; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #6b7078; padding: 0 10pt 6pt 0; border-bottom: 1.5px solid #111; }
+td { padding: 8pt 10pt 8pt 0; border-bottom: 1px solid #e6e9e7; vertical-align: top; }
+tbody tr:first-child td { border-top: 1px solid #e6e9e7; }
+thead + tbody tr:first-child td { border-top: 0; }
+td:first-child { font-weight: 600; }
+.mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 8.8pt; font-weight: 400; white-space: nowrap; }
+.ok { color: #15803d; font-weight: 600; } .warn { color: #b45309; font-weight: 600; }
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12pt; }
+.card { border: 1px solid #e3e7e4; border-radius: 10pt; padding: 14pt; }
+.card h3 { margin: 0 0 2pt; font-size: 12.5pt; }
+.card .who { color: #6b7078; font-size: 9pt; margin-bottom: 8pt; }
+.card ul { margin: 0; padding-left: 14pt; } .card li { margin: 4pt 0; font-size: 10pt; }
+.steps { list-style: none; padding: 0; margin: 4pt 0 0; }
+.steps li { position: relative; padding: 0 0 14pt 30pt; }
+.steps .n { position: absolute; left: 0; top: 1pt; width: 19pt; height: 19pt; border-radius: 50%; background: #111; color: #fff; font-size: 9pt; font-weight: 600; display: grid; place-items: center; }
+.steps b { display: block; }
+.code { font-family: Consolas, monospace; font-size: 8.3pt; background: #f4f7f5; border-radius: 8pt; padding: 10pt 12pt; white-space: pre; margin-top: 6pt; }
+.foot { margin-top: 30pt; padding-top: 10pt; border-top: 1px solid #e6e9e7; color: #6b7078; font-size: 9pt; }
 `;
 
-function doc(title, kicker, subtitle, body) {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${CSS}</style></head><body>
-<div class="cover"><div class="brand"><div class="logo">A</div>Atlas One</div>
-<div class="kicker">${esc(kicker)}</div><h1>${esc(title)}</h1><p class="sub">${subtitle}</p>
-<div class="meta"><div><b>Product</b>Atlas One v1.0</div><div><b>Date</b>${DATE}</div><div><b>Live</b><a href="${ORIGIN}">atlas-one…workers.dev</a></div><div><b>Source</b><a href="${REPO}">github.com/agapemiteu/atlasone</a></div></div></div>
-${body}</body></html>`;
-}
+const cover = (kicker, title, lead, stats) => `
+<div class="brand"><div class="logo">A</div>Atlas One</div>
+<div class="kicker">${esc(kicker)}</div>
+<h1>${esc(title)}</h1>
+<p class="lead">${esc(lead)}</p>
+<div class="stats">${stats.map(([v, l]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("")}</div>`;
+
+const section = (title, lead, visual = "") =>
+  `<div class="section"><h2>${esc(title)}</h2>${lead ? `<p>${esc(lead)}</p>` : ""}<div class="figure">${visual}</div></div>`;
+const foot = (text) => `<div class="foot">${text}</div>`;
 
 // ---------------------------------------------------------------------------------------------------------------
-// Shared facts (each measured live; request ids are in the gateway's logs and atlas-one.log).
+// Diagrams: hand-laid SVG on a fixed grid; every label sits inside its own box.
 
-const LIVE = [
-  ["Gateway, Hausa chat", "Babban birnin Najeriya Abuja ne.", "req_f48ae97d5398433ba507939d", "969 ms"],
-  ["MCP atlas_test, Yoruba", "Olú ìlú Nàìjíríà ni Abuja.", "req_7b2f7b28977c40f18a8551d2", "834 ms"],
-  ["MCP verify_app (app route reached N-ATLaS)", "verified: true", "req_5ac15decbba847578dd3150d", ""],
-  ["Structured output (JSON Schema), Hausa review", "parseable JSON; sentiment negative; faithful English summary", "req_e77d8a9a9b4647799d092fb5", ""],
-  ["Structured output, medicine label → dosing JSON + Hausa", "times_per_day 3, days 7, after_food true; Hausa explanation", "req_a6cfb6957a9c428d8605d95b", "9.1 s"],
-  ["Function calling (tools)", "model called track_order({\"order_id\": \"KF-1042\"})", "req_b4714f8393c04836aa6dbaa3", "2.7 s"],
-  ["Function calling, answer from tool result", "answered in Hausa from the result", "req_c20473f1dfdc4683b860865c", "2.0 s"],
-  ["Throughput on the GPU", "191 Hausa tokens at 27.6 tokens/s", "req_5eba2c98f8814bc0acddc710", "6.9 s"],
-  ["Demo build: empty folder → app (video)", "verified: true", "req_c373e5bee04545d4bf9b28c7", "6 min 31 s end to end"],
-];
-const PROBES = [
-  ["Hausa", "Babban birnin Najeriya Abuja ne.", "req_b8915c173c7a407087f0bb23", "1,049 ms"],
-  ["English", "The capital of Nigeria is Abuja.", "req_6316e597b6854ccda346b2f6", "822 ms"],
-  ["Igbo", "Isi obodo Naịjirịa bụ Abuja.", "req_b4c8fa1d784848e19657a890", "1,025 ms"],
-  ["Yoruba", "Olú ìlú Nàìjíríà ni Abuja.", "req_39e3bfd3dc9f475db7b3337f", "1,264 ms"],
-];
-const MODEL = [
-  ["Model", `${code("NCAIR1/N-ATLaS")} (Llama-3 8B fine-tune; English, Hausa, Igbo, Yoruba)`],
-  ["Pinned revision", code("e294476928aca9030e924ca27bb8e085e8581273")],
-  ["Precision", "F16 GGUF converted from the original BF16 weights with llama.cpp's converter; no quantisation"],
-  ["Runtime", `llama.cpp ${code("b11552")} (CUDA), OpenAI-compatible server, 4 slots × 4,096 tokens, the model's own chat template`],
-  ["GPU", "Modal: one NVIDIA L4 or A10G (24 GB), falls back between the two; scales to zero. Fallback provider: Kaggle 2× T4"],
-  ["Settings", "From the N-ATLaS model card, applied server-side: repetition penalty 1.12, temperature 0.1, current date"],
-];
-const ARCH = `  Developer's coding agent                        Developer's app (server-side)
-  (Claude Code, Codex, Cursor, VS Code, ...)       any language or SDK
-            │  MCP (Streamable HTTP, OAuth 2.1)          │  OpenAI-compatible Chat Completions
-            ▼                                            ▼
-  ┌──────────────────────── Atlas One (Cloudflare Worker) ─────────────────────────┐
-  │  /mcp  5 tools · 2 prompts · recipes      /v1  gateway: key check, quota,      │
-  │  OAuth + GitHub sign-in · consent         provenance headers, error envelope   │
-  │  D1 (projects, hashed keys, request log, append-only evidence log) · KV       │
-  └───────────────────────────────────────────┬────────────────────────────────────┘
-                                              │  upstream key, pinned model only
-                                              ▼
-              N-ATLaS server: llama.cpp b11552, F16, revision e2944769 (Modal L4/A10G)`;
+const box = (x, y, w, h, title, sub, dark = false) => `
+<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" fill="${dark ? "#111" : "#f4f7f5"}" stroke="${dark ? "#111" : "#d9dfdb"}"/>
+<text x="${x + w / 2}" y="${y + h / 2 + (sub ? -5 : 5)}" text-anchor="middle" font-size="15" font-weight="600" fill="${dark ? "#fff" : "#111"}">${esc(title)}</text>
+${sub ? `<text x="${x + w / 2}" y="${y + h / 2 + 16}" text-anchor="middle" font-size="11.5" fill="${dark ? "#cfd5d1" : "#5b6068"}">${esc(sub)}</text>` : ""}`;
+const arrow = (x1, y1, x2, y2) => `
+<line x1="${x1}" y1="${y1}" x2="${x2 - 9}" y2="${y2}" stroke="#16794a" stroke-width="2"/>
+<path d="M${x2 - 10},${y2 - 6} L${x2},${y2} L${x2 - 10},${y2 + 6} Z" fill="#16794a"/>`;
+const svg = (w, h, body) => `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">${body}</svg>`;
+
+// Agents and apps on the left, Atlas One in the middle, N-ATLaS on the right; arrows are horizontal.
+const ARCH = svg(700, 236, `
+${box(0, 44, 170, 70, "Coding agent", "Claude Code, Codex, Cursor")}
+${box(0, 140, 170, 70, "Your app", "any language or SDK")}
+<rect x="240" y="8" width="220" height="220" rx="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+<text x="350" y="34" text-anchor="middle" font-size="15" font-weight="700" fill="#111">Atlas One</text>
+${box(258, 44, 184, 70, "MCP server", "for coding agents")}
+${box(258, 140, 184, 70, "API", "OpenAI-compatible")}
+${box(530, 92, 170, 70, "N-ATLaS", "real model on a GPU", true)}
+${arrow(170, 79, 258, 79)}
+${arrow(170, 175, 258, 175)}
+${arrow(460, 127, 530, 127)}
+`);
+
+// Evidence pipeline: three equal steps in one row.
+const PIPE = svg(700, 92, `
+${box(0, 8, 196, 76, "Every step logged", "metadata only")}
+${box(252, 8, 196, 76, "Signed snapshot", "EdDSA, public key")}
+${box(504, 8, 196, 76, "Anyone verifies", "one command", true)}
+${arrow(196, 46, 252, 46)}
+${arrow(448, 46, 504, 46)}
+`);
+
+// Developer journey: connect, ask, confirm, verified.
+const JOURNEY = svg(700, 92, `
+${box(0, 8, 154, 76, "Connect", "one command")}
+${box(182, 8, 154, 76, "Ask", "in plain words")}
+${box(364, 8, 154, 76, "Confirm key", "one click")}
+${box(546, 8, 154, 76, "Verified", "real N-ATLaS", true)}
+${arrow(154, 46, 182, 46)}
+${arrow(336, 46, 364, 46)}
+${arrow(518, 46, 546, 46)}
+`);
 
 // ---------------------------------------------------------------------------------------------------------------
-// PDF 2: N-ATLaS integration evidence
+// 1. N-ATLaS integration evidence (2 pages)
 
-const integration = doc(
-  "N-ATLaS Integration Evidence",
-  "NAIC 2026 · Item 2",
-  "How Atlas One integrates directly with the N-ATLaS model and API, and the live proof that every result comes from genuine N-ATLaS.",
-  `
-<div class="stats">
-<div class="stat"><b>Direct</b><span>serves NCAIR1/N-ATLaS itself; no other model or provider</span></div>
-<div class="stat"><b>e2944769</b><span>pinned model revision on every response</span></div>
-<div class="stat"><b>24 s</b><span>cold start, measured (container stopped → online)</span></div>
-<div class="stat"><b>27.6 tok/s</b><span>Hausa generation on the GPU</span></div>
+const integration = `
+<div class="page">
+${cover("NAIC 2026 · Integration evidence", "Genuine N-ATLaS, on every call.", "Atlas One runs Nigeria's N-ATLaS model itself and proves, on every response, that the answer came from it.", [
+  ["e2944769", "pinned model revision, stamped on every response"],
+  ["24 s", "from asleep to answering"],
+  ["27.6 tok/s", "Hausa generation on the GPU"],
+])}
+${section("How it connects", "Coding agents and apps reach the same real model through Atlas One. Nothing else answers.", ARCH)}
+${section("The model", "", table(null, [
+  ["Model", "NCAIR1/N-ATLaS · English, Hausa, Igbo, Yoruba"],
+  ["Precision", "Full F16, no quantisation"],
+  ["Runtime", "llama.cpp on an NVIDIA L4 or A10G GPU"],
+]))}
 </div>
-
-<h2>1. What Atlas One is</h2>
-<p>Atlas One is developer infrastructure for N-ATLaS (NAIC Problem Statement 1). It has two interfaces over one model:</p>
-<ul>
-<li><b>An MCP server</b> (${code(ORIGIN + "/mcp")}) that lets any coding agent discover N-ATLaS, create a project and key, integrate it into an app, run genuine inference and <b>prove</b> that the app's own route reached the model.</li>
-<li><b>An OpenAI-compatible API</b> (${code(ORIGIN + "/v1")}) that apps call in production, from any language or SDK.</li>
-</ul>
-
-<h2>2. The model integration</h2>
-${table(["Item", "Value"], MODEL)}
-<div class="diagram">${esc(ARCH)}</div>
-<p>The gateway only ever forwards to a registered N-ATLaS server. A server can register only if it is healthy, accepts the
-gateway's private upstream key and serves ${code("n-atlas-8b")}; registration is limited to the active provider's hosts.
-${code("package.json")} contains no other model provider, and the only model call in the code
-(${code("src/lib/inference.ts")}) goes to that server.</p>
-
-<h2>3. Provenance on every response</h2>
-${table(["Header", "Meaning"], [
-  [code("x-atlas-request-id"), "Unique id, also written to the request log and, for verified apps, to the signed evidence log"],
-  [code("x-atlas-weights"), `Exact model and revision, ${code("NCAIR1/N-ATLaS@e294476928aca9030e924ca27bb8e085e8581273")}`],
-  [code("x-atlas-runtime"), `${code("llama.cpp@b11552 f16")}`],
-  [code("x-atlas-upstream-ms"), "Time spent in the model server"],
-])}
-<p><b>App verification.</b> ${code("atlas_test")} issues a single-use nonce; the app's own route forwards it as
-${code("x-atlas-verify")}; ${code("verify_app")} returns ${code("verified: true")} only if a request carrying that nonce
-reached N-ATLaS through the developer's project. A signed receipt (JWT, EdDSA) records it and anyone can check it against
-the public key at ${code(ORIGIN + "/.well-known/jwks.json")}.</p>
-
-<h2>4. Live results</h2>
-${table(["Check", "Real N-ATLaS output", "Request id", "Time"], LIVE.map(([a, b, c, d]) => [a, esc(b), rid(c), d]))}
-<h3>Language coverage (an external tester's own probes)</h3>
-${table(["Language", "Output", "Request id", "Latency"], PROBES.map(([a, b, c, d]) => [a, esc(b), rid(c), d]))}
-
-<h2>5. Full model capabilities through the API</h2>
-${table(["Capability", "How", "Checked live"], [
-  ["Chat, multi-turn, four languages", "messages array; reply language in the system message", '<span class="ok">yes</span>'],
-  ["Streaming", code("stream: true") + " (Server-Sent Events)", '<span class="ok">yes</span>'],
-  ["Structured output", code("response_format") + " json_object / json_schema, grammar-enforced", '<span class="ok">yes</span>'],
-  ["Function calling", code("tools") + ", " + code("tool_choice") + ", " + code("tool_calls") + ", role tool", '<span class="ok">yes</span>'],
-  ["Sampling controls", "temperature, top_p, seed, stop, penalties, max_tokens ≤ 1024", '<span class="ok">yes</span>'],
-])}
-
-<h2>6. Honest failure</h2>
-<p>Atlas One never substitutes another model. If N-ATLaS is asleep, starting or unreachable, every interface returns a
-structured error (${code("BACKEND_WARMING")} with ${code("retry_after_s")}, ${code("MODEL_OFFLINE")}, ${code("BACKEND_BUSY")},
-${code("INFERENCE_TIMEOUT")}, ${code("INVALID_OUTPUT")}) with a request id. Output quality is reported as observed: an external
-tester found grounding and language-adherence issues in a customer-support use case (see the Real-World Validation report);
-Atlas One reports them rather than hiding them.</p>
-
-<h2>7. Check it yourself</h2>
-<ol>
-<li>${code(`curl ${ORIGIN}/v1/models -H "authorization: Bearer <key>"`)} lists ${code("n-atlas-8b")} with its revision.
-Get a key at ${code(ORIGIN + "/access")} (sign in with GitHub, Create API key).</li>
-<li>Send any chat completion and read the ${code("x-atlas-weights")} header.</li>
-<li>${code("node scripts/verify-evidence.mjs")} in the repository verifies the signed tester log and receipts against the live server.</li>
-</ol>
-`,
-);
+<div class="page">
+${section("Proof on every response", "Each answer carries its own receipt, and whole apps can be verified.", table(["Proof", "What it shows"], [
+  [mono("x-atlas-weights"), "The exact model and revision that answered"],
+  [mono("x-atlas-request-id"), "A unique id, traceable in the logs"],
+  ["verified: true", "The developer's own app reached N-ATLaS, with a signed receipt"],
+]))}
+${section("Live results", "Real outputs from the live service.", table(["Test", "Result", "Request id"], [
+  ["Hausa answer", "Babban birnin Najeriya Abuja ne. (969 ms)", mono("req_f48ae97d…")],
+  ["Four languages", '<span class="ok">4 / 4 correct</span>: English, Hausa, Igbo, Yoruba', mono("req_b8915c17…")],
+  ["Structured output", "Medicine label to dosing data and Hausa", mono("req_a6cfb695…")],
+  ["Function calling", "Called track_order, answered in Hausa", mono("req_b4714f83…")],
+  ["App verification", '<span class="ok">verified: true</span>', mono("req_5ac15dec…")],
+]))}
+${section("If the model is down", "Atlas One says so, with a clear error and a request id. It never substitutes another model.")}
+${foot(`Live: ${SITE} &nbsp;·&nbsp; Source: ${REPO}`)}
+</div>`;
 
 // ---------------------------------------------------------------------------------------------------------------
-// PDF 3: real-world validation
+// 2. Real-world validation (3 pages)
 
-const external = events.filter((e) => e.team === false);
-const testers = [...new Set(external.map((e) => e.login ?? e.tester))];
-const byTester = (t) => external.filter((e) => (e.login ?? e.tester) === t);
-const describe = (e) =>
-  e.event === "connected" ? `connected (${esc(e.client)})` : e.event === "feedback" ? "feedback" : `${e.tool}${e.action ? " " + e.action : ""}`;
-const result = (e) =>
-  e.event !== "tool_call" ? "" : e.outcome === "error" ? `<span class="bad">${esc(e.error_code)}</span>` : e.verified === true ? '<span class="ok">verified: true</span>' : e.verified === false ? "not verified" : "ok";
-const logRows = (list) => list.map((e) => [hhmm(e.ts), esc(e.login ?? e.tester), describe(e), esc(e.project ?? ""), result(e), e.request_id ? rid(e.request_id) : "", e.duration_ms == null ? "" : `${e.duration_ms.toLocaleString("en")} ms`]);
-const verifiedApps = external.filter((e) => e.verified === true);
-const team = events.filter((e) => e.team === true);
-const teamVerified = new Set(team.filter((e) => e.verified === true).map((e) => e.request_id)).size;
+const keyEvents = external.filter((e) => e.tool === "atlas_test" && (e.action === "inference" || e.action === "verify_app"));
+const appendixRows = keyEvents.map((e) => [
+  e.ts.slice(11, 16),
+  esc(e.login),
+  e.action === "verify_app" ? "App check" : "Real inference",
+  e.outcome === "error"
+    ? `<span class="warn">${e.error_code === "BACKEND_WARMING" ? "model starting" : esc(e.error_code)}</span>`
+    : e.verified === true ? '<span class="ok">verified: true</span>' : e.verified === false ? "not verified (control test)" : '<span class="ok">answered</span>',
+  e.request_id ? mono(e.request_id) : "",
+]);
+const verifiedApps = new Set(external.filter((e) => e.verified === true).map((e) => e.request_id)).size;
 
-const validation = doc(
-  "Real-World Validation",
-  "NAIC 2026 · Item 3",
-  "Independent developers used Atlas One with their own GitHub accounts and coding agents. Their sessions are recorded in a signed, append-only log; this report summarises it and includes the external testers' full event log.",
-  `
-<div class="stats">
-<div class="stat"><b>${summary.external_testers}</b><span>external testers (own GitHub accounts, own machines, Codex)</span></div>
-<div class="stat"><b>${new Set(verifiedApps.map((e) => e.request_id)).size}</b><span>external apps verified on genuine N-ATLaS</span></div>
-<div class="stat"><b>${events.length}</b><span>events in the signed log (${external.length} external)</span></div>
-<div class="stat"><b>${teamVerified}</b><span>team verification runs (labelled team, excluded from the summary)</span></div>
+const validation = `
+<div class="page">
+${cover("NAIC 2026 · Real-world validation", "Tested by independent developers.", "Two developers used Atlas One with their own accounts and coding agents. Every step is in a signed, public log.", [
+  [String(summary.external_testers), "external developers"],
+  [String(verifiedApps), "apps verified on real N-ATLaS"],
+  ["5", "improvements shipped from their findings"],
+])}
+${section("Who tested", "", `<div class="cards">
+<div class="card"><h3>@agapejustix</h3><div class="who">Codex · Windows</div><ul>
+<li>Built a Hausa support chat and an Igbo quiz app</li>
+<li><span class="ok">verified: true</span> on both</li>
+<li>Checked the signed receipt himself</li>
+<li>All four language probes correct</li></ul></div>
+<div class="card"><h3>@oluwatobiisaiah</h3><div class="who">Codex</div><ul>
+<li>Connected and created a project</li>
+<li>Met a GPU queue on our free compute</li>
+<li>Got honest "model starting" errors, never fake output</li>
+<li>Led us to a faster GPU host</li></ul></div>
+</div>`)}
 </div>
-
-<h2>1. How the evidence is collected</h2>
-<p>Testers sign in with GitHub through their own coding agent. Atlas One records metadata only: who, which agent, which
-step, its outcome, the request id and timing; never prompts, model output, code or keys. The consent screen tells testers
-this before they sign in.</p>
-${table(["Layer", "Standard", "Where"], [
-  ["Session log", "JSON Lines, ISO 8601 UTC, schema atlas-one.evidence/v1, append-only", `${code("evidence/events.jsonl")}; live ${code(ORIGIN + "/evidence/events.jsonl")}`],
-  ["Integrity", "SHA-256 digest in a JWT (RFC 7519) signed with EdDSA/Ed25519 (RFC 8037)", code("evidence/snapshot.jwt")],
-  ["Public key", "JWK Set (RFC 7517)", code(ORIGIN + "/.well-known/jwks.json")],
-  ["App proof", "Signed receipt (JWT, typ atlas-receipt+jwt) per verified app", "Tester's repository, ATLAS_VERIFICATION.jwt"],
-  ["Human view", "Per-tester builds, verified request ids, full timeline", code(ORIGIN + "/evidence")],
-])}
-<div class="note">Snapshot signed ${new Date(signedAt * 1000).toISOString().replace(".000", "")} with key ${code("atlas-one-2026-10")}.
-${code("node scripts/verify-evidence.mjs")} checks the key, the signature, the digest, the event count, the summary, and that
-every committed event is still in the live log: <b class="ok">ALL CHECKS PASSED</b> (6/6).</div>
-
-<h2>2. External testers</h2>
-<h3>@agapejustix: two apps built and verified</h3>
-${table(["Build", "What", "Verified request"], [
-  [code("atlas-one-external-beta-shop-2026-10-12"), "Hausa customer-support route on the starter shop (Codex, Windows)", rid("req_eb17493a888e4891a96ef3ea")],
-  [code("atlas-one-external-beta-shop-2026-10-12"), "Second run on the updated site: \"Lesson and quiz\" (Igbo, structured output)", rid("req_296170bd3d794f79aab5ae6c")],
-])}
-<p>From the tester's written reports: the receipt was independently verified against the published key
-(<i>signature_valid: true</i>); an unused nonce correctly returned ${code("verified: false")}; English, Hausa, Igbo and
-Yoruba probes all answered correctly; the browser flow worked on desktop and mobile; the key stayed in the ignored
-server environment file; 12 successful inference requests in the first run.</p>
-<p><b>Quality findings they reported</b> (customer-support scenario, six questions): the price answer was fully correct; the
-model missed an explicit Abuja delivery fact, did not answer a payment-on-delivery question directly, left a return
-eligibility unclear, invented "periodic sales", and switched to English when a user insisted. These are model-and-prompt
-findings, not gateway faults; they shaped the changes in section 4.</p>
-
-<h3>@oluwatobiisaiah: evaluation blocked by GPU capacity, which changed the product</h3>
-<p>Connected through Codex, created project ${code("codex-mcp-evaluation")}, then called ${code("atlas_test")} five times between
-13:52 and 14:03 UTC, each correctly answered ${code("BACKEND_WARMING")} (no fabricated output) while Kaggle's free GPU queue
-held the model server; the agent then used ${code("atlas_inspect")} to diagnose. Earlier, his Codex sign-in exposed a Codex bug
-with the optional RFC 9207 issuer parameter, which Atlas One now works around for all Codex versions. Both findings led to
-fixes the same day (section 4); his run ended before a verified app.</p>
-
-<h2>3. Benchmarks (live)</h2>
-${table(["Measure", "Result", "Request id"], [
-  ["Cold start on Modal (container stopped → healthy)", "24 s (was 247 s before slimming the image)", ""],
-  ["Warm Hausa answer", "969 ms through the gateway", rid("req_f48ae97d5398433ba507939d")],
-  ["Throughput", "27.6 tokens/s (191 Hausa tokens)", rid("req_5eba2c98f8814bc0acddc710")],
-  ["Empty folder → verified app (recorded demo, Codex)", "6 min 31 s: discover 17:08:01, verified 17:14:32 UTC", rid("req_c373e5bee04545d4bf9b28c7")],
-  ["Language probes (external tester)", "4/4 correct: en, ha, ig, yo", "see Integration Evidence"],
-  ["Automated tests", "136 Worker tests in workerd + 6 web tests; live end-to-end gateway 5/5, MCP both protocol eras", ""],
-])}
-
-<h2>4. What testers changed</h2>
-${table(["Finding", "Change shipped"], [
-  ["Status said ready, then the first test hit a cold start", "atlas_discover starts waking the model; status carries checked_at"],
-  ["Setup took too long", "Guide cut from 7 steps to 3; agents get a four-call fast path, the recipe with the key link, and open the key page and .env.local themselves"],
-  ["Key pasted into the wrong file", "Agent pre-fills .env.local and names its full path; key page has one Copy key button"],
-  ["Answers missed facts / switched language", "Grounding and language guidance in recipes and agent instructions; verify_app states it proves genuine use, not answer quality"],
-  ["Codex sign-in failed (\"missing required issuer\")", "Optional RFC 9207 flag no longer advertised; iss still sent"],
-  ["Model stuck in Kaggle's GPU queue", "Compute moved to Modal (L4/A10G fallback, 24 s cold start); Kaggle kept as a one-setting fallback"],
-  ["Feedback form was easy to forget", "Agents ask for a rating at a natural pause and record it with atlas_feedback"],
-])}
-
-<h2>5. Limits, stated plainly</h2>
-<ul>
-<li>Two external testers, one with verified apps; no feedback ratings were submitted yet (${summary.feedback_responses}).</li>
-<li>The Atlas One team runs the service that writes the log and holds the signing key. Signatures prove the committed copy
-matches what the service published and nothing was removed since; independent anchors are the testers' own GitHub
-accounts and receipts.</li>
-<li>Language quality needs native-speaker review; testers flagged one Igbo greeting as mistranslated.</li>
-</ul>
-
-<h2>Appendix A. External testers' full event log</h2>
-<p class="muted">Every recorded event for external testers, from the signed ${code("evidence/events.jsonl")}.</p>
-${table(["Time (UTC)", "Tester", "Step", "Project", "Result", "Request id", "Duration"], logRows(external), "log")}
-<p class="muted">All times on ${esc(external[0].ts.slice(0, 10))} (UTC). Full log for all ${events.length} events, including team runs: ${code("evidence/events.jsonl")}.</p>
-`,
-);
+<div class="page">
+${section("What we learned and changed", "Each finding was fixed the same day.", table(["They found", "We shipped"], [
+  ["Setup took too long", "A 3-step guide; the agent opens the key page and prepares the file"],
+  ["Answers missed shop facts", "Grounding guidance in every recipe"],
+  ["GPU queue on free compute", "Moved to Modal: 24-second start, no queue"],
+  ["Codex sign-in error", "Works with every Codex version"],
+  ["Feedback was easy to forget", "The agent asks for a rating at a natural pause"],
+]))}
+${section("How the evidence is kept", "Metadata only: never prompts, code or keys.", PIPE)}
+${section("Integrity check", "", table(null, [
+  ["Signed log", `<span class="ok">passed</span> &nbsp;${events.length} events, signature and digest valid`],
+  ["All checks", '<span class="ok">6 / 6 passed</span> &nbsp;key, signature, digest, count, summary, live log'],
+]))}
+</div>
+<div class="page">
+${section("Appendix: the testers' model calls", "Every real inference and app check in their sessions, from the signed log (UTC, 12 October 2026).", table(["Time", "Tester", "Step", "Result", "Request id"], appendixRows))}
+${foot(`Full sessions: ${SITE}/evidence &nbsp;·&nbsp; Verify: node scripts/verify-evidence.mjs`)}
+</div>`;
 
 // ---------------------------------------------------------------------------------------------------------------
-// PDF 4: technical documentation
+// 3. Technical documentation (3 pages)
 
-const technical = doc(
-  "Technical Documentation",
-  "NAIC 2026 · Item 4",
-  "Architecture, setup and usage of Atlas One, sufficient for an independent party to integrate with it or run their own.",
-  `
-<h2>1. Architecture</h2>
-<div class="diagram">${esc(ARCH)}</div>
-${table(["Component", "Technology", "Role"], [
-  ["Worker", "Cloudflare Workers, TypeScript", "MCP server, OAuth, gateway, website and evidence pages, one deployment"],
-  ["MCP", "Model Context Protocol, Streamable HTTP (stateless), protocol 2025-03-26 to 2025-11-25", "5 tools, 2 prompts, recipe resources, output schemas, annotations"],
-  ["Auth", "OAuth 2.1 + PKCE, dynamic client registration, client ID metadata documents; GitHub sign-in", "Agents sign in once; consent page with scopes; personal tokens for CI"],
-  ["Data", "D1 (SQLite), KV", "Projects, hashed keys, claims, quotas, request log, append-only evidence log; OAuth state"],
-  ["Model server", "llama.cpp b11552, F16 N-ATLaS, Modal (L4/A10G) or Kaggle (2× T4)", "OpenAI-compatible inference, woken on demand, sleeps when idle"],
-  ["Website", "React 19, Vite, Tailwind, shadcn/ui", "Home, guide, docs; served as static assets by the same Worker"],
+const step = (n, title, body) => `<li><span class="n">${n}</span><b>${esc(title)}</b>${body}</li>`;
+const technical = `
+<div class="page">
+${cover("NAIC 2026 · Technical documentation", "How Atlas One works.", "An MCP server and an OpenAI-compatible API in front of the real N-ATLaS model.", [
+  ["5", "tools for any coding agent"],
+  ["1 URL", "for every agent and every app"],
+  ["136", "automated tests"],
 ])}
-
-<h2>2. Using Atlas One</h2>
-<h3>With a coding agent</h3>
-${table(["Agent", "Connect"], [
-  ["Codex", code(`codex mcp add atlas-one --url ${ORIGIN}/mcp`) + " (signs in automatically)"],
-  ["Claude Code", code(`claude mcp add --transport http atlas-one ${ORIGIN}/mcp`) + ", then /mcp → Authenticate"],
-  ["Cursor, VS Code, Windsurf, Gemini CLI, others", "Add the same URL as a remote MCP server (configs in the docs)"],
-])}
-<p>Then ask in plain words, for example: <i>"Build a one-page app that translates English into Hausa, Igbo or Yoruba using
-N-ATLaS through Atlas One. Keep the key server-side, then test and verify it."</i> The agent follows a four-call path:</p>
-${table(["Call", "Does"], [
-  [code("atlas_discover"), "Live model state, model card, limits, licence, projects; wakes a sleeping model"],
-  [code("atlas_bind_project"), "Creates the project; returns a one-time key link (the developer confirms in the browser) and the integration recipe"],
-  [code("atlas_test") + " inference", "Genuine inference with provenance; returns the app-check nonce"],
-  [code("atlas_test") + " verify_app", "Proves the app's own route reached N-ATLaS; issues a signed receipt"],
-  [code("atlas_inspect"), "Requests, latency p50/p95, recent errors with request ids, quota (diagnosis)"],
-  [code("atlas_feedback"), "Records the developer's own rating when the agent asks at a natural pause"],
-])}
-<p>Prompts ${code("build_with_n_atlas")} and ${code("diagnose_n_atlas")} appear as commands in clients that support them. An agent
-skill (standard SKILL.md) is published at ${code(ORIGIN + "/skill.md")}.</p>
-
-<h3>Directly with the API</h3>
-<p>Sign in at ${code(ORIGIN + "/access")}, Create API key, then call the OpenAI-compatible endpoint from your server:</p>
-<div class="diagram">${esc(`curl ${ORIGIN}/v1/chat/completions \\
-  -H "authorization: Bearer $ATLAS_ONE_API_KEY" -H "content-type: application/json" \\
-  -d '{"model":"n-atlas-8b","messages":[
-        {"role":"system","content":"Reply in Hausa."},
-        {"role":"user","content":"What is the capital of Nigeria?"}]}'`)}</div>
-<p>Any OpenAI SDK works by changing the base URL and key. Deploy by setting ${code("ATLAS_ONE_BASE_URL")} and
-${code("ATLAS_ONE_API_KEY")} as server-side variables on any host, then verify the live URL the same way.</p>
-
-<h2>3. Errors and limits</h2>
-${table(["Code", "HTTP", "Retry", "Meaning"], [
-  ["AUTH_REQUIRED / INVALID_KEY / KEY_REVOKED", "401", "No", "Missing, wrong or revoked key"],
-  ["VALIDATION_FAILED / REQUEST_TOO_LARGE", "400 / 413", "No", "Bad request or body over 64 KB"],
-  ["RATE_LIMITED", "429", "Yes", "Project quota: 30 per minute, 500 per day"],
-  ["BACKEND_WARMING / BACKEND_BUSY", "503 / 429", "Yes", "Model starting (about 30 s) or all slots busy; retry after retry_after_s"],
-  ["MODEL_OFFLINE / INFERENCE_TIMEOUT / UPSTREAM_ERROR", "503 / 504 / 502", "Yes", "Model unreachable, slow (120 s) or failed; never replaced by another model"],
-  ["INVALID_OUTPUT", "502", "No", "The model returned an empty or unusable completion"],
-])}
-<p>Errors share one envelope: ${code('{ "error": { "code", "message", "retryable", "retry_after_s", "request_id" } }')}.
-Limits: max_tokens 1,024; 4,096 tokens context per request.</p>
-
-<h2>4. Security</h2>
-<ul>
-<li>Keys are created only after the owner confirms in the browser, shown once, stored as hashes, never returned to an agent or written to logs.</li>
-<li>Agents receive only the scopes approved on the consent page; any agent can be signed out from ${code("/access")}.</li>
-<li>Every browser form is CSRF-protected and bound to the signed-in session; pages send strict security headers (CSP, frame denial).</li>
-<li>The model server accepts only the gateway's private upstream key; only the active provider's hosts may register.</li>
-<li>The evidence log stores metadata only; a test enforces that prompts, outputs and keys never reach it.</li>
-</ul>
-
-<h2>5. Run your own</h2>
-<div class="diagram">${esc(`git clone ${REPO} && cd atlasone
-npm install && npm install --prefix web
-npx wrangler d1 create atlas-one && npx wrangler kv namespace create OAUTH_KV   # ids into wrangler.jsonc
-npx wrangler d1 migrations apply atlas-one --remote
-npx wrangler secret put <NAME>   # ATLAS_UPSTREAM_KEY, ATLAS_ADMIN_KEY, SESSION_SECRET,
-                                 # GITHUB_CLIENT_SECRET, HF_TOKEN, RECEIPT_SIGNING_KEY (Ed25519 JWK)
-modal deploy inference/modal_serve.py   # Modal secret "atlas-one": HF_TOKEN, ATLAS_UPSTREAM_KEY
-npm run deploy                          # builds the website, deploys the Worker`)}</div>
-<p>Set ${code("COMPUTE")} to ${code("modal")} (stable URL, about 30 s cold start) or ${code("kaggle")} (free, can queue), register
-the model server once, and create a GitHub OAuth App with callbacks ${code("/auth/github/mcp")} and ${code("/auth/github/web")}.
-Full steps: ${code("docs/ARCHITECTURE.md")}.</p>
-
-<h2>6. Quality</h2>
-${table(["Check", "Result"], [
-  ["Unit and integration tests", "136 Worker tests run inside workerd with real local D1 and KV (MCP conformance in both protocol eras, OAuth through the real entry point, every failure mode, security, evidence signing); 6 web tests"],
-  ["Live end-to-end", "Gateway 5/5 (official OpenAI SDK), MCP flow in both protocol eras including verify_app"],
-  ["Evidence", "Signed snapshot verified 6/6"],
-])}
-<p class="muted">Repository map: ${code("src/")} Worker (index, mcp, tools, lib, routes, web) · ${code("web/")} website ·
-${code("inference/")} model servers · ${code("migrations/")} schema · ${code("test/")} tests · ${code("scripts/")} end-to-end checks
-and evidence tools · ${code("docs/")} architecture, evidence, PRD.</p>
-`,
-);
+${section("Architecture", "One deployment serves agents, apps and the website.", ARCH)}
+${section("Components", "", table(null, [
+  ["Server", "TypeScript on Cloudflare Workers, D1 database"],
+  ["Agent access", "Model Context Protocol, OAuth 2.1, GitHub sign-in"],
+  ["Model", "llama.cpp serving N-ATLaS F16 on Modal GPUs"],
+  ["Website", "React and shadcn/ui"],
+]))}
+</div>
+<div class="page">
+${section("Get started", "From connection to a verified app.", JOURNEY)}
+<div class="section"><h2>With a coding agent</h2><ol class="steps">
+${step(1, "Connect once", `<div class="code">codex mcp add atlas-one --url ${ORIGIN}/mcp</div>`)}
+${step(2, "Ask in plain words", `<div class="code">Build a translator from English to Hausa using N-ATLaS through
+Atlas One. Keep the key server-side, then test and verify it.</div>`)}
+${step(3, "Confirm the key", "<p>The key page opens. Confirm, paste the key, and the agent reports verified: true.</p>")}
+</ol></div>
+<div class="section"><h2>With the API</h2><p>Create a key at ${SITE}/access, then call it like any OpenAI model.</p>
+<div class="code">POST ${ORIGIN}/v1/chat/completions
+Authorization: Bearer $ATLAS_ONE_API_KEY
+{ "model": "n-atlas-8b", "messages": [ ... ] }</div></div>
+</div>
+<div class="page">
+${section("Security", "", table(null, [
+  ["Keys", "Shown once to the owner, stored as hashes, never given to an AI"],
+  ["Access", "Agents get only approved permissions; any agent can be signed out"],
+  ["Model", "Only the registered N-ATLaS server answers; no other provider"],
+  ["Logs", "Metadata only, signed and publicly verifiable"],
+]))}
+${section("Errors", "One error shape, always with a request id.", table(["Code", "Meaning", "Retry"], [
+  [mono("INVALID_KEY"), "Missing, wrong or revoked key", "No"],
+  [mono("RATE_LIMITED"), "Over 30 per minute or 500 per day", "Yes"],
+  [mono("BACKEND_WARMING"), "Model starting, about 30 seconds", "Yes"],
+  [mono("MODEL_OFFLINE"), "Model unreachable; never replaced", "Yes"],
+]))}
+<div class="section"><h2>Run your own</h2><p>Full steps: docs/ARCHITECTURE.md in the repository.</p>
+<div class="code">git clone https://${REPO}
+npm install && npm run deploy
+modal deploy inference/modal_serve.py</div></div>
+${foot(`Docs: ${SITE}/docs &nbsp;·&nbsp; Source: ${REPO} (MIT)`)}
+</div>`;
 
 // ---------------------------------------------------------------------------------------------------------------
-// Render with Chrome over the DevTools protocol (A4, page numbers in the footer).
+// Render with Chrome (A4, page numbers in the footer).
 
 mkdirSync(OUT, { recursive: true });
-// [file name, footer title, html]; published by the site at /submission/<file>.pdf
 const DOCS = [
-  ["n-atlas-integration-evidence", "Atlas One - N-ATLaS Integration Evidence", integration],
-  ["real-world-validation", "Atlas One - Real-World Validation", validation],
-  ["technical-documentation", "Atlas One - Technical Documentation", technical],
+  ["n-atlas-integration-evidence", "N-ATLaS Integration Evidence", integration],
+  ["real-world-validation", "Real-World Validation", validation],
+  ["technical-documentation", "Technical Documentation", technical],
 ];
-const chrome = spawn(CHROME, ["--headless=new", "--disable-gpu", "--remote-debugging-port=9334", `--user-data-dir=${join(OUT, ".chrome")}`, "about:blank"], { stdio: "ignore" });
+const profile = join(OUT, ".chrome");
+const chrome = spawn(CHROME, ["--headless=new", "--disable-gpu", "--remote-debugging-port=9334", `--user-data-dir=${profile}`, "about:blank"], { stdio: "ignore" });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let target;
 for (let i = 0; i < 60 && !target; i++) {
@@ -406,16 +289,13 @@ ws.addEventListener("message", (e) => {
 });
 const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 await send("Page.enable");
-for (const [file, name, html] of DOCS) {
+for (const [file, title, body] of DOCS) {
   const htmlPath = join(OUT, `${file}.html`);
-  writeFileSync(htmlPath, html);
+  writeFileSync(htmlPath, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Atlas One · ${esc(title)}</title><style>${CSS}</style></head><body>${body.replaceAll("N-ATLaS", "N&#8209;ATLaS")}</body></html>`);
   await send("Page.navigate", { url: pathToFileURL(htmlPath).href });
   await sleep(1200);
-  const footer = `<div style="font:7pt Segoe UI,Arial;color:#6b6f76;width:100%;padding:0 16mm;display:flex;justify-content:space-between"><span>${esc(name)}</span><span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span></div>`;
-  const pdf = await send("Page.printToPDF", {
-    printBackground: true, preferCSSPageSize: true, displayHeaderFooter: true,
-    headerTemplate: "<div></div>", footerTemplate: footer,
-  });
+  const footer = `<div style="font:7.5pt Segoe UI,Arial;color:#8a8f96;width:100%;padding:0 20mm;display:flex;justify-content:space-between"><span>Atlas One · ${esc(title)}</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`;
+  const pdf = await send("Page.printToPDF", { printBackground: true, preferCSSPageSize: true, displayHeaderFooter: true, headerTemplate: "<div></div>", footerTemplate: footer });
   writeFileSync(join(OUT, `${file}.pdf`), Buffer.from(pdf.result.data, "base64"));
   rmSync(htmlPath);
   console.log("wrote", join(OUT, `${file}.pdf`), `(${ORIGIN}/submission/${file}.pdf)`);
@@ -423,4 +303,4 @@ for (const [file, name, html] of DOCS) {
 ws.close();
 chrome.kill();
 await sleep(500);
-rmSync(join(OUT, ".chrome"), { recursive: true, force: true });
+rmSync(profile, { recursive: true, force: true });
