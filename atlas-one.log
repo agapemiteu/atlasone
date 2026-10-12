@@ -399,3 +399,9 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   lead, one visual), large type, aligned SVG diagrams (architecture, evidence pipeline, developer journey), 2-3 pages each;
   appendix lists only the testers' model calls. Published at /submission/*.pdf and opened in the owner's Chrome. Repo now
   MIT licensed (GitHub detects it) with CONTRIBUTING.md, as the NAIC PS1 form requires.
+
+[2026-10-12 21:40 WAT] NAIC form pages 2-3 answered in chat (plain language, every claim backed by the log; owner asked for no
+  jargon such as raw revision hashes, and an engineering-grade scale plan: Cloudflare edge, rate limits moving to Redis,
+  caching, multi-replica GPU inference with failover on AWS/Google Cloud or official N-ATLaS hosting, vLLM, Postgres).
+  Modal GPU put to rest (no containers; status offline; wakes on next request). CLAUDE.md current state refreshed.
+  gbrain (projects/atlas-one) could not be updated: the gbrain MCP server failed to connect for the whole session.
