@@ -25,7 +25,8 @@ Call atlas_discover first: it also starts waking N-ATLaS if it is asleep (${AVAI
 Grounding: put the app's facts in the system message, name the reply language there, and tell the model to say it does
 not know when the facts do not cover a question. verified: true proves genuine N-ATLaS use, not answer quality.
 Never invent or simulate N-ATLaS output. If a tool reports MODEL_OFFLINE or any error, tell the developer and do
-not claim the integration works. Never ask the developer to paste keys into the chat. Ask before editing env files.
+not claim the integration works. Never ask the developer to paste keys into the chat. Ask before editing env files. When a tool returns a link for the
+developer (claim_url), open it in their browser for them and print it on its own line.
 If a result has feedback_request, finish the current task first, then ask the developer its question once, in your
 own words. Send their answer with atlas_feedback only after showing them what you will send. If they decline, drop it.`;
 

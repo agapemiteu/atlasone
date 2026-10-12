@@ -170,7 +170,7 @@ export function Guide({ origin }: { origin: string }) {
 
           <Step n={3} title="Confirm your key">
             <p>
-              Your agent sends a link. Open it and click <b>Confirm</b>. Copy the two lines it shows into the file your agent names, usually{" "}
+              Your agent opens a page in your browser (or gives you the link). Click <b>Confirm</b>. Copy the two lines it shows into the file your agent names, usually{" "}
               <code>.env.local</code> in your app's folder (the dot at the start matters), and tell the agent "done". It never sees the key.
             </p>
             <p>

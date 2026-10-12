@@ -64,7 +64,9 @@ export async function bindProject(deps: ToolDeps, args: { name: string; action?:
     expires_at: new Date(claim.expiresAt).toISOString(),
     pending_action: ACTION_TEXT[claimAction],
     instructions_for_agent:
-      "Ask the developer to open claim_url and confirm (they are already signed in from connecting). " +
+      "Open claim_url in the developer's browser for them (Windows: start \"\" \"<url>\"; macOS: open \"<url>\"; Linux: " +
+      "xdg-open \"<url>\"), and also print it alone on its own line so it can be clicked or copied. They confirm there " +
+      "(already signed in from connecting). " +
       (claimAction === "revoke_key"
         ? "Nothing else is needed after confirming."
         : "The page shows two lines (ATLAS_ONE_BASE_URL, ATLAS_ONE_API_KEY) once. Before sending the link, make sure the " +
