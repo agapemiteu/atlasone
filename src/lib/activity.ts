@@ -5,9 +5,11 @@
 //   consent + GitHub sign-in ─► recordConnected (session_id "conn_…", login, client name)
 //   every MCP tool call ──────► recordTool       (session_id, tool, action, outcome, request id, verified, ms)
 //   /feedback form ───────────► feedback table, source "web" (emitted as a "feedback" event)
-//   atlas_feedback (in chat) ─► feedback table, source "agent": asked once per session, after the app is
-//                               verified or a long session (feedbackDue), never mid-task
+//   atlas_feedback (in chat) ─► feedback table, source "agent": asked when an app is verified or after long use,
+//                               at most once a day per developer (feedbackDue), never mid-task
 //   exportEvents ─► /evidence/events.jsonl, signed snapshot   buildEvidence ─► /evidence, /evidence.json
+
+import { slugify } from "../tools/bind.ts";
 
 export const EVIDENCE_SCHEMA = "atlas-one.evidence/v1";
 
@@ -51,27 +53,31 @@ export async function recordTool(
     .run();
 }
 
-/** Tool-call counts in one session at which a long session earns a feedback prompt. */
-const LONG_SESSION_CALLS = [12, 40];
+/** Tool calls since the developer's last feedback at which a long stretch of use earns a prompt. */
+const LONG_USE_CALLS = [12, 40];
+/** Feedback given this recently is not asked for again. */
+const FEEDBACK_QUIET_MS = 24 * 60 * 60_000;
 
 /**
- * Whether this tool result should ask for feedback, like an in-product "how is it going?": after the app is
- * verified, or once a session gets long. Never twice in one session, never after feedback in this session.
+ * Whether this tool result should ask for feedback, like an in-product "how is it going?": each time an app is
+ * verified, or after a long stretch of use. Counted per developer, not per connection (one OAuth connection can
+ * span days and several builds), and never within a day of their last feedback.
  */
-export async function feedbackDue(db: D1Database, p: Principal, outcome: { verified: boolean }): Promise<"app_verified" | "long_session" | null> {
-  if (!p.sessionId) return outcome.verified ? "app_verified" : null;
-  const row = await db
-    .prepare(
-      `SELECT (SELECT count(*) FROM activity WHERE session_id = ?1 AND kind = 'tool') AS calls,
-              (SELECT count(*) FROM activity WHERE session_id = ?1 AND kind = 'tool' AND verified = 1) AS verified,
-              (SELECT count(*) FROM feedback WHERE session_id = ?1) AS answered`,
-    )
-    .bind(p.sessionId)
-    .first<{ calls: number; verified: number; answered: number }>();
-  if (!row || row.answered > 0) return null;
+export async function feedbackDue(
+  db: D1Database,
+  p: Principal,
+  outcome: { verified: boolean },
+  now = Date.now(),
+): Promise<"app_verified" | "long_session" | null> {
+  const last = await db.prepare("SELECT submitted_at FROM feedback WHERE github_id = ?").bind(p.githubId).first<number | null>("submitted_at");
+  if (last && now - last < FEEDBACK_QUIET_MS) return null;
+  if (outcome.verified) return "app_verified";
+  const calls = await db
+    .prepare("SELECT count(*) AS n FROM activity WHERE github_id = ? AND kind = 'tool' AND at > ?")
+    .bind(p.githubId, last ?? 0)
+    .first<number>("n");
   // This call is recorded after the response, so it is call number calls + 1.
-  if (outcome.verified && row.verified === 0) return "app_verified";
-  return LONG_SESSION_CALLS.includes(row.calls + 1) ? "long_session" : null;
+  return LONG_USE_CALLS.includes((calls ?? 0) + 1) ? "long_session" : null;
 }
 
 export interface AgentFeedback {
@@ -244,8 +250,15 @@ export interface TesterEvidence {
   connected_at: string | null;
   first_inference: Milestone | null;
   app_verified: Milestone | null;
+  /** Every distinct verified app request: a tester can build several features. */
+  apps_verified: number;
   tool_calls: number;
   tool_errors: Record<string, number>;
+  last_active: string | null;
+  /** One per project the tester worked on (a build), in order: what ran and what was verified. */
+  builds: Build[];
+  /** Every recorded event, oldest first (metadata only), for the per-tester timeline. */
+  activity: ActivityEvent[];
   feedback: {
     agent: string;
     stack: string;
@@ -256,6 +269,69 @@ export interface TesterEvidence {
     /** Public repo with the committed receipt; hidden for anonymous testers. */
     repo_url: string | null;
   } | null;
+}
+
+export interface Build {
+  project: string | null;
+  sessions: string[];
+  started: string;
+  ended: string;
+  calls: number;
+  real_inferences: number;
+  verified_requests: string[];
+  errors: number;
+}
+
+export interface ActivityEvent {
+  at: string;
+  event: "connected" | "tool_call";
+  session: string | null;
+  client: string | null;
+  tool: string | null;
+  action: string | null;
+  project: string | null;
+  outcome: "ok" | "error" | null;
+  error_code: string | null;
+  request_id: string | null;
+  verified: boolean | null;
+  duration_ms: number | null;
+}
+
+/** Groups a tester's tool calls by project (agents pass a name or its slug: both count as one build). */
+function builds(events: Row[]): Build[] {
+  const out = new Map<string, Row[]>();
+  for (const e of events) {
+    if (e.kind !== "tool" || !e.project) continue;
+    const key = slugify(e.project) || e.project;
+    out.set(key, [...(out.get(key) ?? []), e]);
+  }
+  return [...out].map(([project, es]) => ({
+    project,
+    sessions: [...new Set(es.map((e) => e.session_id).filter((s): s is string => !!s))],
+    started: iso(es[0]!.at),
+    ended: iso(es.at(-1)!.at),
+    calls: es.length,
+    real_inferences: es.filter((e) => e.tool === "atlas_test" && e.action === "inference" && e.ok === 1).length,
+    verified_requests: [...new Set(es.filter((e) => e.verified === 1 && e.request_id).map((e) => e.request_id!))],
+    errors: es.filter((e) => e.ok === 0).length,
+  }));
+}
+
+function activityEvent(e: Row): ActivityEvent {
+  return {
+    at: iso(e.at),
+    event: e.kind === "connected" ? "connected" : "tool_call",
+    session: e.session_id,
+    client: e.client,
+    tool: e.tool,
+    action: e.action,
+    project: e.project,
+    outcome: e.kind === "connected" ? null : e.ok === 1 ? "ok" : "error",
+    error_code: e.error_code,
+    request_id: e.request_id,
+    verified: e.verified === null ? null : e.verified === 1,
+    duration_ms: e.ms,
+  };
 }
 
 export interface Evidence {
@@ -313,8 +389,12 @@ export async function buildEvidence(db: D1Database, team: string[], secret: stri
       connected_at: connected === null ? null : iso(connected),
       first_inference: milestone(events.find((e) => e.tool === "atlas_test" && e.action === "inference" && e.ok === 1), connected),
       app_verified: milestone(events.find((e) => e.verified === 1), connected),
+      apps_verified: new Set(events.filter((e) => e.verified === 1).map((e) => e.request_id)).size,
       tool_calls: events.filter((e) => e.kind === "tool").length,
       tool_errors: errors,
+      last_active: events.length ? iso(events.at(-1)!.at) : null,
+      builds: builds(events),
+      activity: events.map(activityEvent),
       feedback: f && {
         agent: f.agent,
         stack: f.stack,

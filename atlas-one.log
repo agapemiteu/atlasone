@@ -286,3 +286,15 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   Gap found and closed: "deploying" had no guidance; both recipes now end with a Deploy section (host env vars,
   verify the live URL with the same nonce flow, handle warming/limits, attribution, key rotation).
   Biggest open item: external testers, 1 of the required 2.
+
+[2026-10-12 13:15 WAT] Tester @agapejustix second run (updated site): "Lesson and quiz" (Igbo, structured output), app verified
+  req_296170bd3d794f79aab5ae6c, receipt signature valid, structured JSON complete (finish stop); Igbo wording flagged for
+  native review. Found two gaps from it and the owner's screenshot:
+  - Feedback prompt never fired: one OAuth connection spanned both builds (28 calls), so the per-connection rule saw the
+    second verification as "not new" and the 12-call mark had passed before deploy. Rule is now per developer: ask on
+    every verified app and at the 12th/40th call since their last answer, never within 24 h of an answer. Regression
+    tests reproduce his case.
+  - /evidence only showed first milestones, so his second build was invisible. Added the standard per-tester view:
+    builds (one per project, name and slug merged), verified request ids per build, feedback status, and every event in
+    order (time, step, project, result, request id, duration); "N apps verified" in the summary row.
+  Tests 129 + 6 pass; deployed.

@@ -4,7 +4,7 @@
 
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { buildEvidence, exportEvents, recordConnected, recordTool } from "../src/lib/activity.ts";
+import { buildEvidence, exportEvents, feedbackDue, recordAgentFeedback, recordConnected, recordTool } from "../src/lib/activity.ts";
 import { loadSigner, sha256Hex, verifyJwt } from "../src/lib/receipts.ts";
 import { sessionCookie } from "../src/lib/session.ts";
 import { handleEvidence, renderEvidence } from "../src/web/evidence.ts";
@@ -61,9 +61,19 @@ describe("evidence summary", () => {
       sessions: 1,
       first_inference: { minutes_after_connect: 4, request_id: "req_inf_ada", session: "conn_1" },
       app_verified: { minutes_after_connect: 9, request_id: "req_app_ada" },
+      apps_verified: 1,
       tool_errors: { BACKEND_WARMING: 1 },
     });
     expect(ada.tester_id).toMatch(/^t_[0-9a-f]{12}$/);
+    // The standard per-tester view: one build per project, then every step in order.
+    expect(ada.builds).toEqual([
+      { project: "app", sessions: ["conn_1"], started: new Date(min(1)).toISOString(), ended: new Date(min(9)).toISOString(), calls: 3, real_inferences: 1, verified_requests: ["req_app_ada"], errors: 1 },
+    ]);
+    expect(ada.activity.map((a) => a.event)).toEqual(["connected", "tool_call", "tool_call", "tool_call"]);
+    const html = await renderEvidence(e).text();
+    expect(html).toContain("Activity by tester");
+    expect(html).toContain("Verified app");
+    expect(html).toContain("Feedback:</b> not given yet");
     expect(e.testers.at(-1)).toMatchObject({ tester: "@agapemiteu", team: true });
     // Metadata only: model output never reaches the log.
     expect(JSON.stringify(await env.DB.prepare("SELECT * FROM activity").all())).not.toContain("SECRET OUTPUT");
@@ -153,5 +163,27 @@ describe("feedback form", () => {
     expect(rows.results).toEqual([
       { login: "bayo", agent: "Codex", stack: "FastAPI", minutes: 12, rating: 5, anonymous: 0, repo_url: "https://github.com/bayo/api" },
     ]);
+  });
+});
+
+describe("in-session feedback prompt", () => {
+  it("asks again when a long-lived connection verifies a second app, and stays quiet for a day after an answer", async () => {
+    // The first external tester's case: one OAuth connection, two builds; the second verification must still ask.
+    await tester("9", "tobi", "Codex", { inferenceAt: min(1), verifiedAt: min(5) });
+    const p = { githubId: "9", login: "tobi", client: "Codex", sessionId: "conn_9" };
+    expect(await feedbackDue(env.DB, p, { verified: true }, min(120))).toBe("app_verified");
+    expect(await feedbackDue(env.DB, p, { verified: false }, min(120))).toBeNull();
+    await recordAgentFeedback(env.DB, p, { rating: 4, issues: "Igbo wording needs review." }, min(121));
+    expect(await feedbackDue(env.DB, p, { verified: true }, min(180))).toBeNull();
+    expect(await feedbackDue(env.DB, p, { verified: true }, min(121 + 24 * 60 + 1))).toBe("app_verified");
+  });
+
+  it("asks after a long stretch of use: the 12th call since the last answer", async () => {
+    const p = { githubId: "8", login: "kemi", client: "Cursor", sessionId: "conn_8" };
+    const payload = { ok: true };
+    for (let i = 0; i < 10; i++) await recordTool(env.DB, p, { tool: "atlas_discover", action: null, project: null, ms: 1, payload }, min(i));
+    expect(await feedbackDue(env.DB, p, { verified: false }, min(11))).toBeNull(); // 11th call
+    await recordTool(env.DB, p, { tool: "atlas_discover", action: null, project: null, ms: 1, payload }, min(11));
+    expect(await feedbackDue(env.DB, p, { verified: false }, min(12))).toBe("long_session"); // 12th call
   });
 });

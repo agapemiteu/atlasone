@@ -5,7 +5,7 @@
 //   /evidence/snapshot.json the event log plus an EdDSA-signed JWT over its SHA-256 (committed to the repo)
 // and the signed-in /feedback questionnaire. Metadata only.
 
-import { buildEvidence, EVIDENCE_SCHEMA, type Evidence, exportEvents, type TesterEvidence } from "../lib/activity.ts";
+import { type ActivityEvent, buildEvidence, EVIDENCE_SCHEMA, type Evidence, exportEvents, type TesterEvidence } from "../lib/activity.ts";
 import { sha256Hex, type Signer } from "../lib/receipts.ts";
 import { checkCsrf, csrfToken, type Session } from "../lib/session.ts";
 import { esc, messagePage, page } from "./html.ts";
@@ -16,7 +16,7 @@ const LIMITS = { stack: 80, manual_steps: 1000, issues: 2000, repo_url: 200 } as
 /** Public GitHub repository: https://github.com/<owner>/<repo> */
 const REPO_URL = /^https:\/\/github\.com\/[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]{1,100}\/?$/;
 
-const WIDE = "<style>main{max-width:1040px}td,th{font-size:.88rem}td small{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0}.grid div{border:1px solid var(--line);border-radius:12px;padding:14px}.grid b{display:block;font-size:1.6rem;letter-spacing:-.02em}</style>";
+const WIDE = "<style>main{max-width:1040px}td,th{font-size:.88rem}td small{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0}.grid div{border:1px solid var(--line);border-radius:12px;padding:14px}.grid b{display:block;font-size:1.6rem;letter-spacing:-.02em}details.tester{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:12px 0}details.tester table{display:block;overflow-x:auto}summary{cursor:pointer}.good{color:#15803d;font-weight:600}.bad{color:#b91c1c}</style>";
 
 const when = (iso: string | null) => (iso ? `${iso.slice(0, 16).replace("T", " ")} UTC` : "–");
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -37,8 +37,57 @@ function testerRow(t: TesterEvidence): string {
   const errors = Object.entries(t.tool_errors).map(([code, n]) => `${code} ×${n}`).join(", ");
   const trace = `<a href="/evidence/events.jsonl?tester=${esc(t.tester_id)}">trace</a>`;
   return `<tr><td>${name}${t.team ? " <small>(team)</small>" : ""}<br><small>${esc(t.agents.join(", ") || "–")} · ${plural(t.sessions, "session")} · ${trace}</small></td>
-<td>${when(t.connected_at)}</td><td>${milestone(t.first_inference)}</td><td>${milestone(t.app_verified)}</td>
+<td>${when(t.connected_at)}</td><td>${milestone(t.first_inference)}</td><td>${milestone(t.app_verified)}${t.apps_verified > 1 ? `<br><small>${t.apps_verified} apps verified</small>` : ""}</td>
 <td>${plural(t.tool_calls, "call")}${errors ? `<br><small>${esc(errors)}</small>` : ""}</td><td>${fb}</td></tr>`;
+}
+
+const ACTION: Record<string, string> = {
+  "atlas_discover": "Checked N-ATLaS",
+  "atlas_bind_project:bind": "Created project, key link",
+  "atlas_bind_project:rotate_key": "Rotated key",
+  "atlas_bind_project:revoke_key": "Revoked key",
+  "atlas_test:inference": "Real inference",
+  "atlas_test:issue_app_nonce": "Issued app nonce",
+  "atlas_test:verify_app": "Verified app",
+  "atlas_inspect": "Inspected usage",
+  "atlas_feedback": "Gave feedback",
+};
+
+function describe(a: ActivityEvent): string {
+  if (a.event === "connected") return `Connected${a.client ? ` with ${esc(a.client)}` : ""}`;
+  return esc(ACTION[`${a.tool}:${a.action}`] ?? ACTION[a.tool ?? ""] ?? `${a.tool ?? "?"}${a.action ? ` ${a.action}` : ""}`);
+}
+
+function result(a: ActivityEvent): string {
+  if (a.event === "connected") return "";
+  if (a.outcome === "error") return `<span class="bad">${esc(a.error_code ?? "error")}</span>`;
+  if (a.verified === true) return `<span class="good">verified</span>`;
+  if (a.verified === false) return "not verified";
+  return "ok";
+}
+
+/** The standard per-tester view: builds (one per project), feedback status, then every event in order. */
+function testerActivity(t: TesterEvidence): string {
+  const builds = t.builds.length
+    ? `<table><thead><tr><th>Build (project)</th><th>When</th><th>Calls</th><th>Real inferences</th><th>Verified app requests</th><th>Errors</th></tr></thead><tbody>${t.builds
+        .map(
+          (b) => `<tr><td><code>${esc(b.project ?? "–")}</code></td><td>${when(b.started)}<br><small>to ${when(b.ended)}</small></td><td>${b.calls}</td>
+<td>${b.real_inferences}</td><td>${b.verified_requests.map((r) => `<code>${esc(r)}</code>`).join("<br>") || "–"}</td><td>${b.errors}</td></tr>`,
+        )
+        .join("")}</tbody></table>`
+    : `<p class="muted">No builds yet.</p>`;
+  const fb = t.feedback ? `${t.feedback.rating}/5: ${esc(t.feedback.issues)}` : "not given yet";
+  const events = t.activity
+    .map(
+      (a) => `<tr><td>${when(a.at)}</td><td>${describe(a)}</td><td>${a.project ? `<code>${esc(a.project)}</code>` : ""}</td><td>${result(a)}</td>
+<td>${a.request_id ? `<code>${esc(a.request_id)}</code>` : ""}</td><td>${a.duration_ms === null ? "" : `${a.duration_ms} ms`}</td></tr>`,
+    )
+    .join("");
+  return `<details class="tester"${t.team ? "" : " open"}><summary><b>${esc(t.tester)}</b>${t.team ? " <small>(team)</small>" : ""} · ${plural(t.builds.length, "build")} ·
+${plural(t.tool_calls, "call")} · last active ${when(t.last_active)} · <a href="/evidence/events.jsonl?tester=${esc(t.tester_id)}">trace</a></summary>
+${builds}<p><b>Feedback:</b> ${fb}</p>
+<details><summary>All ${plural(t.activity.length, "event")}</summary><table><thead><tr><th>Time</th><th>Step</th><th>Project</th><th>Result</th><th>Request id</th><th>Duration</th></tr></thead>
+<tbody>${events}</tbody></table></details></details>`;
 }
 
 export function renderEvidence(e: Evidence): Response {
@@ -60,7 +109,10 @@ ${stat(s.average_rating, `average rating (${plural(s.feedback_responses, "respon
 </div>
 <div style="overflow-x:auto"><table><tr><th>Tester · agent</th><th>Connected</th><th>First real inference</th><th>App verified</th><th>Tool calls</th><th>Feedback</th></tr>
 ${e.testers.map(testerRow).join("") || '<tr><td colspan="6" class="muted">No testers yet.</td></tr>'}</table></div>
-<p class="muted">Times are measured by Atlas One from the tester's first sign-in. "Team" rows are the Atlas One team and are excluded from the summary.</p></div>`;
+<p class="muted">Times are measured by Atlas One from the tester's first sign-in. "Team" rows are the Atlas One team and are excluded from the summary.</p>
+<h2>Activity by tester</h2>
+<p class="muted">Each build is one project the tester worked on. Every step their agent took is listed with its result and request id.</p>
+${e.testers.map(testerActivity).join("") || '<p class="muted">No activity yet.</p>'}</div>`;
   return page("Beta evidence", body);
 }
 
