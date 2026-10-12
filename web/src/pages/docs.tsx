@@ -94,6 +94,11 @@ export function Docs({ origin }: { origin: string }) {
             </ol>
             <CodeTabs items={clientSnippets(mcp)} />
 
+            <p>
+              Agent skill: <a className="underline underline-offset-4" href="/skill.md">/skill.md</a> is a standard <C>SKILL.md</C> with the four-step fast
+              path. Ask your agent once to save it as a skill (Claude Code, Codex and other skill-aware agents load it automatically).
+            </p>
+
             <h3 className="mt-10 text-lg font-semibold">Sign in and out</h3>
             <p>Standard MCP sign-in (OAuth 2.1 with PKCE), so every agent has its own way to do it again or sign out:</p>
             <Table
@@ -127,13 +132,19 @@ export function Docs({ origin }: { origin: string }) {
               failing integration. Clients that support MCP prompts show them as commands. Every tool declares an output schema.
             </p>
             <p>
+              Fast path: four calls. <C>atlas_discover</C> (wakes the model), <C>atlas_bind_project</C> (key link plus the recipe), <C>atlas_test</C>{" "}
+              inference (proof plus an app check), <C>atlas_test</C> <C>verify_app</C>. Fewer prompts: <C>codex --approve-for-me</C>, or auto mode in
+              Claude Code (Shift+Tab).
+            </p>
+            <p>
               Verification: <C>atlas_test</C> issues a one-time nonce, your app sends it as <C>x-atlas-verify</C>, and <C>verify_app</C> returns{" "}
               <C>verified: true</C> only if that request reached N-ATLaS through your project.
             </p>
 
             <H2 id="api">App API</H2>
             <p>
-              Standard chat completions, so any SDK or plain HTTP works. Base URL <C>{api}</C>, model <C>n-atlas-8b</C>, header{" "}
+              No agent needed: get a key on the <a className="underline underline-offset-4" href="/access">Access</a> page (sign in with GitHub,
+              Create API key). Standard chat completions, so any SDK or plain HTTP works. Base URL <C>{api}</C>, model <C>n-atlas-8b</C>, header{" "}
               <C>authorization: Bearer &lt;key&gt;</C>. Streaming supported.
             </p>
             <CodeTabs items={appSnippets(api)} />

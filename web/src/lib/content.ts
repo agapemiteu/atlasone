@@ -15,6 +15,7 @@ export const COPY = {
     setup: "Start in 60 seconds.",
     newbie: "New to coding agents?",
     guide: "Follow the beginner's guide",
+    apiOnly: "No agent? Get an API key and call N-ATLaS directly.",
     steps: [
       ["Add Atlas One to your agent", "Run the command for your agent, or paste the URL into any MCP client."],
       ["Sign in with GitHub", "Your agent opens the browser. Approve, sign in, done. Free during the beta."],
@@ -35,6 +36,7 @@ export const COPY = {
     setup: "Fara cikin daƙiƙa 60.",
     newbie: "Sabo ga wakilan coding?",
     guide: "Bi jagorar farawa",
+    apiOnly: "Ba wakili? Karɓi maɓallin API ka kira N-ATLaS kai tsaye.",
     steps: [
       ["Ƙara Atlas One ga wakilinka", "Gudanar da umarnin wakilinka, ko liƙa adireshin a kowane MCP client."],
       ["Shiga da GitHub", "Wakilinka zai buɗe burauza. Amince, shiga, shi ke nan. Kyauta a lokacin gwaji."],

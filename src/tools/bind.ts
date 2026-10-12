@@ -6,6 +6,7 @@ import { ACTION_TEXT, type ClaimAction, createClaim } from "../lib/claims.ts";
 import { AtlasError } from "../lib/errors.ts";
 import { listProjects, resolveProject } from "../lib/projects.ts";
 import type { ToolDeps } from "./context.ts";
+import { type RecipeName, renderRecipe } from "./discover.ts";
 
 export type BindAction = "bind" | "rotate_key" | "revoke_key";
 
@@ -15,7 +16,7 @@ export function slugify(name: string): string {
   return name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48);
 }
 
-export async function bindProject(deps: ToolDeps, args: { name: string; action?: BindAction }) {
+export async function bindProject(deps: ToolDeps, args: { name: string; action?: BindAction; recipe?: RecipeName }) {
   const name = args.name.trim();
   const slug = slugify(name);
   if (!slug) throw new AtlasError("VALIDATION_FAILED", "'name' must contain letters or digits.");
@@ -63,6 +64,8 @@ export async function bindProject(deps: ToolDeps, args: { name: string; action?:
     claim_url: `${deps.origin}/claim/${claim.token}`,
     expires_at: new Date(claim.expiresAt).toISOString(),
     pending_action: ACTION_TEXT[claimAction],
+    // The code to write while the developer confirms, so the agent needs no separate recipe call.
+    ...(claimAction !== "revoke_key" && { recipe: renderRecipe(args.recipe ?? "generic", deps.origin) }),
     instructions_for_agent:
       "Open claim_url in the developer's browser for them (Windows: start \"\" \"<url>\"; macOS: open \"<url>\"; Linux: " +
       "xdg-open \"<url>\"), and also print it alone on its own line so it can be clicked or copied. They confirm there " +

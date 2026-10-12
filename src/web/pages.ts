@@ -6,7 +6,10 @@ import { ACTION_TEXT, loadClaim, redeemClaim } from "../lib/claims.ts";
 import { createPersonalToken } from "../lib/credentials.ts";
 import { AtlasError } from "../lib/errors.ts";
 import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
+import { listProjects } from "../lib/projects.ts";
 import { checkCsrf, csrfToken, readSession, type Session } from "../lib/session.ts";
+import { bindProject } from "../tools/bind.ts";
+import type { ToolDeps } from "../tools/context.ts";
 import { esc, messagePage, page, secretBlock } from "./html.ts";
 import { feedbackPage } from "./evidence.ts";
 import { playgroundPage, type PlaygroundDeps } from "./playground.ts";
@@ -67,11 +70,11 @@ async function claimPage(request: Request, deps: PageDeps, token: string, sessio
 <p class="warn">Shown once. Atlas One keeps only a fingerprint, so copy it now.</p>
 <p>Add this to your app's <strong>server-side</strong> environment (for example <code>.env.local</code>, which must be in <code>.gitignore</code>):</p>
 ${secretBlock("key", `ATLAS_ONE_BASE_URL=${deps.origin}/v1\nATLAS_ONE_API_KEY=${key.secret}`)}
-<p class="muted">Don't paste it into your AI chat. Your agent only needs to know it's in place; it will verify with atlas_test.</p></div>`);
+<p class="muted">Don't paste it into an AI chat. If an agent asked for this key, tell it "done"; it verifies with atlas_test.</p></div>`);
     }
     const claim = await loadClaim(deps.db, token, session.githubId);
     return page("Confirm", `<div class="card"><h1>Confirm for ${esc(claim.project_name)}</h1>
-<p>Your coding agent asked Atlas One to: <strong>${esc(ACTION_TEXT[claim.action])}</strong>.</p>
+<p>Requested by your coding agent or from your Access page: <strong>${esc(ACTION_TEXT[claim.action])}</strong>.</p>
 <p class="muted">Signed in as @${esc(session.login)}. This link works once and expires ${new Date(claim.expires_at).toUTCString()}.</p>
 <form method="post"><input type="hidden" name="csrf" value="${await csrfToken(deps.sessionSecret, session, purpose)}">
 <div class="row"><button class="${claim.action === "revoke_key" ? "danger" : "primary"}">Confirm</button></div></form></div>${NO_STALE_PAGE}`);
@@ -94,6 +97,20 @@ async function tokensPage(request: Request, deps: PageDeps, session: Session): P
 <p class="warn">Shown once. Use it only for MCP clients that cannot sign in with a browser (CI, containers).</p>
 ${secretBlock("pat", pat.secret)}
 <p>Example (Claude Code):</p><pre>claude mcp add --transport http atlas-one ${esc(deps.origin)}/mcp --header "Authorization: Bearer ${esc(pat.secret)}"</pre></div><p></p>`;
+    } else if (form.get("op") === "api_key") {
+      // Direct API access, no agent (D28): the same project and one-time key page the agents use.
+      try {
+        const owner = { db: deps.db, owner: session.githubId, origin: deps.origin } as ToolDeps;
+        const name = String(form.get("name") ?? "");
+        let res = await bindProject(owner, { name });
+        if (!res.action_required) res = await bindProject(owner, { name, action: "rotate_key" });
+        if (!("claim_url" in res)) throw new AtlasError("INTERNAL");
+        const to = new URL(res.claim_url).pathname;
+        return new Response(null, { status: 303, headers: { location: to, "cache-control": "no-store" } });
+      } catch (err) {
+        if (err instanceof AtlasError) return messagePage("Couldn't create the key", err.message, 400);
+        throw err;
+      }
     } else if (form.get("op") === "disconnect" && deps.oauth) {
       // Signs that agent out: its tokens stop working; it asks to sign in again next time it is used.
       await deps.oauth.revokeGrant(String(form.get("id")), session.githubId);
@@ -121,7 +138,17 @@ ${secretBlock("pat", pat.secret)}
 <td>${t.revoked_at ? "revoked" : `<form method="post"><input type="hidden" name="csrf" value="${csrf}"><input type="hidden" name="op" value="revoke"><input type="hidden" name="id" value="${esc(t.id)}"><button class="danger">Revoke</button></form>`}</td></tr>`,
     )
     .join("");
-  return page("Access", `${created}<div class="card"><h1>Connected agents</h1>
+  const projects = (await listProjects(deps.db, session.githubId))
+    .map((pr) => `<tr><td>${esc(pr.name)}</td><td><code>${esc(pr.slug)}</code></td><td>${pr.active_keys ? "active" : "none"}</td></tr>`)
+    .join("");
+  return page("Access", `${created}<div class="card"><h1>API keys</h1>
+<p class="muted">For direct API access without an agent. One key per project, shown once; creating it again for the same project
+replaces the old key. Use it from your server with <code>${esc(deps.origin)}/v1</code> (OpenAI-compatible, model <code>n-atlas-8b</code>).</p>
+<form method="post" class="row"><input type="hidden" name="csrf" value="${csrf}"><input type="hidden" name="op" value="api_key">
+<input name="name" required maxlength="64" placeholder="Project name, e.g. my-shop" style="flex:1;min-width:200px;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px">
+<button class="primary">Create API key</button></form>
+<table><tr><th>Project</th><th>Slug</th><th>Key</th></tr>${projects || '<tr><td colspan="3" class="muted">No projects yet.</td></tr>'}</table></div><p></p>
+<div class="card"><h1>Connected agents</h1>
 <p class="muted">Every coding agent signed in to Atlas One as @${esc(session.login)}. Sign one out here and it asks you to sign in
 again next time; this works the same for every agent.</p>
 <table><tr><th>Agent</th><th>Connected</th><th>Permissions</th><th></th></tr>${agents || '<tr><td colspan="4" class="muted">No agents connected.</td></tr>'}</table></div><p></p>

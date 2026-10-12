@@ -120,6 +120,9 @@ for (const [era, mode] of ERAS) {
         output_excerpt: "Babban birnin Najeriya Abuja ne.",
       });
       expect(body.request_id).toMatch(/^req_/);
+      // Fast path: the first real test also hands out the app check, so no separate issue_app_nonce call.
+      expect(body.app_check).toMatchObject({ header: "x-atlas-verify" });
+      expect(body.app_check.nonce).toMatch(/^vn_/);
       const sent = w.up.calls.find((c) => c.path === "/v1/chat/completions")!.body!;
       expect(sent.messages).toEqual([
         { role: "system", content: "Reply in Hausa." },
@@ -236,6 +239,8 @@ for (const [era, mode] of ERAS) {
         project: { slug: "hausa-support-desk", created: true, active_keys: 0 },
         env_var: "ATLAS_ONE_API_KEY",
       });
+      // Fast path: the recipe arrives with the key link, so the agent writes code while the developer confirms.
+      expect(first.recipe).toContain(`ATLAS_ONE_BASE_URL=${ORIGIN}/v1`);
       expect(first.claim_url).toMatch(new RegExp(`^${ORIGIN}/claim/cl_[A-Za-z0-9_-]{43}$`));
       expect(JSON.stringify(first)).not.toMatch(/atl_live_/);
       const again = (await w.call("atlas_bind_project", { name: "hausa support desk" })).body;

@@ -176,4 +176,23 @@ describe("claim and token pages", () => {
     await as("/access", { method: "POST", body: new URLSearchParams({ csrf, op: "disconnect", id: "g1" }) });
     expect(revoked).toEqual([["g1", "gh-12"]]); // always scoped to the signed-in account
   });
+
+  it("direct API key from the Access page: same one-time key page as agents, no agent needed (D28)", async () => {
+    const as = await browser("gh-13");
+    const page = await (await as("/access"))!.text();
+    expect(page).toContain("Create API key");
+    const csrf = /name="csrf" value="([^"]+)"/.exec(page)![1]!;
+    const made = (await as("/access", { method: "POST", body: new URLSearchParams({ csrf, op: "api_key", name: "My Shop" }) }))!;
+    expect(made.status).toBe(303);
+    const claimPath = made.headers.get("location")!;
+    expect(claimPath).toMatch(/^\/claim\/cl_/);
+    const confirm = await (await as(claimPath))!.text();
+    const csrf2 = /name="csrf" value="([^"]+)"/.exec(confirm)![1]!;
+    const shown = await (await as(claimPath, { method: "POST", body: new URLSearchParams({ csrf: csrf2 }) }))!.text();
+    expect(shown).toMatch(/ATLAS_ONE_API_KEY=atl_live_/);
+    // Asking again for the same project replaces the key instead of failing.
+    const again = (await as("/access", { method: "POST", body: new URLSearchParams({ csrf, op: "api_key", name: "My Shop" }) }))!;
+    expect(again.status).toBe(303);
+    expect(await (await as("/access"))!.text()).toContain("my-shop");
+  });
 });

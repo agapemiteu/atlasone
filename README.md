@@ -32,6 +32,11 @@ Keep the key server-side, then test and verify it.
 ```
 
 The agent finishes with `verified: true` and offers a signed receipt (`ATLAS_VERIFICATION.jwt`) to commit.
+No agent? Get an API key at https://atlas-one.collins-coordinator-worker.workers.dev/access and call the
+OpenAI-compatible API directly (see App API below).
+
+Faster every time: ask your agent once to save the agent skill at
+https://atlas-one.collins-coordinator-worker.workers.dev/skill.md (a standard `SKILL.md`).
 
 ## What you get
 

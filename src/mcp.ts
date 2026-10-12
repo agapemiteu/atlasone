@@ -18,15 +18,17 @@ import { atlasTest } from "./tools/test.ts";
 export const MCP_PATH = "/mcp";
 
 const INSTRUCTIONS = `Atlas One gives you genuine N-ATLaS (Nigerian multilingual LLM: English, Hausa, Igbo, Yoruba).
-Workflow: atlas_discover -> atlas_bind_project (developer confirms the key link in the browser) -> pick a recipe
-(nextjs or generic) -> integrate server-side -> atlas_test (inference) -> atlas_test (issue_app_nonce) -> call the
-app route with x-atlas-verify -> atlas_test (verify_app). Use atlas_inspect to diagnose failures.
-Call atlas_discover first: it also starts waking N-ATLaS if it is asleep (${AVAILABILITY.coldStart}), so do it before writing code.
-Grounding: put the app's facts in the system message, name the reply language there, and tell the model to say it does
-not know when the facts do not cover a question. verified: true proves genuine N-ATLaS use, not answer quality.
-Never invent or simulate N-ATLaS output. If a tool reports MODEL_OFFLINE or any error, tell the developer and do
-not claim the integration works. Never ask the developer to paste keys into the chat. Ask before editing env files. When a tool returns a link for the
-developer (claim_url), open it in their browser for them and print it on its own line.
+Fast path, four calls; everything you need is in their results, so do not browse the web, read Atlas One's site or
+search config files, and do not stop between steps unless the developer must act:
+1. atlas_discover: live state; it also wakes N-ATLaS if asleep (${AVAILABILITY.coldStart}).
+2. atlas_bind_project: returns claim_url and the integration recipe. Open claim_url in the developer's browser for them
+   and print it on its own line; write the server-side code from the recipe while they confirm the key.
+3. When they say done, restart the app, then atlas_test (inference): proves genuine N-ATLaS and returns app_check.
+4. Call the app route once with app_check's header, then atlas_test (verify_app) with its nonce: verified: true.
+Use atlas_inspect only to diagnose failures. Grounding: put the app's facts in the system message, name the reply language
+there, and tell the model to say it does not know when the facts do not cover a question. verified: true proves genuine
+N-ATLaS use, not answer quality. Never invent or simulate N-ATLaS output; on MODEL_OFFLINE or any error, tell the developer
+and do not claim the integration works. Never ask for keys in the chat, never overwrite existing env values.
 If a result has feedback_request, finish the current task first, then ask the developer its question once, in your
 own words. Send their answer with atlas_feedback only after showing them what you will send. If they decline, drop it.`;
 
@@ -152,6 +154,7 @@ export function buildServer(deps: ToolDeps): McpServer {
       inputSchema: z.object({
         name: z.string().min(1).max(64).describe("Project name, e.g. the app's name. Same name = same project."),
         action: z.enum(["bind", "rotate_key", "revoke_key"]).default("bind"),
+        recipe: z.enum(recipeNames).optional().describe("Integration recipe to include: 'nextjs' or 'generic' (default)."),
       }),
       outputSchema: OUT.bind,
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },

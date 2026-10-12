@@ -102,6 +102,10 @@ export function Home({ origin, lang, autoplay = true, initialStatus }: { origin:
             <a className="font-medium text-foreground underline underline-offset-4" href="/guide">
               {t.guide}
             </a>
+            <br />
+            <a className="font-medium text-foreground underline underline-offset-4" href="/access">
+              {t.apiOnly}
+            </a>
           </p>
           <ol className="mt-10 grid max-w-3xl gap-10">
             {t.steps.map(([title, line], i) => (

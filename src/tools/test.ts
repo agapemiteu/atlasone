@@ -179,6 +179,8 @@ async function inference(deps: ToolDeps, projectId: string, args: TestArgs, prog
     finish_reason: completion.finish_reason,
     output_excerpt: completion.content.slice(0, 300),
     validation: { non_empty: true, finish_reason: completion.finish_reason },
+    // The app check, ready to use: saves the agent a separate issue_app_nonce call.
+    app_check: await issueNonce(deps.db, projectId),
   };
 }
 

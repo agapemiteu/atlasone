@@ -363,3 +363,13 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   itself (start / open / xdg-open, same as `codex mcp login` does) and print it alone on its own line; guide step 3
   says the page opens by itself. Also found: tools are loaded only when an agent session starts, so `codex mcp add` and
   `codex mcp login` must run before `codex` (verified with codex exec: atlas_discover -> ready). Tests 134 + 6; deployed.
+
+[2026-10-12 17:20 WAT] Simplicity pass (owner: agents take too long and ask too much; "straight to the point"; skill for all
+  agents; direct API access). (1) Fast path: MCP instructions now give four calls and forbid browsing the web or the
+  site; atlas_bind_project returns the recipe with the key link; atlas_test inference returns app_check (the nonce), so
+  no separate issue_app_nonce. Measured on a fresh starter with Codex: 2 Atlas calls (discover, bind), key page opened
+  in the browser by the agent itself, code written meanwhile, 197 s to the key step, no web browsing (before: several
+  minutes of reading the site). Client prompts are the agent's own setting: guide/docs say `codex --approve-for-me` or
+  Claude Code auto mode (Shift+Tab). (2) Agent skill: standard SKILL.md at /skill.md (agent-neutral), "ask your agent
+  once to save it". (3) D28 direct API keys: /access "Create API key" (sign in, name, confirm) reusing the same project
+  and one-time key page; home, docs and README link it. Tests 135 + 6; deployed.

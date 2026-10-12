@@ -89,6 +89,7 @@ Each case has a test.
 | D20 | Verifiable evidence with standards only: JSON Lines log, EdDSA-signed JWT receipts and snapshot, JWKS; see [EVIDENCE.md](EVIDENCE.md) |
 | D21 | Public beta: `ACCESS=open` admits any GitHub account; quotas, the per-account project cap and logging bound abuse |
 | D22 | `atlas_discover` starts waking a sleeping model, so the cold start overlaps with integrating instead of blocking the first test |
+| D28 | Direct API keys from `/access` (sign in, name a project, Create API key) reuse the agents' project and one-time key page; agents get a four-step fast path, the recipe with the key link, the app check with the first test, and a standard `SKILL.md` at `/skill.md` |
 | D27 | Compute is a setting: `COMPUTE=modal` (stable URL, scales to zero, L4 or A10G, 1-2 min cold start, paid credit) or `kaggle` (free 2x T4, can queue). Same llama.cpp release and F16 weights on both; only the active provider's hosts may register |
 | D26 | Standard MCP surface: server title and websiteUrl, `outputSchema` on every tool, two prompts (`build_with_n_atlas`, `diagnose_n_atlas`) that clients show as commands; an Access page lists every connected agent (OAuth grant) and signs any of them out, the same for all clients |
 | D25 | Authorization-server metadata omits RFC 9207 `authorization_response_iss_parameter_supported` (optional): some Codex versions drop `iss` in their callback and reject servers that advertise it. `iss` is still sent |

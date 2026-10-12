@@ -54,6 +54,14 @@ const FAQ: [string, ReactNode][] = [
     <>Ask your agent to use Atlas One again; it opens the sign-in when needed. In Claude Code you can also type <code>/mcp</code>, pick atlas-one and choose Authenticate.</>,
   ],
   [
+    "My agent keeps asking for permission",
+    <>
+      That is your agent's safety setting, not Atlas One. To let it work in your app's folder without asking at every step:{" "}
+      <b>Codex</b>: start it with <code>codex --approve-for-me</code>. <b>Claude Code</b>: press <code>Shift+Tab</code> until it says auto mode. It still
+      asks before anything outside the folder, and the key step always needs you.
+    </>,
+  ],
+  [
     "How do I sign in again, or sign out?",
     <>
       Every agent can: <b>Codex</b> <code>codex mcp login atlas-one</code> and <code>codex mcp logout atlas-one</code>. <b>Claude Code</b>: type{" "}
@@ -143,6 +151,9 @@ export function Guide({ origin }: { origin: string }) {
             <p className="text-sm text-muted-foreground">
               The first time your agent uses Atlas One, your browser asks you to allow it: click <b>Allow and continue with GitHub</b>. That's
               your only sign-in. N-ATLaS starts waking up at the same moment, so it's ready by the time your code is.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Faster every time: ask your agent once to <i>"Save the agent skill at {origin}/skill.md"</i>. It then goes straight to the result.
             </p>
           </Step>
 
