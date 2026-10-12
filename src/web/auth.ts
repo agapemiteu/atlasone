@@ -47,7 +47,7 @@ export interface AuthDeps {
  * Post-login redirect target: same-origin paths only. Rejects "//host" and "/\host" (browsers treat
  * both as another origin), backslashes and whitespace anywhere, and anything not starting with "/".
  */
-export function safeNextPath(next: string | null, fallback = "/tokens"): string {
+export function safeNextPath(next: string | null, fallback = "/access"): string {
   if (!next || !next.startsWith("/") || next.startsWith("//") || /[\\\s]/.test(next)) return fallback;
   return next;
 }

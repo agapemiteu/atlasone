@@ -134,7 +134,8 @@ again next time; this works the same for every agent.</p>
 export async function handlePages(request: Request, deps: PageDeps): Promise<Response | null> {
   const url = new URL(request.url);
   const claim = /^\/claim\/(cl_[A-Za-z0-9_-]{43})$/.exec(url.pathname);
-  if (!claim && !["/access", "/tokens", "/playground", "/feedback"].includes(url.pathname)) return null;
+  if (url.pathname === "/tokens") return new Response(null, { status: 301, headers: { location: "/access" } });
+  if (!claim && !["/access", "/playground", "/feedback"].includes(url.pathname)) return null;
   const session = await readSession(request, deps.sessionSecret);
   if (!session) return loginRedirect(url.pathname);
   if (claim) return claimPage(request, deps, claim[1]!, session);

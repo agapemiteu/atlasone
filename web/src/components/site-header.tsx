@@ -50,6 +50,9 @@ export function SiteHeader({ status, connectLabel = "Connect" }: { status?: Publ
           <Button variant="ghost" asChild className="max-sm:hidden">
             <a href="/docs">Docs</a>
           </Button>
+          <Button variant="ghost" asChild className="max-md:hidden">
+            <a href="/evidence">Evidence</a>
+          </Button>
           <Button variant="ghost" size="icon" asChild>
             <a href={REPO} aria-label="GitHub">
               <Icon name="github" />

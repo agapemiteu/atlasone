@@ -316,3 +316,16 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   guide FAQ with sign-in/out per agent (Codex login/logout, Claude Code /mcp, Gemini CLI /mcp auth). Tried listing all
   scopes in resource metadata: the OAuth library forbids it by design (PRM lists the required minimum; consent offers
   the rest), reverted. Tests 132 + 6 pass; deployed.
+
+[2026-10-12 15:10 WAT] Site and repo organised to a product standard (owner: "organised, startup level, remove old stuff, README to
+  latest best standard"). Website: header adds Evidence; footer in columns (Build / Account / Trust) with logo, credit
+  line and language switch; docs Quickstart now covers sign in and out per agent (Codex login/logout, Claude Code /mcp,
+  Gemini CLI /mcp auth, others in settings) and the Access page, prompts and output schemas under Agent tools, a Deploy
+  paragraph under App API; home's first prompt is the medicine-label reader (old support prompt gone). Server pages
+  (evidence, access, feedback, playground, consent, claim) share a top nav and the logo; /tokens -> 301 /access.
+  Repo: README rewritten (quickstart, what you get mapped to PS1, MCP tools/prompts, API, security, evidence, develop);
+  EVIDENCE.md documents the activity view, feedback source and the structured-output/function-calling runs; PRD status
+  "Implemented, v1.0"; video script follows the current product; package 1.0.0. Tests 132 + 6 pass; deployed (one
+  Cloudflare API "malformed response" on deploy, retried and confirmed live via the /tokens redirect).
+  Evidence now shows 2 external testers: @oluwatobiisaiah connected 11:22 UTC but was blocked by the Codex iss bug
+  (0 tool calls); he needs to sign in again.

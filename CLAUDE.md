@@ -17,9 +17,11 @@ Running session log: `atlas-one.log` (newest at the bottom).
 9. **Make integration very easy**, for any stack, with permission requested when connecting or setting up.
 10. **Work autonomously** (owner's request): stop only for real blockers or decisions that are the owner's.
 
-## Current state (2026-10-11)
+## Current state (2026-10-12)
 
-Live and complete for NAIC (deadline 12 Oct 2026, 23:59 WAT): 5 tools (incl. atlas_feedback), OAuth for any MCP client, gateway,
+Live and complete for NAIC (deadline 12 Oct 2026, 23:59 WAT), v1.0: 5 tools (incl. atlas_feedback), 2 MCP prompts, output
+schemas, OAuth for any MCP client (RFC 9207 flag not advertised, D25), /access (connected agents, tokens), gateway with
+structured output and function calling,
 wake-on-demand (~3-4 min cold start, sleeps after 40 idle min), public beta (`ACCESS=open`), signed
 beta evidence. Owner handles: team profile, track, sharing with testers, video (`docs/VIDEO-SCRIPT.md`).
 Before submitting: `npm run evidence:snapshot`, commit `evidence/`.

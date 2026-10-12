@@ -6,7 +6,7 @@
 **Product:** Atlas One  
 **Version:** 0.1  
 **Date:** October 11, 2026  
-**Status:** Proposed — not yet implemented  
+**Status:** Implemented, v1.0 (12 Oct 2026). This is the original specification; the shipped product is described in the README and docs/ARCHITECTURE.md.  
 **Category:** Agent-native developer infrastructure  
 **Competition:** National AI Innovation Challenge (NAIC 2026) — PS1 Developer Infrastructure
 

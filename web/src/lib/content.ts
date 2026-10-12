@@ -55,9 +55,9 @@ const VERIFY = "using N-ATLaS through Atlas One. Keep the key server-side, then 
 
 /** Ideas for testers. Each works in the starter shop (shop.json holds its facts) or any app, and ends verified. */
 
-/** First prompt for a new developer: works in any app, any stack, and ends with verification. */
+/** First prompt for a new developer: any app, any stack, ends with verification. */
 export const STARTER_PROMPT =
-  "Use Atlas One to add an N-ATLaS feature to this app: an endpoint that answers customer questions in Hausa. Keep the key server-side, then test and verify it.";
+  "Use Atlas One to add an N-ATLaS feature to this app: a medicine-label reader that returns the dosing as JSON and explains it in Hausa. Keep the key server-side, then test and verify it."
 
 /** The home-page demo: one real run (req_a6cfb6957a9c428d8605d95b, 9.1 s), output verbatim. */
 export const DEMO = {

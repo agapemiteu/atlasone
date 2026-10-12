@@ -135,20 +135,20 @@ describe("claim and token pages", () => {
 
   it("personal tokens: create shows once, revoke is owner-scoped and CSRF-protected", async () => {
     const as = await browser("gh-10");
-    const page = await (await as("/tokens"))!.text();
+    const page = await (await as("/access"))!.text();
     const csrf = /name="csrf" value="([^"]+)"/.exec(page)![1]!;
-    const created = await (await as("/tokens", { method: "POST", body: new URLSearchParams({ csrf, op: "create" }) }))!.text();
+    const created = await (await as("/access", { method: "POST", body: new URLSearchParams({ csrf, op: "create" }) }))!.text();
     expect(created).toMatch(/atl_pat_[A-Za-z0-9_-]{43}/);
     const row = await env.DB.prepare("SELECT id FROM personal_tokens WHERE owner_github_id = 'gh-10'").first<{ id: string }>();
 
     const intruder = await browser("gh-11");
-    const theirPage = await (await intruder("/tokens"))!.text();
+    const theirPage = await (await intruder("/access"))!.text();
     const theirCsrf = /name="csrf" value="([^"]+)"/.exec(theirPage)![1]!;
-    await intruder("/tokens", { method: "POST", body: new URLSearchParams({ csrf: theirCsrf, op: "revoke", id: row!.id }) });
+    await intruder("/access", { method: "POST", body: new URLSearchParams({ csrf: theirCsrf, op: "revoke", id: row!.id }) });
     const still = await env.DB.prepare("SELECT revoked_at FROM personal_tokens WHERE id = ?").bind(row!.id).first<number | null>("revoked_at");
     expect(still).toBeNull();
 
-    await as("/tokens", { method: "POST", body: new URLSearchParams({ csrf, op: "revoke", id: row!.id }) });
+    await as("/access", { method: "POST", body: new URLSearchParams({ csrf, op: "revoke", id: row!.id }) });
     const revoked = await env.DB.prepare("SELECT revoked_at FROM personal_tokens WHERE id = ?").bind(row!.id).first<number | null>("revoked_at");
     expect(revoked).toBeTypeOf("number");
   });

@@ -212,7 +212,7 @@ describe("post-login redirect (open-redirect guard)", () => {
       "",
       null,
     ]) {
-      expect(safeNextPath(bad), String(bad)).toBe("/tokens");
+      expect(safeNextPath(bad), String(bad)).toBe("/access");
     }
   });
 });

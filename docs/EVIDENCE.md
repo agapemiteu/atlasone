@@ -18,7 +18,7 @@ model call in `src/lib/inference.ts` goes to the registered N-ATLaS server; `pac
 provider; a server can only register if it serves `n-atlas-8b`. Every response carries
 `x-atlas-weights: NCAIR1/N-ATLaS@e294476…`.
 
-Live results (11 Oct 2026, request ids from the logs):
+Live results (11-12 Oct 2026, request ids from the logs):
 
 | Run | Result |
 |---|---|
@@ -28,6 +28,8 @@ Live results (11 Oct 2026, request ids from the logs):
 | Official MCP client, both protocol eras | All passed, including progress notifications and nonce verification |
 | Wake-on-demand | Asleep → online in about 4 minutes with no manual step; then `req_5e46287db16d4cfe8e22dce2` in 1,099 ms. Later runs: about 3 minutes |
 | Signed receipt | `verify_app` on `req_c50b86bc65444d9d8ce4b979` issued a receipt that verifies; a tampered copy fails |
+| Structured output | Hausa review to schema-valid JSON, `req_e77d8a9a9b4647799d092fb5`; medicine label to dosing JSON plus Hausa, `req_a6cfb6957a9c428d8605d95b` (9.1 s) |
+| Function calling | The model called `track_order({"order_id": "KF-1042"})` (`req_b4714f8393c04836aa6dbaa3`), then answered in Hausa from the result (`req_c20473f1dfdc4683b860865c`) |
 
 Honest failure (PRD Test 4): backend down → `503 MODEL_OFFLINE` with a request id from the API, the agent
 tools and an integrated app route; loading, busy, timeout and empty output map to `BACKEND_WARMING`,
@@ -55,7 +57,7 @@ cross-checks.
 | Evidence | Standard | How to check it |
 |---|---|---|
 | **Who tested** | GitHub OAuth sign-in | Each tester row links their GitHub profile. Team members are labelled and excluded from the summary |
-| **What they did** | Append-only event log, JSON Lines, ISO 8601 UTC, schema `atlas-one.evidence/v1` | Live: [`/evidence/events.jsonl`](https://atlas-one.collins-coordinator-worker.workers.dev/evidence/events.jsonl), or one tester's trace with `?tester=t_…` (links on [`/evidence`](https://atlas-one.collins-coordinator-worker.workers.dev/evidence)) |
+| **What they did** | Append-only event log, JSON Lines, ISO 8601 UTC, schema `atlas-one.evidence/v1` | On [`/evidence`](https://atlas-one.collins-coordinator-worker.workers.dev/evidence), "Activity by tester" shows each tester's builds (one per project) with their verified request ids, their feedback, and every step in order. Machine-readable: [`/evidence/events.jsonl`](https://atlas-one.collins-coordinator-worker.workers.dev/evidence/events.jsonl), or one tester's trace with `?tester=t_…` |
 | **The repo copy is untouched** | SHA-256 digest inside a JWT (RFC 7519) signed with EdDSA/Ed25519 (RFC 8037) | `evidence/snapshot.jwt` signs the digest of `evidence/events.jsonl` and the summary. Editing either breaks verification |
 | **Signed by Atlas One** | JWK Set (RFC 7517) | `evidence/jwks.json` must equal [`/.well-known/jwks.json`](https://atlas-one.collins-coordinator-worker.workers.dev/.well-known/jwks.json); the script checks this |
 | **The log only grows** | Append-only cross-check | Every committed event must still be in the live log |
@@ -83,7 +85,8 @@ One JSON object per line, ordered by time.
 | `request_id` | The `x-atlas-request-id` of the real N-ATLaS response the call produced or verified |
 | `verified` | For `verify_app`: whether the tester's app route reached N-ATLaS |
 | `duration_ms` | Tool call duration |
-| `agent`, `stack`, `minutes`, `manual_steps`, `issues`, `rating` | Feedback questionnaire answers |
+| `agent`, `stack`, `minutes`, `manual_steps`, `issues`, `rating` | Feedback answers: one per tester, latest wins |
+| `source` | Where feedback was given: `agent` (asked in the session via `atlas_feedback`) or `web` (the `/feedback` form) |
 
 ### What is not recorded
 

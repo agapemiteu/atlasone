@@ -85,12 +85,30 @@ export function Docs({ origin }: { origin: string }) {
             <H2 id="quickstart">Quickstart</H2>
             <ol>
               <li>
-                Add <C>{mcp}</C> to your MCP client.
+                Add <C>{mcp}</C> to your MCP client (commands below).
               </li>
-              <li>Approve the permissions on the consent page and sign in with GitHub.</li>
-              <li>Ask your agent for a feature, e.g. "Add a Hausa customer-support route powered by N-ATLaS, and test it."</li>
+              <li>Your agent opens the browser: approve the permissions and sign in with GitHub. Once per agent.</li>
+              <li>
+                Ask for a feature in plain words, or run the <C>build_with_n_atlas</C> prompt. The agent ends with <C>verified: true</C>.
+              </li>
             </ol>
             <CodeTabs items={clientSnippets(mcp)} />
+
+            <h3 className="mt-10 text-lg font-semibold">Sign in and out</h3>
+            <p>Standard MCP sign-in (OAuth 2.1 with PKCE), so every agent has its own way to do it again or sign out:</p>
+            <Table
+              head={["Agent", "Sign in again", "Sign out"]}
+              rows={[
+                ["Codex", <C>codex mcp login atlas-one</C>, <C>codex mcp logout atlas-one</C>],
+                ["Claude Code", <><C>/mcp</C>, atlas-one, Authenticate</>, <><C>/mcp</C>, atlas-one, Clear authentication</>],
+                ["Gemini CLI", <C>/mcp auth atlas-one</C>, "Remove the server from settings"],
+                ["Cursor, VS Code, others", "MCP settings", "MCP settings"],
+              ]}
+            />
+            <p>
+              Any agent: the <a className="underline underline-offset-4" href="/access">Access</a> page lists every agent signed in to your account and
+              signs any of them out. Machines without a browser (CI, containers) use a personal access token from the same page.
+            </p>
 
             <H2 id="tools">Agent tools</H2>
             <p>Your agent calls these with the permissions you approved, on your projects only. It never receives your key: the key is shown once, in your browser.</p>
@@ -105,6 +123,10 @@ export function Docs({ origin }: { origin: string }) {
               ]}
             />
             <p>
+              Prompts: <C>build_with_n_atlas</C> (feature, language) runs the whole workflow and <C>diagnose_n_atlas</C> (project) finds and fixes a
+              failing integration. Clients that support MCP prompts show them as commands. Every tool declares an output schema.
+            </p>
+            <p>
               Verification: <C>atlas_test</C> issues a one-time nonce, your app sends it as <C>x-atlas-verify</C>, and <C>verify_app</C> returns{" "}
               <C>verified: true</C> only if that request reached N-ATLaS through your project.
             </p>
@@ -117,8 +139,11 @@ export function Docs({ origin }: { origin: string }) {
             <CodeTabs items={appSnippets(api)} />
             <p>
               Set the reply language in a system message. Responses carry <C>x-atlas-request-id</C> and the exact model revision in <C>x-atlas-weights</C>.
-              Call from your server; never ship the key to a browser. To deploy, set the same two variables on your host and verify the live URL the
-              same way.
+              Call from your server; never ship the key to a browser.
+            </p>
+            <p>
+              Deploy: set <C>ATLAS_ONE_BASE_URL</C> and <C>ATLAS_ONE_API_KEY</C> as server-side variables on any host (Vercel, Netlify, Render, Railway,
+              Fly.io, Cloudflare, a VPS), then verify the live URL the same way. Rotate a key with <C>atlas_bind_project</C>.
             </p>
 
             <h3 id="capabilities" className="mt-10 text-lg font-semibold">Capabilities</h3>

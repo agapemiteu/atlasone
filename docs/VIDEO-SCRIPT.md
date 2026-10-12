@@ -1,40 +1,39 @@
 # Demo video script (target 4 minutes, required 3-5)
 
-Record the screen at 1080p. Keep the browser and terminal side by side. Start Kaggle 10 minutes before
-recording and check the site says "N-ATLaS is online".
+Record the screen at 1080p, browser and terminal side by side. Five minutes before recording, ask the agent to
+run `atlas_discover` (it wakes N-ATLaS) and check the site says "N-ATLaS online".
 
 ## 0:00-0:25 The problem
-**Show:** the Atlas One home page.
-**Say:** "N-ATLaS is open, but getting from access to a working integration still means a GPU, a runtime,
-keys, glue code, and guessing whether the output is real. Developers now build by instructing coding
-agents. Atlas One is the gateway to Nigeria's AI: it connects the world to N-ATLaS."
+**Show:** the Atlas One home page and its demo.
+**Say:** "N-ATLaS is open, but getting from access to a working, deployed integration still means a GPU, a
+runtime, keys, glue code, and guessing whether the output is real. Developers now build by instructing coding
+agents. Atlas One connects the world to N-ATLaS: any agent, any stack, verified."
 
 ## 0:25-1:00 Connect once
-**Show:** `claude mcp add --transport http atlas-one <url>/mcp`, then `/mcp` → Authenticate. The consent
-page ("Allow Claude Code to use Atlas One?", the three permissions), GitHub, "Authentication successful".
-**Say:** "Standard MCP and OAuth. The same URL works in Codex, Cursor, VS Code and others. I approve exactly
-what the agent may do."
+**Show:** `codex mcp add atlas-one --url <url>/mcp` (or `claude mcp add ...`), the consent page with its three
+permissions, GitHub, "Authentication complete".
+**Say:** "Standard MCP and OAuth. The same URL works in Claude Code, Cursor, VS Code and others. I approve exactly
+what the agent may do, and I can sign it out any time from my agent or the Access page."
 
 ## 1:00-2:15 One instruction
-**Show:** the plain Kano Fabrics site (no AI). In the agent, type:
-*"Add a Hausa customer-support response route powered by N-ATLaS, and test it."*
-Let viewers see `atlas_discover` (backend online, recipe), `atlas_bind_project` (a link, not a key).
-Open the link, Confirm, paste the key into `.env.local`.
-**Say:** "The key never passes through the AI. Sensitive actions always wait for me."
-Show the agent writing `lib/atlas.ts` and `app/api/support/route.ts`.
+**Show:** the starter app. In the agent: *"Use Atlas One to add a medicine-label reader to this app: dosing as
+JSON, explained in Hausa. Keep the key server-side, then test and verify it."* Show `atlas_discover`,
+`atlas_bind_project` (a link, not a key), Confirm in the browser, the agent naming the `.env.local` path.
+**Say:** "The key never passes through the AI. Sensitive actions wait for me."
 
 ## 2:15-3:05 Proof, not plausibility
-**Show:** `atlas_test` inference result (request id, weights revision, latency, Hausa output), then the
-nonce flow: the agent calls the route with `x-atlas-verify`, then `verify_app` → `verified: true`.
-Ask a Hausa question in the app's box and show the answer with "Powered by Awarri".
-**Say:** "Every answer carries the exact N-ATLaS revision and a request id. Atlas One proves this route
-reached genuine N-ATLaS."
+**Show:** `atlas_test` (request id, weights revision, latency), the nonce flow, `verify_app` → `verified: true`,
+the receipt saved as `ATLAS_VERIFICATION.jwt`. In the app, paste a label: dosing JSON plus the Hausa explanation,
+"Powered by Awarri". Briefly: the docs' Capabilities (structured output, function calling).
+**Say:** "Every answer carries the exact N-ATLaS revision and a request id, and Atlas One proves this route
+reached genuine N-ATLaS. Verified means real model use; answer quality you test with your own examples."
 
 ## 3:05-3:35 Honest failure
-**Show:** stop the Kaggle cell. Run `atlas_test` again: `MODEL_OFFLINE`, no answer. The app route returns
-503 `MODEL_OFFLINE` with a request id. `atlas_inspect` shows the error, marked retryable.
-**Say:** "When the model is down, Atlas One says so. It never fakes N-ATLaS."
+**Show:** stop the Kaggle run. `atlas_test` → `MODEL_OFFLINE` (or `BACKEND_WARMING` with live stages), no answer;
+`atlas_inspect` shows the error, marked retryable.
+**Say:** "When the model is down, Atlas One says so. It never substitutes another model."
 
-## 3:35-4:00 Close
-**Show:** the README's tool table and the beta-tester results.
-**Say:** "Any agent, any stack, genuine N-ATLaS, verified. Atlas One: connect the world to N-ATLaS."
+## 3:35-4:00 Real users
+**Show:** `/evidence`: external testers, their builds, verified request ids, feedback; `node scripts/verify-evidence.mjs`
+printing ALL CHECKS PASSED.
+**Say:** "Independent developers built with it, and anyone can verify that. Atlas One: connect the world to N-ATLaS."
