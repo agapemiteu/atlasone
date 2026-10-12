@@ -329,3 +329,11 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   Cloudflare API "malformed response" on deploy, retried and confirmed live via the /tokens redirect).
   Evidence now shows 2 external testers: @oluwatobiisaiah connected 11:22 UTC but was blocked by the Codex iss bug
   (0 tool calls); he needs to sign in again.
+
+[2026-10-12 14:56 WAT] Wake stuck at "Requesting a free GPU" for 19 min (owner preparing the video). Kaggle API: run status
+  "queued" (waiting for a free GPU in Kaggle's shared queue); nothing wrong on our side. Two latent faults fixed: (1) the
+  20-minute stuck timeout counted from the request, so a long queue would start a second Kaggle run and lose the queue
+  position; (2) the notebook's one-time bootstrap token expired 30 min after the request, so a run queued longer could
+  not register. Both now count from the last observation (model progress, or Kaggle confirming "queued"/"running"),
+  and status shows "Kaggle: queued for a free GPU". Test added; 133 + 6 pass; deployed 13:55 UTC, before the old
+  timeout would have fired.

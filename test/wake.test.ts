@@ -152,6 +152,25 @@ describe("Kaggle run status", () => {
     expect(w).toMatchObject({ stage: "failed" });
     expect(w!.detail).toContain("Kaggle reports the run error");
   });
+
+  it("a run queued at Kaggle for a GPU stays one wake past 20 minutes, and says it is queued", async () => {
+    resetKaggleCheck();
+    let saves = 0;
+    const queued = strictFetch(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/SaveKernel")) return saves++, Response.json({ versionNumber: 9 });
+      if (url.endsWith("/GetKernelSessionStatus")) return Response.json({ status: "QUEUED" });
+      throw new TypeError("fetch failed");
+    });
+    const t0 = Date.now() - 25 * 60_000; // requested 25 minutes ago, still queued
+    await requestWake(env.DB, queued, KAGGLE, "user:1", t0);
+    await env.DB.prepare("UPDATE backend_wakes SET updated_at = ?").bind(Date.now() - 60_000).run();
+    await checkKaggleRun(env.DB, queued, KAGGLE);
+    const w = await latestWake(env.DB);
+    expect(w).toMatchObject({ stage: "gpu_requested", detail: "Kaggle: queued for a free GPU (Kaggle's shared queue)" });
+    await requestWake(env.DB, queued, KAGGLE, "user:2");
+    expect(saves).toBe(1); // no second Kaggle run while the first is confirmed queued
+  });
 });
 
 describe("kaggleAuth", () => {

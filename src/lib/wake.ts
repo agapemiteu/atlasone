@@ -42,7 +42,10 @@ export const STAGE_TEXT: Record<WakeStage, string> = {
   failed: "Wake-up failed",
 };
 
-/** A wake that has not reached a terminal stage within this long is treated as stuck. */
+/**
+ * A wake with no observation for this long is treated as stuck. Observations are the model server's progress and
+ * Kaggle confirming the run is still queued for a GPU, so a long Kaggle queue never triggers a second run.
+ */
 const WAKE_TIMEOUT_MS = 20 * 60_000;
 
 export interface KaggleConfig {
@@ -62,7 +65,7 @@ export interface Wake {
 }
 
 export function wakeInFlight(w: Wake | null, now = Date.now()): boolean {
-  return !!w && !(TERMINAL_STAGES as readonly string[]).includes(w.stage) && now - w.requested_at < WAKE_TIMEOUT_MS;
+  return !!w && !(TERMINAL_STAGES as readonly string[]).includes(w.stage) && now - Math.max(w.requested_at, w.updated_at) < WAKE_TIMEOUT_MS;
 }
 
 export async function latestWake(db: D1Database): Promise<Wake | null> {
@@ -124,7 +127,7 @@ export async function requestWake(
     .prepare(
       `INSERT INTO backend_wakes (id, requested_at, requested_by, stage, detail, updated_at, bootstrap_hash)
        SELECT ?1, ?2, ?3, 'gpu_requested', NULL, ?2, ?5
-        WHERE NOT EXISTS (SELECT 1 FROM backend_wakes WHERE requested_at > ?4 AND stage NOT IN ('ready', 'sleeping', 'failed'))`,
+        WHERE NOT EXISTS (SELECT 1 FROM backend_wakes WHERE max(requested_at, updated_at) > ?4 AND stage NOT IN ('ready', 'sleeping', 'failed'))`,
     )
     .bind(id, now, requestedBy, now - WAKE_TIMEOUT_MS, await sha256Hex(bootstrap))
     .run();
@@ -199,7 +202,7 @@ export async function redeemBootstrap(db: D1Database, token: string, now = Date.
   const row = await db
     .prepare(
       `UPDATE backend_wakes SET bootstrap_used_at = ?1
-        WHERE bootstrap_hash = ?2 AND bootstrap_used_at IS NULL AND requested_at > ?3
+        WHERE bootstrap_hash = ?2 AND bootstrap_used_at IS NULL AND max(requested_at, updated_at) > ?3
         RETURNING id`,
     )
     .bind(now, await sha256Hex(token), now - BOOTSTRAP_TTL_MS)
@@ -212,8 +215,8 @@ const KAGGLE_CHECK_EVERY_MS = 30_000;
 const NO_PROGRESS_GRACE_MS = 45_000;
 
 /**
- * If a wake shows no progress from the model server, ask Kaggle how the run is doing (throttled) and
- * record a failure Kaggle reports, so nobody is told "waking" about a run that already died.
+ * If a wake shows no progress from the model server, ask Kaggle how the run is doing (throttled): record a failure
+ * Kaggle reports, so nobody is told "waking" about a run that already died, and show a queued run as queued.
  */
 export async function checkKaggleRun(db: D1Database, fetcher: typeof fetch, kaggle: KaggleConfig | null, now = Date.now()) {
   if (!kaggle || now - lastKaggleCheck < KAGGLE_CHECK_EVERY_MS) return;
@@ -230,6 +233,10 @@ export async function checkKaggleRun(db: D1Database, fetcher: typeof fetch, kagg
     const status = body.status ?? "QUEUED"; // Kaggle omits the default value
     if (/ERROR|CANCEL|COMPLETE/.test(status)) {
       await recordStage(db, "failed", `Kaggle reports the run ${status.toLowerCase()}${body.failureMessage ? `: ${body.failureMessage}` : ""}`, wake.id, now);
+    } else {
+      // Queued (waiting for a free Kaggle GPU) or running: say so, and keep the wake alive while Kaggle confirms it.
+      const detail = /RUNNING/.test(status) ? "Kaggle: the notebook is starting" : "Kaggle: queued for a free GPU (Kaggle's shared queue)";
+      await db.prepare("UPDATE backend_wakes SET detail = ?, updated_at = ? WHERE id = ? AND stage = 'gpu_requested'").bind(detail, now, wake.id).run();
     }
   } catch {
     // Kaggle unreachable: keep the current stage; the wake still times out after 20 minutes.
