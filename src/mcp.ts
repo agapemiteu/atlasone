@@ -6,9 +6,10 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { createMcpHandler } from "agents/mcp/server";
 import { z } from "zod";
-import { recordTool } from "./lib/activity.ts";
+import { AtlasError } from "./lib/errors.ts";
+import { feedbackDue, recordAgentFeedback, recordTool, toolOutcome } from "./lib/activity.ts";
 import { bindProject } from "./tools/bind.ts";
-import { requireScope, runTool, type ToolDeps } from "./tools/context.ts";
+import { requireScope, runTool, toolResult, type ToolDeps } from "./tools/context.ts";
 import { discover, RECIPES, renderRecipe } from "./tools/discover.ts";
 import { inspect } from "./tools/inspect.ts";
 import { atlasTest } from "./tools/test.ts";
@@ -23,7 +24,9 @@ Call atlas_discover first: it also starts waking N-ATLaS if it is asleep (about 
 Grounding: put the app's facts in the system message, name the reply language there, and tell the model to say it does
 not know when the facts do not cover a question. verified: true proves genuine N-ATLaS use, not answer quality.
 Never invent or simulate N-ATLaS output. If a tool reports MODEL_OFFLINE or any error, tell the developer and do
-not claim the integration works. Never ask the developer to paste keys into the chat. Ask before editing env files.`;
+not claim the integration works. Never ask the developer to paste keys into the chat. Ask before editing env files.
+If a result has feedback_request, finish the current task first, then ask the developer its question once, in your
+own words. Send their answer with atlas_feedback only after showing them what you will send. If they decline, drop it.`;
 
 type ToolResult = Awaited<ReturnType<typeof runTool>>;
 
@@ -35,7 +38,7 @@ async function tracked(
   call: () => Promise<ToolResult>,
 ): Promise<ToolResult> {
   const started = Date.now();
-  const result = call();
+  const result = call().then((r) => withFeedbackRequest(deps, tool, r));
   // Registered before awaiting, so the record is written even if the client disconnects mid-call
   // (a long atlas_test wait the user cancels still started real work, such as a wake).
   const principal = deps.principal;
@@ -55,6 +58,25 @@ async function tracked(
     );
   }
   return result;
+}
+
+/**
+ * Adds an in-session feedback question to a result when it is due (after the app is verified, or in a long
+ * session), the way products ask "how is it going?" at a natural pause. Never fails the tool call.
+ */
+async function withFeedbackRequest(deps: ToolDeps, tool: string, r: ToolResult): Promise<ToolResult> {
+  const p = deps.principal;
+  if (!p || r.isError || tool === "atlas_feedback") return r;
+  const due = await feedbackDue(deps.db, p, { verified: toolOutcome(r.structuredContent).verified === 1 }).catch(() => null);
+  if (!due) return r;
+  return toolResult({
+    ...r.structuredContent,
+    feedback_request: {
+      reason: due,
+      ask: "How is Atlas One working for you? Rate it 1 to 5, and tell us anything that was hard or should be easier.",
+      then: "Call atlas_feedback with their rating and words. Or they can use the form: " + `${deps.origin}/feedback`,
+    },
+  });
 }
 
 const recipeNames = Object.keys(RECIPES) as [keyof typeof RECIPES, ...(keyof typeof RECIPES)[]];
@@ -160,6 +182,36 @@ export function buildServer(deps: ToolDeps): McpServer {
         runTool(() => {
           requireScope(deps, "atlas:read");
           return inspect(deps, args);
+        }),
+      ),
+  );
+
+  server.registerTool(
+    "atlas_feedback",
+    {
+      title: "Send the developer's feedback",
+      description:
+        "Records the developer's own rating and comments about Atlas One for the public beta evidence. Only send " +
+        "what the developer said or approved; never invent or embellish it. Asked for via feedback_request.",
+      inputSchema: z.object({
+        rating: z.number().int().min(1).max(5).describe("The developer's rating, 1 (poor) to 5 (excellent)."),
+        issues: z.string().min(1).max(2000).describe("What was hard, broken or should be easier, in their words ('none' if nothing)."),
+        manual_steps: z.string().max(1000).optional().describe("What the developer had to do by hand, if they said."),
+        stack: z.string().max(200).optional().describe("The app's stack, e.g. 'Node, no framework'."),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async (args) =>
+      tracked(deps, "atlas_feedback", {}, () =>
+        runTool(async () => {
+          requireScope(deps, "atlas:read");
+          if (!deps.principal) throw new AtlasError("FORBIDDEN", "Feedback needs a signed-in developer.");
+          const { minutes } = await recordAgentFeedback(deps.db, deps.principal, args);
+          return {
+            recorded: true,
+            minutes_in_session: minutes,
+            message: `Thank the developer. Their feedback is on ${deps.origin}/evidence; they can change it any time.`,
+          };
         }),
       ),
   );

@@ -8,30 +8,34 @@ type StepState = "idle" | "run" | "done";
 interface Frame {
   typed: number;
   steps: StepState[];
-  ask: boolean;
-  q: number;
+  app: boolean;
+  scanned: number;
   pressed: boolean;
   thinking: boolean;
+  fields: number;
   words: number;
   verified: boolean;
 }
 
-const WORDS = DEMO.answer.split(" ");
-const START: Frame = { typed: 0, steps: DEMO.steps.map(() => "idle"), ask: false, q: 0, pressed: false, thinking: false, words: 0, verified: false };
+const FIELDS = Object.entries(DEMO.data);
+const WORDS = DEMO.hausa.split(" ");
+const START: Frame = { typed: 0, steps: DEMO.steps.map(() => "idle"), app: false, scanned: 0, pressed: false, thinking: false, fields: 0, words: 0, verified: false };
 const END: Frame = {
   typed: DEMO.instruction.length,
   steps: DEMO.steps.map(() => "done"),
-  ask: true,
-  q: DEMO.question.length,
+  app: true,
+  scanned: DEMO.label.length,
   pressed: false,
   thinking: false,
+  fields: FIELDS.length,
   words: WORDS.length,
   verified: true,
 };
 
 /**
- * The agent (left) builds the feature; the app (right) then answers a customer in Hausa. Plays once when
- * scrolled into view and stays on the final state. The test step waits the real 1.1 s inference time.
+ * The agent (left) builds a medicine-label reader; the app (right) turns a real label into dosing data and a
+ * Hausa explanation. Output is verbatim from one live run; the replay is sped up and says so below the demo.
+ * Plays once when scrolled into view and stays on the final state.
  */
 export function Demo({ autoplay = true }: { autoplay?: boolean }) {
   const [f, setF] = useState<Frame>(autoplay ? START : END);
@@ -47,25 +51,25 @@ export function Demo({ autoplay = true }: { autoplay?: boolean }) {
 
     async function play() {
       await wait(400);
-      for (let i = 1; i <= DEMO.instruction.length; i++) set({ typed: i }), await wait(24);
+      for (let i = 1; i <= DEMO.instruction.length; i++) set({ typed: i }), await wait(20);
       await wait(400);
-      for (const [i, ms] of [[0, 900], [1, 1300], [2, 1600]] as const) step(i, "run"), await wait(ms), step(i, "done");
-      set({ ask: true });
-      await wait(500);
+      for (const [i, ms] of [[0, 800], [1, 1100], [2, 1400]] as const) step(i, "run"), await wait(ms), step(i, "done");
+      set({ app: true });
+      await wait(400);
       step(3, "run");
-      await wait(1110);
-      step(3, "done");
-      step(4, "run");
+      for (let i = 1; i <= DEMO.label.length; i += 3) set({ scanned: i }), await wait(12);
+      set({ scanned: DEMO.label.length });
       await wait(300);
-      for (let i = 1; i <= DEMO.question.length; i++) set({ q: i }), await wait(28);
-      await wait(250);
       set({ pressed: true });
       await wait(150);
       set({ pressed: false, thinking: true });
-      await wait(1300);
+      await wait(1500);
       set({ thinking: false });
-      for (let w = 1; w <= WORDS.length; w++) set({ words: w }), await wait(45);
-      await wait(400);
+      for (let k = 1; k <= FIELDS.length; k++) set({ fields: k }), await wait(170);
+      for (let w = 1; w <= WORDS.length; w++) set({ words: w }), await wait(40);
+      step(3, "done");
+      step(4, "run");
+      await wait(700);
       step(4, "done");
       set({ verified: true });
     }
@@ -91,9 +95,9 @@ export function Demo({ autoplay = true }: { autoplay?: boolean }) {
   return (
     <div
       ref={root}
-      className="grid overflow-hidden rounded-2xl border bg-background text-left shadow-[0_1px_2px_rgba(0,0,0,.04),0_32px_64px_-32px_rgba(15,23,42,.25)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]"
+      className="grid overflow-hidden rounded-2xl border bg-background text-left shadow-[0_1px_2px_rgba(0,0,0,.04),0_32px_64px_-32px_rgba(15,23,42,.25)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]"
       role="img"
-      aria-label="A coding agent adds a Hausa support route through Atlas One; the app then answers a customer in Hausa and is verified on N-ATLaS."
+      aria-label="A coding agent builds a medicine-label reader through Atlas One; the app turns a real label into dosing data and a Hausa explanation from genuine N-ATLaS."
     >
       {/* Agent */}
       <div className="flex flex-col border-b bg-muted/30 lg:border-r lg:border-b-0">
@@ -143,67 +147,72 @@ export function Demo({ autoplay = true }: { autoplay?: boolean }) {
             ))}
           </span>
           <span className="mx-auto flex h-6 w-full max-w-60 items-center justify-center rounded-md border bg-background font-mono text-xs text-muted-foreground">
-            localhost:3000
+            localhost:3000/label
           </span>
           <span className="w-9" />
         </div>
-        <div className="relative flex-1 p-5 pb-20 sm:p-7 sm:pb-20">
+        <div className={cn("relative flex-1 p-5 pb-20 transition-opacity duration-500 sm:p-6 sm:pb-20", f.app ? "opacity-100" : "opacity-40")}>
           <div className="flex items-baseline justify-between border-b pb-3">
-            <b className="text-lg tracking-tight">Kano Fabrics</b>
-            <span className="text-xs text-muted-foreground">Customer support</span>
+            <b className="text-lg tracking-tight">Label reader</b>
+            <span className="text-xs text-muted-foreground">Confirm with your pharmacist</span>
           </div>
-          <div className="mt-3 grid gap-2.5 text-[13.5px] text-muted-foreground">
-            <p>
-              <b className="block font-medium text-foreground">Do you deliver outside Kano?</b>Yes. We deliver to all 36 states within 3 to 5 working days.
-            </p>
-            <p>
-              <b className="block font-medium text-foreground">Can I pay on delivery?</b>Pay on delivery is available in Kano, Abuja and Lagos.
-            </p>
+          <div className="mt-3 rounded-xl border border-dashed bg-muted/40 p-3 font-mono text-[12.5px] leading-relaxed">
+            <div className="mb-1 font-sans text-[11px] font-medium tracking-wider text-muted-foreground uppercase">Label</div>
+            {DEMO.label.slice(0, f.scanned)}
+            {f.scanned === 0 && <span className="text-muted-foreground">Paste or scan a label…</span>}
           </div>
-          <div
-            className={cn(
-              "mt-4 rounded-xl border p-4 shadow-[0_8px_24px_-16px_rgba(0,0,0,.25)] transition-all duration-500",
-              f.ask ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0",
-            )}
-          >
-            <div className="text-[13px] font-medium">Tambayi mataimakinmu</div>
-            <div className="mt-2.5 flex gap-2">
-              <div className="min-h-10 flex-1 rounded-lg border bg-muted/50 px-3 py-2 text-[13.5px]">{DEMO.question.slice(0, f.q)}</div>
-              <span
-                className={cn(
-                  "flex h-10 items-center rounded-lg bg-primary px-3.5 text-[13.5px] font-medium text-primary-foreground transition-transform",
-                  f.pressed && "scale-95 opacity-80",
-                )}
-              >
-                Tambaya
-              </span>
-            </div>
-            <div className="mt-3 min-h-6 text-[14px] leading-relaxed">
+          <div className="mt-3 flex justify-end">
+            <span
+              className={cn(
+                "flex h-9 items-center rounded-lg bg-primary px-3.5 text-[13.5px] font-medium text-primary-foreground transition-transform",
+                f.pressed && "scale-95 opacity-80",
+              )}
+            >
+              Karanta da Hausa
+            </span>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+            <div className="min-h-24 rounded-xl border bg-background p-3 font-mono text-[12px] leading-relaxed">
+              <div className="mb-1 font-sans text-[11px] font-medium tracking-wider text-muted-foreground uppercase">Data</div>
               {f.thinking ? (
-                <span className="inline-flex gap-1">
-                  {[0, 150, 300].map((d) => (
-                    <i key={d} className="size-1.5 animate-pulse rounded-full bg-muted-foreground" style={{ animationDelay: `${d}ms` }} />
-                  ))}
-                </span>
+                <Dots />
               ) : (
-                WORDS.slice(0, f.words).join(" ")
+                FIELDS.slice(0, f.fields).map(([k, v]) => (
+                  <div key={k} className="animate-in fade-in [overflow-wrap:anywhere]">
+                    <span className="text-muted-foreground">{k}:</span> <span className="text-success">{JSON.stringify(v)}</span>
+                  </div>
+                ))
               )}
             </div>
-            <div className={cn("mt-2 text-xs text-muted-foreground transition-opacity", f.words === WORDS.length ? "opacity-100" : "opacity-0")}>
-              Powered by Awarri
+            <div className="min-h-24 rounded-xl border bg-background p-3 text-[13.5px] leading-relaxed">
+              <div className="mb-1 text-[11px] font-medium tracking-wider text-muted-foreground uppercase">Hausa</div>
+              {WORDS.slice(0, f.words).join(" ")}
+              <div className={cn("mt-2 text-xs text-muted-foreground transition-opacity", f.words === WORDS.length ? "opacity-100" : "opacity-0")}>
+                Powered by Awarri
+              </div>
             </div>
           </div>
           <div
             className={cn(
-              "absolute inset-x-5 bottom-5 flex items-center gap-2.5 rounded-xl bg-success-soft px-3.5 py-2.5 text-[13.5px] font-medium text-success transition-all duration-500 sm:inset-x-7",
+              "absolute inset-x-5 bottom-5 flex items-center gap-2.5 rounded-xl bg-success-soft px-3.5 py-2.5 text-[13.5px] font-medium text-success transition-all duration-500 sm:inset-x-6",
               f.verified ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0",
             )}
           >
             <Icon name="verified" size={18} />
-            Verified: this answer came from genuine N-ATLaS
+            Verified: genuine N-ATLaS, data and Hausa in one call
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function Dots() {
+  return (
+    <span className="inline-flex gap-1">
+      {[0, 150, 300].map((d) => (
+        <i key={d} className="size-1.5 animate-pulse rounded-full bg-muted-foreground" style={{ animationDelay: `${d}ms` }} />
+      ))}
+    </span>
   );
 }

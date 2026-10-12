@@ -125,8 +125,8 @@ describe("POST /v1/chat/completions: success", () => {
     const sent = t.up.calls.find((c) => c.path === "/v1/chat/completions")!.body!;
     expect(sent.tools).toEqual([tool]);
     expect(sent.tool_choice).toEqual({ type: "function", function: { name: "track_order" } });
-    expect(sent.messages[1]).toEqual({ role: "assistant", content: null, tool_calls: [call] });
-    expect(sent.messages[2]).toEqual({ role: "tool", tool_call_id: "call_1", content: '{"status":"shipped"}' });
+    expect((sent.messages as unknown[])[1]).toEqual({ role: "assistant", content: null, tool_calls: [call] });
+    expect((sent.messages as unknown[])[2]).toEqual({ role: "tool", tool_call_id: "call_1", content: '{"status":"shipped"}' });
     expect(await errorCode(await t.call({ ...HAUSA, tools: [{ type: "function", function: { name: "bad name!" } }] }))).toBe("VALIDATION_FAILED");
     expect(await errorCode(await t.call({ ...HAUSA, tools: [tool], tool_choice: { type: "function", function: { name: "other" } } }))).toBe("VALIDATION_FAILED");
     expect(await errorCode(await t.call({ messages: [{ role: "assistant", content: null }] }))).toBe("VALIDATION_FAILED");

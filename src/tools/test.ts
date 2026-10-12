@@ -86,7 +86,6 @@ export async function atlasTest(deps: ToolDeps, args: TestArgs, progress: Progre
         scope:
           "verified proves this app route reached genuine N-ATLaS. It does not grade answers: test correctness and " +
           "reply language with your own examples.",
-        next: `Tell the developer: share how it went (2 minutes) at ${deps.origin}/feedback`,
       };
     }
     default:

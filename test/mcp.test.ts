@@ -74,7 +74,7 @@ for (const [era, mode] of ERAS) {
     it("lists exactly the Atlas tools with honest annotations", async () => {
       const { client } = await world("ok", mode);
       const { tools } = await client.listTools();
-      expect(tools.map((t) => t.name).sort()).toEqual(["atlas_bind_project", "atlas_discover", "atlas_inspect", "atlas_test"]);
+      expect(tools.map((t) => t.name).sort()).toEqual(["atlas_bind_project", "atlas_discover", "atlas_feedback", "atlas_inspect", "atlas_test"]);
       const byName = Object.fromEntries(tools.map((t) => [t.name, t]));
       expect(byName.atlas_discover!.annotations).toMatchObject({ readOnlyHint: true });
       expect(byName.atlas_test!.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false });
@@ -169,7 +169,8 @@ for (const [era, mode] of ERAS) {
       await w.settle();
       const ok = (await w.call("atlas_test", { project: w.slug, action: "verify_app", nonce: issued.nonce })).body;
       expect(ok).toMatchObject({ ok: true, verified: true, evidence: { status: 200, source: "app" } });
-      expect(ok.next).toBe(`Tell the developer: share how it went (2 minutes) at ${ORIGIN}/feedback`);
+      // Like an in-product "how is it going?": asked once the app is verified, answered in chat, stored once.
+      expect(ok.feedback_request).toMatchObject({ reason: "app_verified" });
       // The signed receipt verifies against the published key and names this developer, session and request.
       const signer = (await loadSigner(env.RECEIPT_SIGNING_KEY))!;
       const { header, claims } = await verifyJwt(ok.receipt, { keys: [signer.publicJwk] });
@@ -203,6 +204,14 @@ for (const [era, mode] of ERAS) {
       ]);
       expect(results[3]).toMatchObject({ tool: "atlas_test", project: w.slug, request_id: ok.evidence.request_id, client: "Conformance" });
       expect(results[4]!.error_code).toBe("VALIDATION_FAILED");
+
+      // The developer answers in chat; it is stored once, and they are not asked again this session.
+      const fb = (await w.call("atlas_feedback", { rating: 4, issues: "The key file location was unclear." })).body;
+      expect(fb).toMatchObject({ ok: true, recorded: true });
+      const row = await env.DB.prepare("SELECT rating, issues, source, session_id, agent FROM feedback WHERE github_id = ?").bind(w.owner).first();
+      expect(row).toEqual({ rating: 4, issues: "The key file location was unclear.", source: "agent", session_id: `conn_${w.owner}`, agent: "Conformance" });
+      await w.settle();
+      expect((await w.call("atlas_discover")).body).not.toHaveProperty("feedback_request"); // answered: never asked again this session
     });
 
     it("atlas_bind_project is idempotent and never returns a key, only an owner-bound link (D2)", async () => {

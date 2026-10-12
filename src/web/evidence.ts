@@ -177,7 +177,7 @@ export async function feedbackPage(request: Request, db: D1Database, secret: str
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (github_id) DO UPDATE SET login = excluded.login, submitted_at = excluded.submitted_at, agent = excluded.agent,
          stack = excluded.stack, minutes = excluded.minutes, manual_steps = excluded.manual_steps, issues = excluded.issues,
-         rating = excluded.rating, anonymous = excluded.anonymous, repo_url = excluded.repo_url`,
+         rating = excluded.rating, anonymous = excluded.anonymous, repo_url = excluded.repo_url, source = 'web', session_id = NULL`,
     )
     .bind(session.githubId, session.login, Date.now(), agent, entry.stack, minutes, entry.manual_steps, entry.issues, rating, entry.anonymous, entry.repo_url)
     .run();

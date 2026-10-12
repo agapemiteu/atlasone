@@ -72,7 +72,7 @@ describe("evidence summary", () => {
   it("honours anonymity everywhere and escapes tester-written text", async () => {
     await tester("1", "ada", "Claude Code", { inferenceAt: min(3) });
     await env.DB.prepare(
-      "INSERT INTO feedback VALUES ('1', 'ada', 0, 'Claude Code', 'Next.js', 8, 'none', '<script>alert(1)</script>', 5, 1, 'https://github.com/ada/shop')",
+      "INSERT INTO feedback VALUES ('1', 'ada', 0, 'Claude Code', 'Next.js', 8, 'none', '<script>alert(1)</script>', 5, 1, 'https://github.com/ada/shop', 'web', NULL)",
     ).run();
     const e = await buildEvidence(env.DB, [], SECRET);
     expect(e.testers[0]).toMatchObject({ profile: null, feedback: { rating: 5 } });

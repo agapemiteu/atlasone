@@ -19,7 +19,7 @@ Running session log: `atlas-one.log` (newest at the bottom).
 
 ## Current state (2026-10-11)
 
-Live and complete for NAIC (deadline 12 Oct 2026, 23:59 WAT): 4 tools, OAuth for any MCP client, gateway,
+Live and complete for NAIC (deadline 12 Oct 2026, 23:59 WAT): 5 tools (incl. atlas_feedback), OAuth for any MCP client, gateway,
 wake-on-demand (~3-4 min cold start, sleeps after 40 idle min), public beta (`ACCESS=open`), signed
 beta evidence. Owner handles: team profile, track, sharing with testers, video (`docs/VIDEO-SCRIPT.md`).
 Before submitting: `npm run evidence:snapshot`, commit `evidence/`.
@@ -27,7 +27,7 @@ Before submitting: `npm run evidence:snapshot`, commit `evidence/`.
 ## Infrastructure (no secrets here)
 
 - Worker https://atlas-one.collins-coordinator-worker.workers.dev; Cloudflare account 09a50cc4f142098ffba16b823dd31ad9 (Wrangler as miteuagape@gmail.com). Other Workers share the workers.dev subdomain (corri, webb): never rename it.
-- D1 `atlas-one` 130399d4-7b16-4f28-946f-e40f90e1f6e7 (migrations 0001-0006 applied); KV `OAUTH_KV` 3dda9cfc00b0490a817ca93ed39694ac.
+- D1 `atlas-one` 130399d4-7b16-4f28-946f-e40f90e1f6e7 (migrations 0001-0007 applied); KV `OAUTH_KV` 3dda9cfc00b0490a817ca93ed39694ac.
 - Secrets: `ATLAS_UPSTREAM_KEY`, `ATLAS_ADMIN_KEY`, `SESSION_SECRET`, `GITHUB_CLIENT_SECRET`, `KAGGLE_KEY` (KGAT bearer), `HF_TOKEN`, `RECEIPT_SIGNING_KEY` (Ed25519 JWK, kid `atlas-one-2026-10`; exists only as the Worker secret).
 - GitHub OAuth App "Atlas One" (id 3923042), callbacks `/auth/github/mcp` and `/auth/github/web`. Owner GitHub id 114285882 (`agapemiteu`), listed in `TEAM_GITHUB_LOGINS`.
 - Kaggle notebook `agapemiteu/notebookf585471141` (2x T4), started by the Worker; GGUF cache in HF repo `Agapemiteu/n-atlas-gguf-cache`. Free quota 30 GPU-hours/week.

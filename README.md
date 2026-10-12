@@ -25,6 +25,7 @@ NAIC 2026, PS1 Developer Infrastructure: *"Build the tools that make N-ATLAS eas
 | `atlas_bind_project` | Creates a project; keys only through a link the developer confirms in the browser |
 | `atlas_test` | Genuine inference with provenance; nonce-based proof that a specific app route reached N-ATLaS |
 | `atlas_inspect` | Requests, latency, errors with request ids, quota, keys |
+| `atlas_feedback` | The developer's own rating and comments, asked once at a natural pause (after verification or a long session) |
 
 Apps call a standard Chat Completions API, so any language or SDK works, with the full surface the model
 supports: streaming, structured output (`response_format` JSON Schema, grammar-enforced) and function calling

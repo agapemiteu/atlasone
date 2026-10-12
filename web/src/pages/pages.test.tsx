@@ -2,7 +2,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { PublicStatus } from "@atlas/public-status.ts";
-import { DEMO } from "@/lib/content";
+import { DEMO, DOMAINS, SHOWCASE } from "@/lib/content";
 import { Docs } from "./docs";
 import { Guide } from "./guide";
 import { Home } from "./home";
@@ -28,8 +28,12 @@ describe("home", () => {
 
   it("shows only verbatim model output from the real run, with attribution", () => {
     const html = home(status("ready"));
-    expect(html).toContain(DEMO.question);
-    expect(html.replaceAll("&quot;", '"').replaceAll("&#x27;", "'")).toContain(DEMO.answer);
+    const text = html.replaceAll("&quot;", '"').replaceAll("&#x27;", "'");
+    expect(text).toContain(DEMO.label);
+    expect(text).toContain(DEMO.hausa);
+    for (const x of SHOWCASE) expect(text).toContain(x.output);
+    for (const d of DOMAINS) expect(text).toContain(d.title);
+    expect(text).toContain("Replay sped up");
     expect(html).toContain("Powered by Awarri");
     expect(html).not.toMatch(/req_[0-9a-f]{6}/); // no ids or slugs in the demo
   });

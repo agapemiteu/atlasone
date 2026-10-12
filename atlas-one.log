@@ -256,3 +256,20 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
     Hausa (req_c20473f1dfdc4683b860865c; omitted the delivery day). Docs: Capabilities; home and guide ideas now include
     an order-tracking agent and reviews-to-data. Tests 127 + 6 pass; deployed.
   - Unexplained: tester saw quota 13 used vs 12 request rows; not reproduced, noted only.
+
+[2026-10-12 12:10 WAT] Showcase + in-session feedback (owner: "real-life use cases with wow, not chatbots"; "prompt for
+  feedback like Claude does"; "update the home animation").
+  - Ran 7 candidate use cases live through the gateway and chose by actual output quality:
+    medicine label -> JSON + Hausa (req_a6cfb6957a9c428d8605d95b, 9.1 s, exact dosing; warning as snake_case),
+    Igbo lesson + quiz JSON (req_cbe993d83f6a4b1e90612f9b, 20.4 s), scam SMS JSON (req_be3ee0f1cace4f5da1981083; verdict
+    right, Igbo warning wording doubtful), Hausa news bulletin (req_b2964d9339534b3cbf2ad8bd; repeated itself),
+    Yoruba football commentary (req_fe9c5d02d060495d9a552110; garbled score), Yoruba story (req_11141a811844458e9ab8d8a6;
+    "tortoise" became "lamp"), Hausa tour welcome (req_ff62354c19fd432e9c0244b5; thin). Only the medicine, lesson and the
+    earlier function-calling outputs are shown on the site, verbatim.
+  - Home: demo is now a medicine-label reader (structured data + Hausa), real output, caption says replay is sped up and
+    the real time was 9.1 s. "Try these first" (3 real outputs) and "What will you build?" (12 industries: health,
+    security, education, commerce, gaming, press, sports, entertainment, daily stories, tourism, finance, farming;
+    prompts only, no claimed output). Defense/military deliberately excluded: N-ATLaS terms prohibit military use and
+    surveillance; "security" means scam protection.
+  - D24 atlas_feedback + feedback_request (migration 0007 applied remotely). Tests 127 + 6 pass; deployed.
+  - Owner asked that developers can fine-tune N-ATLaS through the agent. Not built today: see the reply to the owner.

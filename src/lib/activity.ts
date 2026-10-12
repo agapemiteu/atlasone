@@ -4,7 +4,9 @@
 //
 //   consent + GitHub sign-in ─► recordConnected (session_id "conn_…", login, client name)
 //   every MCP tool call ──────► recordTool       (session_id, tool, action, outcome, request id, verified, ms)
-//   /feedback form ───────────► feedback table (emitted as a "feedback" event)
+//   /feedback form ───────────► feedback table, source "web" (emitted as a "feedback" event)
+//   atlas_feedback (in chat) ─► feedback table, source "agent": asked once per session, after the app is
+//                               verified or a long session (feedbackDue), never mid-task
 //   exportEvents ─► /evidence/events.jsonl, signed snapshot   buildEvidence ─► /evidence, /evidence.json
 
 export const EVIDENCE_SCHEMA = "atlas-one.evidence/v1";
@@ -49,6 +51,58 @@ export async function recordTool(
     .run();
 }
 
+/** Tool-call counts in one session at which a long session earns a feedback prompt. */
+const LONG_SESSION_CALLS = [12, 40];
+
+/**
+ * Whether this tool result should ask for feedback, like an in-product "how is it going?": after the app is
+ * verified, or once a session gets long. Never twice in one session, never after feedback in this session.
+ */
+export async function feedbackDue(db: D1Database, p: Principal, outcome: { verified: boolean }): Promise<"app_verified" | "long_session" | null> {
+  if (!p.sessionId) return outcome.verified ? "app_verified" : null;
+  const row = await db
+    .prepare(
+      `SELECT (SELECT count(*) FROM activity WHERE session_id = ?1 AND kind = 'tool') AS calls,
+              (SELECT count(*) FROM activity WHERE session_id = ?1 AND kind = 'tool' AND verified = 1) AS verified,
+              (SELECT count(*) FROM feedback WHERE session_id = ?1) AS answered`,
+    )
+    .bind(p.sessionId)
+    .first<{ calls: number; verified: number; answered: number }>();
+  if (!row || row.answered > 0) return null;
+  // This call is recorded after the response, so it is call number calls + 1.
+  if (outcome.verified && row.verified === 0) return "app_verified";
+  return LONG_SESSION_CALLS.includes(row.calls + 1) ? "long_session" : null;
+}
+
+export interface AgentFeedback {
+  rating: number;
+  issues: string;
+  manual_steps?: string;
+  stack?: string;
+}
+
+/**
+ * Saves feedback given in chat. Same row as the web form (one per tester, latest wins); keeps the tester's
+ * anonymity choice and repo link from the form. minutes is measured from the session's first event.
+ */
+export async function recordAgentFeedback(db: D1Database, p: Principal, f: AgentFeedback, now = Date.now()): Promise<{ minutes: number | null }> {
+  const start = p.sessionId
+    ? await db.prepare("SELECT min(at) AS at FROM activity WHERE session_id = ?").bind(p.sessionId).first<number | null>("at")
+    : null;
+  const minutes = start ? Math.min(1440, Math.round((now - start) / 60_000)) : null;
+  await db
+    .prepare(
+      `INSERT INTO feedback (github_id, login, submitted_at, agent, stack, minutes, manual_steps, issues, rating, anonymous, repo_url, source, session_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, 'agent', ?)
+       ON CONFLICT (github_id) DO UPDATE SET login = excluded.login, submitted_at = excluded.submitted_at, agent = excluded.agent,
+         stack = excluded.stack, minutes = excluded.minutes, manual_steps = excluded.manual_steps, issues = excluded.issues,
+         rating = excluded.rating, source = 'agent', session_id = excluded.session_id`,
+    )
+    .bind(p.githubId, p.login ?? p.githubId, now, p.client ?? "unknown", f.stack || "not stated", minutes, f.manual_steps || "not stated", f.issues, f.rating, p.sessionId)
+    .run();
+  return { minutes };
+}
+
 // ---------------------------------------------------------------------------------------------------------
 // Reading the log
 
@@ -82,6 +136,7 @@ interface FeedbackRow {
   rating: number;
   anonymous: number;
   repo_url: string | null;
+  source: "web" | "agent";
 }
 
 interface Identity {
@@ -108,7 +163,7 @@ async function load(db: D1Database, team: string[], secret: string) {
       )
       .all<Row>(),
     db
-      .prepare("SELECT github_id, login, submitted_at, agent, stack, minutes, manual_steps, issues, rating, anonymous, repo_url FROM feedback")
+      .prepare("SELECT github_id, login, submitted_at, agent, stack, minutes, manual_steps, issues, rating, anonymous, repo_url, source FROM feedback")
       .all<FeedbackRow>(),
   ]);
   const teamSet = new Set(team.map((t) => t.toLowerCase()));
@@ -165,6 +220,7 @@ export async function exportEvents(db: D1Database, team: string[], secret: strin
         issues: f.issues,
         rating: f.rating,
         repo_url: f.anonymous === 1 ? null : f.repo_url,
+        source: f.source,
       };
     }),
   ].sort((a, b) => a.ts.localeCompare(b.ts) || (a.seq ?? Number.MAX_SAFE_INTEGER) - (b.seq ?? Number.MAX_SAFE_INTEGER));

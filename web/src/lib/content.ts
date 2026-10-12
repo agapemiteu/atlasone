@@ -1,5 +1,5 @@
-// Page copy and data. Model output shown on the site is verbatim from the live run of 11 Oct 2026
-// (atlas-one.log, docs/EVIDENCE.md); nothing here is invented output.
+// Page copy and data. Model output shown on the site is verbatim from live runs on 12 Oct 2026, with request
+// ids in atlas-one.log; nothing here is invented output.
 
 export type Lang = "en" | "ha";
 
@@ -20,7 +20,10 @@ export const COPY = {
       ["Sign in with GitHub", "Your agent opens the browser. Approve, sign in, done. Free during the beta."],
       ["Ask for a feature", "Paste this into your agent, inside your app's folder."],
     ],
-    cases: "What will you ship?",
+    showcase: "Try these first.",
+    showcaseSub: "Real N-ATLaS output from live runs, unedited. Copy the prompt into your agent.",
+    cases: "What will you build?",
+    casesSub: "N-ATLaS reads, writes, extracts and acts in English, Hausa, Igbo and Yoruba. Pick an industry, copy the prompt.",
     live: "Real model. Real numbers.",
   },
   ha: {
@@ -37,7 +40,10 @@ export const COPY = {
       ["Shiga da GitHub", "Wakilinka zai buɗe burauza. Amince, shiga, shi ke nan. Kyauta a lokacin gwaji."],
       ["Nemi fasali", "Liƙa wannan a wakilinka, a cikin fayil ɗin manhajarka."],
     ],
+    showcase: "Gwada waɗannan da farko.",
+    showcaseSub: "Ainihin amsoshin N-ATLaS daga gwaje-gwaje kai tsaye, ba a gyara ba. Kwafi umarnin cikin wakilinka.",
     cases: "Me za ka gina?",
+    casesSub: "N-ATLaS na karantawa, rubutawa, fitar da bayanai da aiki da Turanci, Hausa, Igbo da Yarbanci. Zaɓi fanni, kwafi umarnin.",
     live: "Ainihin samfuri. Ainihin lambobi.",
   },
 } as const;
@@ -48,77 +54,77 @@ export const STARTER_REPO = "https://github.com/agapemiteu/atlas-one-starter";
 const VERIFY = "using N-ATLaS through Atlas One. Keep the key server-side, then test and verify it.";
 
 /** Ideas for testers. Each works in the starter shop (shop.json holds its facts) or any app, and ends verified. */
-export const IDEAS: { title: string; line: string; prompt: string }[] = [
-  {
-    title: "Customer support in Hausa",
-    line: "Answers shoppers' questions from the shop's own facts.",
-    prompt: `Add a customer-support chat to this shop that answers in Hausa only from the facts in shop.json (and says it doesn't know otherwise), ${VERIFY}`,
-  },
-  {
-    title: "One page, three languages",
-    line: "A language switch for the shop's questions and answers.",
-    prompt: `Add a language switch (Hausa, Igbo, Yoruba) that shows the shop's delivery, payment and returns information in the chosen language, ${VERIFY}`,
-  },
-  {
-    title: "Yoruba product descriptions",
-    line: "Warm, short descriptions for every product.",
-    prompt: `Add a button that writes a short, warm Yoruba description for each product in shop.json, ${VERIFY}`,
-  },
-  {
-    title: "Explain it in Igbo",
-    line: "Turns a confusing English message into simple Igbo.",
-    prompt: `Add a page where someone pastes an English message, like a bank alert or an official notice, and gets a simple explanation in Igbo, ${VERIFY}`,
-  },
-  {
-    title: "An order-tracking agent",
-    line: "Function calling: N-ATLaS calls your code, then answers.",
-    prompt: `Add a few sample orders and an order-tracking assistant that uses N-ATLaS function calling to look an order up, then replies in the customer's language (Hausa, Igbo or Yoruba), ${VERIFY}`,
-  },
-  {
-    title: "Reviews to data",
-    line: "Structured output: any of four languages in, JSON out.",
-    prompt: `Add an endpoint that turns a customer review in Hausa, Igbo or Yoruba into JSON (sentiment, product, English summary) with N-ATLaS structured output, ${VERIFY}`,
-  },
-];
 
 /** First prompt for a new developer: works in any app, any stack, and ends with verification. */
 export const STARTER_PROMPT =
   "Use Atlas One to add an N-ATLaS feature to this app: an endpoint that answers customer questions in Hausa. Keep the key server-side, then test and verify it.";
 
+/** The home-page demo: one real run (req_a6cfb6957a9c428d8605d95b, 9.1 s), output verbatim. */
 export const DEMO = {
-  instruction: "Add a Hausa customer-support route powered by N-ATLaS, and test it.",
-  question: "Kuna kai kaya zuwa Abuja? Kuma za a iya biya idan an kawo?",
-  answer:
-    "Eh, muna bayar da isarwa ga dukkan jihohi 36 cikin sa'o'i uku zuwa biyar na aiki. Don biyan kuɗi akan isarwa, " +
-    'don Allah a tabbata kun zaɓi "Biya Lokacin Karɓa" a matsayin hanyar biyan kuɗi lokacin yin odar ku ta kan layi.',
+  instruction: "Build a medicine-label reader: dosing as data, explained in Hausa, with N-ATLaS. Test and verify it.",
+  label: "Amoxicillin 500 mg capsules. Take 1 capsule three times daily for 7 days, after food. Complete the full course even if you feel better. Do not use if allergic to penicillin.",
+  /** The model's JSON, as returned (structured output), without the hausa field shown below it. */
+  data: {"medicine": "amoxicillin", "dose": "500 mg", "times_per_day": 3, "days": 7, "after_food": true, "warning": "do_not_use_if_allergic_to_penicillin"} as Record<string, string | number | boolean>,
+  hausa: "Amoxicillin 500 mg capsules. Ka sha kwaya daya sau uku a rana na tsawon kwanaki 7, bayan cin abinci. Kammala dukkanin magani ko da ka ji lafiya. Kar a yi amfani da shi idan kana da rashin lafiyar penicillin.",
+  seconds: 9.1,
   steps: [
-    ["Read the N-ATLaS guide", "Picked the Next.js recipe"],
+    ["Read the N-ATLaS guide", "Chose structured output, reply in Hausa"],
     ["Created your project", "You approved the key in your browser"],
-    ["Wrote the support route", "5 files, key kept on the server"],
-    ["Tested N-ATLaS", "Answered in Hausa in 1.1 s"],
+    ["Wrote the label route", "JSON schema for the dose, key kept on the server"],
+    ["Tested N-ATLaS", "Real answer in 9.1 s"],
     ["Verified your app", "Your route reached genuine N-ATLaS"],
   ] as [string, string][],
 };
 
-export const USE_CASES: { icon: "chat" | "agent" | "data"; title: string; line: string; ask: string }[] = [
+/** Three to try first: each output is verbatim from a live run (request ids in atlas-one.log, 12 Oct 2026). */
+export const SHOWCASE: { title: string; tags: string[]; input: string; output: string; prompt: string }[] = [
   {
-    icon: "chat",
-    title: "Support in Hausa",
-    line: "Answers from your own FAQ. Built and verified live, as above.",
-    ask: DEMO.instruction,
+    title: "Medicine label reader",
+    tags: ["Health", "Structured output", "Hausa"],
+    input: "Amoxicillin 500 mg capsules. Take 1 capsule three times daily for 7 days, after food. Complete the full course even if you feel better. Do not use if allergic to penicillin.",
+    output: "{\"times_per_day\": 3, \"days\": 7, \"after_food\": true}  Ka sha kwaya daya sau uku a rana na tsawon kwanaki 7, bayan cin abinci.",
+    prompt: `Build a medicine-label reader: paste a label, get the dosing as JSON (medicine, dose, times per day, days, after food, warning) and a plain Hausa explanation, with N-ATLaS structured output. Remind users to confirm with a pharmacist. ${VERIFY}`,
   },
   {
-    icon: "agent",
-    title: "Agents that act",
-    line: "Function calling: N-ATLaS calls your code to check orders or book deliveries, then replies in the customer's language.",
-    ask: "Add an order-tracking assistant that uses N-ATLaS function calling to call our order lookup, replies in Yoruba or Igbo, and verify it.",
+    title: "Lesson and quiz",
+    tags: ["Education", "Structured output", "Igbo"],
+    input: "Topic: why we wash our hands before eating.",
+    output: "Gịnị kpatara na ọ dị mkpa ka a saa aka gị tupu iri nri?  Ịsa aka gị tupu iri nri na-enyere aka iwepụ nje bacteria ndị nwere ike ime ka ahụ́ ghara iru ala ma ọ bụ bute ọrịa.",
+    prompt: `Build a homework helper: a topic in, a short explanation for a 10-year-old in Igbo plus a quiz as JSON (questions and answers), with N-ATLaS structured output. ${VERIFY}`,
   },
   {
-    icon: "data",
-    title: "Text to data",
-    line: "Structured output: reviews and messages in four languages become JSON your code can trust.",
-    ask: "Classify incoming Hausa, Igbo and Yoruba reviews into JSON (sentiment, topic, English summary) with N-ATLaS structured output, and verify it.",
+    title: "Order-tracking agent",
+    tags: ["Commerce", "Function calling", "Hausa"],
+    input: "Ina odar lamba KF-1042 take yanzu?",
+    output: 'track_order({"order_id": "KF-1042"})  →  Amsar ta dawo da matsayin odar KF-1042, wanda aka aika.',
+    prompt: `Build an order-tracking assistant with a few sample orders: N-ATLaS function calling decides when to call track_order, then replies in the customer's language (Hausa, Igbo or Yoruba). ${VERIFY}`,
   },
+];
+
+/** Ideas by industry: what each one uses. Prompts only; no output is claimed here. */
+export const DOMAINS: { title: string; line: string; uses: string; prompt: string }[] = [
+  { title: "Health", uses: "Structured output", line: "Prescriptions and drug labels explained in the patient's language, with dosing as data.", prompt: `Build a prescription explainer that turns a doctor's prescription into a dosing schedule (JSON) and a plain explanation in Yoruba. ${VERIFY}` },
+  { title: "Security", uses: "Structured output", line: "A scam-SMS shield: flags fake BVN and OTP messages and warns the user in Igbo.", prompt: `Build a scam-SMS checker: paste a message, get JSON (is_scam, risk, red_flags) and a warning in Igbo. ${VERIFY}` },
+  { title: "Education", uses: "Structured output", line: "Lessons, quizzes and homework help in a child's own language.", prompt: `Build a quiz maker that writes five questions with answers in Hausa for any primary-school topic, as JSON. ${VERIFY}` },
+  { title: "Commerce", uses: "Function calling", line: "Agents that check orders and book deliveries, then reply in the customer's language.", prompt: `Build a delivery-booking agent that calls book_delivery and check_stock functions and confirms in Yoruba. ${VERIFY}` },
+  { title: "Gaming", uses: "Function calling", line: "Characters that speak Hausa, Igbo or Yoruba and act through your game's functions.", prompt: `Build a market-trader game character who bargains in Yoruba and calls give_item and set_price functions. ${VERIFY}` },
+  { title: "Press and news", uses: "Streaming", line: "Hausa radio bulletins from English wire copy, streamed as they are written.", prompt: `Build a newsroom tool that rewrites an English news story as a two-sentence Hausa radio bulletin, streamed. ${VERIFY}` },
+  { title: "Sports", uses: "Streaming", line: "Match events turned into live commentary in Yoruba or Hausa.", prompt: `Build a live-commentary feed: match events (JSON) in, one excited commentary line in Hausa out, streamed. ${VERIFY}` },
+  { title: "Entertainment", uses: "Structured output", line: "Subtitle files for films and skits, translated line by line.", prompt: `Build a subtitle translator: upload an English .srt file, get it back in Igbo with the timings untouched, using structured output per line. ${VERIFY}` },
+  { title: "Daily stories", uses: "Chat", line: "A bedtime story each night in a child's language, with a small lesson.", prompt: `Build a bedtime-story page: pick a language and an animal, get a four-sentence story with a lesson. ${VERIFY}` },
+  { title: "Tourism", uses: "Chat", line: "Guides for Kano, Lagos and Enugu that speak the visitor's language.", prompt: `Build a city-guide chat for Kano that answers visitors in Hausa or English from a short list of places you provide. ${VERIFY}` },
+  { title: "Finance", uses: "Chat", line: "Bank alerts, fees and loan terms explained simply.", prompt: `Build a bank-alert explainer: paste an alert or loan terms, get a simple explanation in Yoruba. ${VERIFY}` },
+  { title: "Farming", uses: "Grounded answers", line: "Advice from your own crop guide, for farmers in Hausa.", prompt: `Build a farmer helpline that answers in Hausa only from a maize guide you add, and says it doesn't know otherwise. ${VERIFY}` },
+];
+
+export const IDEAS: { title: string; line: string; prompt: string }[] = [
+  ...SHOWCASE.map((x) => ({ title: x.title, line: x.tags.join(" · "), prompt: x.prompt })),
+  {
+    title: "Customer support in Hausa",
+    line: "Grounded answers · Hausa",
+    prompt: `Add a customer-support chat to this shop that answers in Hausa only from the facts in shop.json (and says it doesn't know otherwise), ${VERIFY}`,
+  },
+  ...DOMAINS.filter((d) => ["Security", "Press and news"].includes(d.title)).map((d) => ({ title: d.title, line: `${d.uses} · ${d.line}`, prompt: d.prompt })),
 ];
 
 export const CLIENTS = ["Claude Code", "Codex", "Cursor", "VS Code", "Windsurf", "Gemini CLI", "Any MCP client"] as const;

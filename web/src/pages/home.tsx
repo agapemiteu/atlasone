@@ -6,9 +6,8 @@ import { Icon } from "@/components/icon";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader, StatusDot } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStatus } from "@/hooks/use-status";
-import { CLIENTS, clientSnippets, COPY, type Lang, STARTER_PROMPT, USE_CASES } from "@/lib/content";
+import { CLIENTS, clientSnippets, COPY, DEMO, DOMAINS, type Lang, SHOWCASE, STARTER_PROMPT } from "@/lib/content";
 
 export function Home({ origin, lang, autoplay = true, initialStatus }: { origin: string; lang: Lang; autoplay?: boolean; initialStatus?: PublicStatus | null }) {
   const live = useStatus();
@@ -41,11 +40,56 @@ export function Home({ origin, lang, autoplay = true, initialStatus }: { origin:
         <section className="mt-14 sm:mt-20">
           <Demo autoplay={autoplay} />
           <p className="mt-3 text-center text-xs text-muted-foreground">
-            From a real run on 11 Oct 2026. The question and the Hausa answer are verbatim.
+            Real N-ATLaS output from a live run on 12 Oct 2026, unedited. Replay sped up: the real answer took {DEMO.seconds} s.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-x-7 gap-y-2 text-sm font-medium text-muted-foreground">
             {CLIENTS.map((c) => (
               <span key={c}>{c}</span>
+            ))}
+          </div>
+        </section>
+
+        <section className="pt-24 sm:pt-32">
+          <h2 className="text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">{t.showcase}</h2>
+          <p className="mt-3 max-w-2xl text-muted-foreground">{t.showcaseSub}</p>
+          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+            {SHOWCASE.map((x) => (
+              <article key={x.title} className="flex min-w-0 flex-col rounded-2xl border p-5">
+                <div className="flex flex-wrap gap-1.5">
+                  {x.tags.map((tag, i) => (
+                    <span key={tag} className={i === 1 ? "rounded-full bg-success-soft px-2 py-0.5 text-xs font-medium text-success" : "rounded-full border px-2 py-0.5 text-xs text-muted-foreground"}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                <h3 className="mt-3 text-lg font-semibold tracking-tight">{x.title}</h3>
+                <p className="mt-3 text-[11px] font-medium tracking-wider text-muted-foreground uppercase">In</p>
+                <p className="mt-1 text-sm text-foreground/80">{x.input}</p>
+                <p className="mt-3 text-[11px] font-medium tracking-wider text-muted-foreground uppercase">N-ATLaS</p>
+                <p className="mt-1 rounded-lg bg-muted/60 p-2.5 font-mono text-[12.5px] leading-relaxed [overflow-wrap:anywhere]">{x.output}</p>
+                <div className="mt-auto pt-4">
+                  <CopyButton text={x.prompt} label="Copy prompt" variant="default" />
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="pt-24 sm:pt-32">
+          <h2 className="text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">{t.cases}</h2>
+          <p className="mt-3 max-w-2xl text-muted-foreground">{t.casesSub}</p>
+          <div className="mt-8 grid gap-px overflow-hidden rounded-2xl border bg-border sm:grid-cols-2 lg:grid-cols-3">
+            {DOMAINS.map((d) => (
+              <div key={d.title} className="flex min-w-0 flex-col gap-2 bg-background p-5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h3 className="font-semibold">{d.title}</h3>
+                  <span className="text-xs whitespace-nowrap text-success">{d.uses}</span>
+                </div>
+                <p className="text-sm text-muted-foreground">{d.line}</p>
+                <div className="mt-auto pt-1">
+                  <CopyButton text={d.prompt} label="Copy prompt" />
+                </div>
+              </div>
             ))}
           </div>
         </section>
@@ -84,27 +128,6 @@ export function Home({ origin, lang, autoplay = true, initialStatus }: { origin:
               </li>
             ))}
           </ol>
-        </section>
-
-        <section className="pt-24 sm:pt-32">
-          <h2 className="text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">{t.cases}</h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {USE_CASES.map((u) => (
-              <Card key={u.title} className="gap-3">
-                <CardHeader>
-                  <Icon name={u.icon} size={22} className="text-success" />
-                  <CardTitle className="mt-3 text-base">{u.title}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{u.line}</p>
-                </CardHeader>
-                <CardContent className="mt-auto">
-                  <div className="flex items-start gap-2 rounded-lg border bg-muted/50 py-2 pr-1 pl-3 font-mono text-[12.5px] leading-relaxed">
-                    <span className="flex-1">{u.ask}</span>
-                    <CopyButton text={u.ask} />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
         </section>
 
         <section className="pt-24 sm:pt-32">

@@ -101,6 +101,7 @@ export function Docs({ origin }: { origin: string }) {
                 [<C>atlas_bind_project</C>, "Creates a project; rotates or revokes its key. Returns a link for you to confirm."],
                 [<C>atlas_test</C>, "Runs a real inference, or verifies that your app's route reached N-ATLaS."],
                 [<C>atlas_inspect</C>, "Requests, latency, errors and quota for a project."],
+                [<C>atlas_feedback</C>, "Sends your rating and comments, when you choose to give them. Your agent asks once, at a natural pause."],
               ]}
             />
             <p>
