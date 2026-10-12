@@ -117,7 +117,8 @@ export function Docs({ origin }: { origin: string }) {
             <CodeTabs items={appSnippets(api)} />
             <p>
               Set the reply language in a system message. Responses carry <C>x-atlas-request-id</C> and the exact model revision in <C>x-atlas-weights</C>.
-              Call from your server; never ship the key to a browser.
+              Call from your server; never ship the key to a browser. To deploy, set the same two variables on your host and verify the live URL the
+              same way.
             </p>
 
             <h3 id="capabilities" className="mt-10 text-lg font-semibold">Capabilities</h3>
@@ -136,12 +137,6 @@ export function Docs({ origin }: { origin: string }) {
             <p>
               <C>verified: true</C> proves your app reached genuine N-ATLaS. It does not grade answers: for answers from your own facts, put the
               facts in the system message, say "if the facts do not cover it, say you do not know", and check real questions yourself.
-            </p>
-
-            <h3 className="mt-10 text-lg font-semibold">Next</h3>
-            <p>
-              Fine-tuning through your agent: it prepares your examples, trains a small add-on (LoRA adapter) to N-ATLaS, and serves it on your
-              project only, then tests and verifies it like today. Voice comes after that. Neither is live yet.
             </p>
 
             <H2 id="errors">Errors and limits</H2>

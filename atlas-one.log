@@ -277,3 +277,12 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
 [2026-10-12 12:20 WAT] Owner decision: fine-tuning via the agent goes on the roadmap (docs "Next", README), not built for
   the deadline: an 8B training run on free 2x T4 takes hours and per-project adapter serving is new infrastructure that
   could not be proven live tonight. Voice stays after it.
+
+[2026-10-12 12:45 WAT] Re-read PS1 on ncair.nitda.gov.ng/naic (owner: "check it properly"). PS1: "Build the tools that make
+  N-ATLAS easy to build with": help developers go from accessing the model to integrating, testing, adapting and
+  deploying it. Example solutions (any one): SDK, browser playground, fine-tuning starter kit, bilingual docs.
+  Requirements: direct N-ATLAS integration (no wrapping another model); at least 2 EXTERNAL beta testers.
+  Voice is not in PS1 and fine-tuning is only an example, so the roadmap section (docs, README) is removed again.
+  Gap found and closed: "deploying" had no guidance; both recipes now end with a Deploy section (host env vars,
+  verify the live URL with the same nonce flow, handle warming/limits, attribution, key rotation).
+  Biggest open item: external testers, 1 of the required 2.

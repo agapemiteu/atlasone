@@ -128,6 +128,19 @@ Streaming is supported (`stream: true`); add it only if the feature needs increm
 Only if all four pass, report: files changed, model `n-atlas-8b` with its weights revision, request
 ids, latency, and the answer excerpt. If any step fails, report the failure and do not claim success.
 
+## Deploy
+
+The same base URL and key work in production; nothing changes but where the two variables live.
+
+1. Add `ATLAS_ONE_BASE_URL` and `ATLAS_ONE_API_KEY` as server-side environment variables on the host (Vercel,
+   Netlify, Render, Railway, Fly.io, Cloudflare, a VPS). Never prefix them for the browser (`NEXT_PUBLIC_`, `VITE_`).
+2. Deploy, then verify the live URL the same way: `issue_app_nonce`, call the deployed route with `x-atlas-verify`,
+   `verify_app`. `verified: true` now proves production reaches genuine N-ATLaS.
+3. Handle `BACKEND_WARMING` and `RATE_LIMITED` in the product: show "starting up, try again shortly" using
+   `retry_after_s`; never substitute another model's answer.
+4. Keep the attribution and credit line visible. Rotate a leaked key with `atlas_bind_project` (`rotate_key`) and
+   watch errors and latency with `atlas_inspect`.
+
 ## Errors you may see
 
 | Code | Meaning | What to do |
