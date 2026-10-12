@@ -72,7 +72,7 @@ describe("beginner's guide", () => {
     }
     expect(html).toContain(`claude mcp add --transport http atlas-one ${ORIGIN}/mcp`);
     expect(html).toContain("Open a terminal in your app's folder");
-    expect(html).toContain("It never sees the key");
+    expect(html).toContain("The key never goes through the chat");
     expect(html).toContain("It says N-ATLaS is waking up");
     expect(html).toContain('href="/feedback"');
     expect(html).not.toMatch(/invite/i);

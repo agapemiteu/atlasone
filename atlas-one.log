@@ -377,3 +377,8 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
 [2026-10-12 18:10 WAT] Skill offer (owner: offer it during use, not only after a build): tool results carry a one-time
   skill_offer on a developer's 3rd and 25th call; the agent asks at the next natural pause and saves /skill.md only if
   they agree. Server instructions now include the server origin. Tests 136 + 6; e2e-mcp passes; deployed.
+
+[2026-10-12 18:50 WAT] Key step simplified (owner: "why not pre-create .env.local and just paste the key"): the agent now prepares
+  .env.local with ATLAS_ONE_BASE_URL filled and an empty ATLAS_ONE_API_KEY=, opens it in the editor, and opens the key
+  page; the page shows the key alone with a "Copy key" button (both lines under "Setting it up yourself?"). Skill and
+  guide updated. Tests 136 + 6; deployed.

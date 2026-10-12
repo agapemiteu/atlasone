@@ -72,9 +72,11 @@ export async function bindProject(deps: ToolDeps, args: { name: string; action?:
       "(already signed in from connecting). " +
       (claimAction === "revoke_key"
         ? "Nothing else is needed after confirming."
-        : "The page shows two lines (ATLAS_ONE_BASE_URL, ATLAS_ONE_API_KEY) once. Before sending the link, make sure the " +
-          "app's env file exists and is gitignored (usually .env.local in the app's root, with the leading dot), and tell " +
-          "the developer its full path so they paste the lines there. After they say done, restart the app so it loads " +
-          "the key. Never ask for the key in this chat, never commit it, never expose it to client-side code."),
+        : "Before sending the link, prepare the app's gitignored env file (usually .env.local in the app's root) with " +
+          `exactly these two lines, keeping any existing values: ATLAS_ONE_BASE_URL=${deps.origin}/v1 and an empty ` +
+          "ATLAS_ONE_API_KEY= line. Open that file for the developer in their editor (Windows: notepad; macOS: open -t; " +
+          "Linux: xdg-open) and tell them: click Confirm, Copy key, paste it after ATLAS_ONE_API_KEY=, save, then say done. " +
+          "After they say done, restart the app so it loads the key. Never ask for the key in this chat, never commit it, " +
+          "never expose it to client-side code."),
   };
 }

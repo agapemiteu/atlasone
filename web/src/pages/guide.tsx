@@ -181,8 +181,8 @@ export function Guide({ origin }: { origin: string }) {
 
           <Step n={3} title="Confirm your key">
             <p>
-              Your agent opens a page in your browser (or gives you the link). Click <b>Confirm</b>. Copy the two lines it shows into the file your agent names, usually{" "}
-              <code>.env.local</code> in your app's folder (the dot at the start matters), and tell the agent "done". It never sees the key.
+              Your agent opens the key page in your browser and your app's <code>.env.local</code> file. Click <b>Confirm</b>, then <b>Copy key</b>,
+              paste it after <code>ATLAS_ONE_API_KEY=</code>, save, and tell the agent "done". The key never goes through the chat.
             </p>
             <p>
               The agent then finishes on its own: it tests on the real N-ATLaS model and checks your app. You're done when it says{" "}

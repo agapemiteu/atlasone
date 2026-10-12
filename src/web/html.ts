@@ -48,6 +48,6 @@ export function messagePage(title: string, message: string, status = 400): Respo
 }
 
 /** Copy-to-clipboard for a secret shown once. */
-export function secretBlock(id: string, value: string): string {
-  return `<pre id="${esc(id)}">${esc(value)}</pre><button type="button" onclick="navigator.clipboard.writeText(document.getElementById('${esc(id)}').textContent)">Copy</button>`;
+export function secretBlock(id: string, value: string, label = "Copy"): string {
+  return `<pre id="${esc(id)}">${esc(value)}</pre><button type="button" class="primary" onclick="navigator.clipboard.writeText(document.getElementById('${esc(id)}').textContent).then(()=>{this.textContent='Copied'})">${esc(label)}</button>`;
 }

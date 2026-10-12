@@ -68,8 +68,10 @@ async function claimPage(request: Request, deps: PageDeps, token: string, sessio
       }
       return page("Your project key", `<div class="card"><h1>Project key for ${esc(claim.project_name)}</h1>
 <p class="warn">Shown once. Atlas One keeps only a fingerprint, so copy it now.</p>
-<p>Add this to your app's <strong>server-side</strong> environment (for example <code>.env.local</code>, which must be in <code>.gitignore</code>):</p>
-${secretBlock("key", `ATLAS_ONE_BASE_URL=${deps.origin}/v1\nATLAS_ONE_API_KEY=${key.secret}`)}
+<p>Paste it after <code>ATLAS_ONE_API_KEY=</code> in your app's <code>.env.local</code> (your agent opens it for you), then save:</p>
+${secretBlock("key", key.secret, "Copy key")}
+<details><summary class="muted">Setting it up yourself? Both lines</summary>
+${secretBlock("env", `ATLAS_ONE_BASE_URL=${deps.origin}/v1\nATLAS_ONE_API_KEY=${key.secret}`)}</details>
 <p class="muted">Don't paste it into an AI chat. If an agent asked for this key, tell it "done"; it verifies with atlas_test.</p></div>`);
     }
     const claim = await loadClaim(deps.db, token, session.githubId);

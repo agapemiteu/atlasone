@@ -14,9 +14,9 @@ VS Code, Windsurf, Gemini CLI and others is at https://atlas-one.collins-coordin
 starts a new session.
 
 1. `atlas_discover`: live state; it also wakes N-ATLaS if asleep (about 30 seconds).
-2. `atlas_bind_project` with the app's name: open `claim_url` in the developer's browser for them and print it on its
-   own line; tell them the full path of the gitignored `.env.local`. Write the server-side code from the returned
-   recipe while they confirm the key.
+2. `atlas_bind_project` with the app's name: prepare the gitignored `.env.local` with `ATLAS_ONE_BASE_URL` filled and
+   an empty `ATLAS_ONE_API_KEY=`, open it in their editor, open `claim_url` in their browser and print it on its own
+   line. They click Confirm, Copy key, paste it after the `=`, save. Write the code from the returned recipe meanwhile.
 3. When they say done, restart the app, then `atlas_test` (inference): proves genuine N-ATLaS and returns `app_check`.
 4. Call the new route once with `app_check`'s header, then `atlas_test` (`verify_app`) with its nonce. Report success only
    with `verified: true`, and offer to save the receipt as `ATLAS_VERIFICATION.jwt`.
