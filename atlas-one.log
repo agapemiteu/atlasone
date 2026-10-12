@@ -382,3 +382,9 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   .env.local with ATLAS_ONE_BASE_URL filled and an empty ATLAS_ONE_API_KEY=, opens it in the editor, and opens the key
   page; the page shows the key alone with a "Copy key" button (both lines under "Setting it up yourself?"). Skill and
   guide updated. Tests 136 + 6; deployed.
+
+[2026-10-12 19:40 WAT] Demo video edited from the owner's 13:44 live recording (empty folder -> verified Naija Translate app, Codex): 4:51,
+  19.7 MB (from 850 MB). Narration kept at 1.2x; idle parts 4x-14x with an on-screen speed badge; framed on the site's
+  background with chapter captions; zooms on the verified summary and the live Hausa/Igbo/Yoruba translations; opening
+  and closing cards; loudness normalised (EBU R128, -16 LUFS). The real API key was readable on screen for ~15 s (key page
+  and Notepad): blurred in every frame, checked at full resolution. Videos are gitignored; the file lives in docs/ locally.
