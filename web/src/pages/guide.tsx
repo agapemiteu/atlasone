@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AVAILABILITY } from "@atlas/limits.ts";
 import { CopyButton } from "@/components/copy-button";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader, StatusDot } from "@/components/site-header";
@@ -67,7 +68,7 @@ const FAQ: [string, ReactNode][] = [
   ],
   [
     "It says N-ATLaS is waking up",
-    <>That's normal. To save free GPU time, N-ATLaS sleeps when nobody uses it and wakes as soon as your agent connects. It takes about 4 minutes; you can watch each stage at the top of this page. Your agent should wait and try again. It must never invent an answer.</>,
+    <>That's normal. To save GPU costs, N-ATLaS sleeps when nobody uses it and wakes as soon as your agent connects. It takes {AVAILABILITY.coldStart}; you can watch each stage at the top of this page. Your agent should wait and try again. It must never invent an answer.</>,
   ],
   [
     "It says MODEL_OFFLINE or another error",

@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader, StatusDot } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { useStatus } from "@/hooks/use-status";
+import { AVAILABILITY } from "@atlas/limits.ts";
 import { CLIENTS, clientSnippets, COPY, DEMO, DOMAINS, type Lang, SHOWCASE, STARTER_PROMPT } from "@/lib/content";
 
 export function Home({ origin, lang, autoplay = true, initialStatus }: { origin: string; lang: Lang; autoplay?: boolean; initialStatus?: PublicStatus | null }) {
@@ -137,7 +138,7 @@ export function Home({ origin, lang, autoplay = true, initialStatus }: { origin:
           </div>
           <dl className="mt-8 grid grid-cols-2 gap-y-8 border-t pt-8 md:grid-cols-4">
             {[
-              ["~4 min", "asleep to online, on demand"],
+              ["~30 s", "asleep to online, on demand"],
               ["1.1 s", "Hausa answer, warm"],
               ["4", "languages: en, ha, ig, yo"],
               ["true", "verify_app on a real route"],
@@ -164,7 +165,7 @@ function WakeProgress({ status }: { status: PublicStatus | null }) {
       <p className="mt-8 max-w-2xl text-sm text-muted-foreground">
         {status.last_failure
           ? `The last wake-up failed: ${status.last_failure}. The next request tries again.`
-          : "Asleep to save GPU hours. It wakes automatically on the first request and shows each stage here. Until then, callers get a clear error, never a fake answer."}
+          : `Asleep to save GPU costs. It wakes automatically on the first request, in ${AVAILABILITY.coldStart}, and shows each stage here. Until then, callers get a clear error, never a fake answer.`}
       </p>
     );
   const started = status.wake_started_at ? Math.max(0, Math.round((Date.now() - Date.parse(status.wake_started_at)) / 1000)) : null;
@@ -182,7 +183,7 @@ function WakeProgress({ status }: { status: PublicStatus | null }) {
           </li>
         ))}
       </ol>
-      {started !== null && <p className="mt-3 text-xs text-muted-foreground">Started {started}s ago. Cold starts take about 4 minutes.</p>}
+      {started !== null && <p className="mt-3 text-xs text-muted-foreground">Started {started}s ago. Cold starts take {AVAILABILITY.coldStart}.</p>}
     </div>
   );
 }

@@ -22,7 +22,7 @@ Running session log: `atlas-one.log` (newest at the bottom).
 Live and complete for NAIC (deadline 12 Oct 2026, 23:59 WAT), v1.0: 5 tools (incl. atlas_feedback), 2 MCP prompts, output
 schemas, OAuth for any MCP client (RFC 9207 flag not advertised, D25), /access (connected agents, tokens), gateway with
 structured output and function calling,
-wake-on-demand (~3-4 min cold start, sleeps after 40 idle min), public beta (`ACCESS=open`), signed
+wake-on-demand (Modal: ~30 s cold start, sleeps after 15 idle min; Kaggle fallback ~4 min, 40 min), public beta (`ACCESS=open`), signed
 beta evidence. Owner handles: team profile, track, sharing with testers, video (`docs/VIDEO-SCRIPT.md`).
 Before submitting: `npm run evidence:snapshot`, commit `evidence/`.
 

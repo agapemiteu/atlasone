@@ -1,11 +1,12 @@
 // atlas_discover: everything an agent needs before integrating, with LIVE backend state
 // (the gateway being up is reported separately from the model being reachable, PRD §6).
-// An agent that discovers is about to build, so a sleeping model starts waking now: the ~4 minute
-// cold start overlaps with writing code and confirming the key instead of blocking the first test.
+// An agent that discovers is about to build, so a sleeping model starts waking now: the cold start overlaps with
+// writing code and confirming the key instead of blocking the first test.
 
 import { getBackend } from "../lib/backend.ts";
 import { DEFAULT_MAX_TOKENS, MAX_BODY_BYTES, MAX_TOKENS_CAP, MODEL_CARD, MODEL_ID } from "../lib/chat.ts";
 import { listProjects } from "../lib/projects.ts";
+import { AVAILABILITY } from "../lib/limits.ts";
 import { LIMITS } from "../lib/quota.ts";
 import { latestWake, requestWake, STAGE_TEXT, wakeInFlight } from "../lib/wake.ts";
 import generic from "../recipes/generic.md";
@@ -23,7 +24,7 @@ const BACKEND_MEANING = {
   ready: "Genuine N-ATLaS inference is available now.",
   loading: "The model server is starting; retry in about 15 seconds.",
   offline:
-    "N-ATLaS is asleep or unreachable. atlas_test (or any app request) wakes it automatically when wake-on-demand is on; a cold start takes about 4-5 minutes. Do not simulate output.",
+    `N-ATLaS is asleep or unreachable. atlas_test (or any app request) wakes it automatically when wake-on-demand is on; a cold start takes ${AVAILABILITY.coldStart}. Do not simulate output.`,
 } as const;
 
 export async function discover(deps: ToolDeps, args: { recipe?: RecipeName }) {
@@ -44,11 +45,11 @@ export async function discover(deps: ToolDeps, args: { recipe?: RecipeName }) {
     backend: {
       state: waking ? "waking" : backend.state,
       meaning: waking
-        ? `N-ATLaS is waking up: ${STAGE_TEXT[waking.stage]}. It takes about 4 minutes: keep integrating, it should be ready by atlas_test.`
+        ? `N-ATLaS is waking up: ${STAGE_TEXT[waking.stage]}. It takes ${AVAILABILITY.coldStart}: keep integrating, it will be ready by atlas_test.`
         : BACKEND_MEANING[backend.state],
       wakes_on_demand: Boolean(deps.compute),
       checked_at: checkedAt,
-      note: "Observed at checked_at. N-ATLaS sleeps after 40 idle minutes, so a later call can still meet a cold start; tools then say so with retry_after_s.",
+      note: `Observed at checked_at. N-ATLaS sleeps after ${AVAILABILITY.idleMinutes} idle minutes, so a later call can still meet a cold start; tools then say so with retry_after_s.`,
     },
     model: {
       id: MODEL_ID,

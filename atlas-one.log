@@ -347,3 +347,13 @@ Append-only. Newest entries at the bottom. Format: [YYYY-MM-DD] TYPE — note
   limited to *.modal.run so a late Kaggle run cannot replace it. Registered (health + key + model checked). LIVE on Modal:
   e2e-gateway 5/5 (Hausa req_f48ae97d5398433ba507939d 969 ms, Yoruba SSE, pinned weights); e2e-mcp ALL PASSED in both eras
   (inference req_7b2f7b28977c40f18a8551d2 834 ms, verify_app true req_5ac15decbba847578dd3150d). Tests 134 + 6 pass.
+
+[2026-10-12 16:20 WAT] Measured, then corrected every availability claim (owner: "it is not 4 mins anymore"). First Modal cold
+  start was 247 s, almost all container start: the image was nvidia/cuda (multi-GB). The pinned llama.cpp release ships
+  its own CUDA libraries and Modal supplies the driver, so the base is now plain ubuntu:24.04: cold start 24 s (container
+  stopped, then /health 200), model load itself 22 s. GPU confirmed by speed: 191 Hausa tokens at 27.6 tokens/s
+  (req_5eba2c98f8814bc0acddc710). e2e-gateway 5/5 after the change. One shared source, AVAILABILITY in
+  src/lib/limits.ts ("about 30 seconds", sleeps after 15 idle minutes), now feeds the home page, guide, docs, MCP
+  instructions, discover and atlas_test messages. Status shows only Modal's observable stages (requesting a GPU,
+  loading, online); retry_after 30 s / 15 s. README, EVIDENCE (runtime and wake rows), video script, CLAUDE.md updated.
+  Tests 134 + 6 pass (one known timing-sensitive quota test passed on rerun); deployed.

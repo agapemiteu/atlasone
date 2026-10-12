@@ -29,7 +29,9 @@ WEIGHTS = "/weights"
 RELEASE = f"https://github.com/ggml-org/llama.cpp/releases/download/{LLAMA_TAG}"
 
 image = (
-    modal.Image.from_registry("nvidia/cuda:12.8.1-runtime-ubuntu24.04", add_python="3.12")
+    # Plain Ubuntu: the pinned llama.cpp release ships its own CUDA runtime libraries and Modal provides the driver,
+    # so a multi-GB CUDA base image would only slow every cold start.
+    modal.Image.from_registry("ubuntu:24.04", add_python="3.12")
     .apt_install("wget", "ca-certificates", "libgomp1", "libcurl4")
     .pip_install("huggingface_hub==0.36.0")
     .run_commands(

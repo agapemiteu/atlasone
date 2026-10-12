@@ -231,10 +231,10 @@ describe("callers see an honest waking state", () => {
       { db: env.DB, fetcher: w.fetcher, upstreamKey: "k", waitUntil: () => {}, compute: KAGGLE },
     ))!;
     expect(res.status).toBe(503);
-    expect(res.headers.get("retry-after")).toBe("90");
+    expect(res.headers.get("retry-after")).toBe("30");
     const body = (await res.json()) as { error: { code: string; message: string }; choices?: unknown };
     expect(body.error.code).toBe("BACKEND_WARMING");
-    expect(body.error.message).toContain("Requesting a free GPU");
+    expect(body.error.message).toContain("Requesting a GPU");
     expect(body).not.toHaveProperty("choices");
     expect(w.kaggleCalls).toHaveLength(1);
   });
@@ -277,7 +277,7 @@ describe("callers see an honest waking state", () => {
       ),
     ).rejects.toMatchObject({ code: "BACKEND_WARMING" });
     expect(polls).toBe(15);
-    expect(messages).toContain("Waking N-ATLaS: Requesting a free GPU (2x T4)");
+    expect(messages).toContain("Waking N-ATLaS: Requesting a GPU");
     expect(messages).toContain("Waking N-ATLaS: GPU assigned, server notebook started");
     expect(messages).toContain("Waking N-ATLaS: Downloading N-ATLaS weights");
     expect(messages).not.toContain("Running a genuine N-ATLaS request");
@@ -288,7 +288,7 @@ describe("callers see an honest waking state", () => {
     const deps = { db: env.DB, fetcher: w.fetcher, upstreamKey: "k", waitUntil: () => {}, owner: "gh-early", origin: "https://atlas.test", scopes: ALL_SCOPES, compute: KAGGLE };
     const first = await discover(deps, {});
     expect(first.backend).toMatchObject({ state: "waking", wakes_on_demand: true });
-    expect(first.backend.meaning).toContain("Requesting a free GPU");
+    expect(first.backend.meaning).toContain("Requesting a GPU");
     expect(Date.parse(first.backend.checked_at)).not.toBeNaN();
     await discover(deps, {});
     expect(w.kaggleCalls).toHaveLength(1); // a wake in flight is reused, never started twice

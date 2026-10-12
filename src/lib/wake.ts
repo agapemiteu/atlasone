@@ -1,5 +1,6 @@
-// Wake-on-demand: developers never start the GPU. When an authenticated request finds N-ATLaS asleep,
-// Atlas One starts the Kaggle notebook through Kaggle's API and reports real progress.
+// Wake-on-demand: developers never start the GPU. When an authenticated request finds N-ATLaS asleep, Atlas One
+// starts it and reports real progress. On Modal (D27) that is one request to the stable URL; on Kaggle, below, it
+// starts the notebook through Kaggle's API.
 //
 //   request finds backend offline ─► requestWake() ── recent wake in flight? ─► reuse it (debounced)
 //                                         │ no
@@ -31,7 +32,7 @@ export const TERMINAL_STAGES = ["ready", "sleeping", "failed"] as const;
 export type WakeStage = (typeof WAKE_STAGES)[number] | "sleeping" | "failed";
 
 export const STAGE_TEXT: Record<WakeStage, string> = {
-  gpu_requested: "Requesting a free GPU (2x T4)",
+  gpu_requested: "Requesting a GPU",
   notebook_started: "GPU assigned, server notebook started",
   fetching_runtime: "Fetching the inference runtime",
   downloading_model: "Downloading N-ATLaS weights",
@@ -202,7 +203,7 @@ export async function recordStage(db: D1Database, stage: WakeStage, detail: stri
 /** Seconds a caller should wait before retrying, based on how far the observed wake has progressed. */
 export function retryAfterFor(w: Wake | null): number {
   const i = w ? WAKE_STAGES.indexOf(w.stage as (typeof WAKE_STAGES)[number]) : -1;
-  return i >= 4 ? 20 : i >= 1 ? 60 : 90;
+  return i >= 4 ? 15 : 30;
 }
 
 /**

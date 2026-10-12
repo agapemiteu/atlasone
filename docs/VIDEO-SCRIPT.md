@@ -11,7 +11,7 @@ sped up with an on-screen label such as "2x" or "skipped 90 s"; nothing else is 
    then `npm start` inside it and open http://localhost:3000.
 2. Your agent with Atlas One connected (`codex mcp list` or `/mcp` shows atlas-one signed in). To show sign-in on
    camera, sign out first: `codex mcp logout atlas-one`.
-3. Wake N-ATLaS: ask the agent "call atlas_discover" and wait until the site header says "N-ATLaS online".
+3. Wake N-ATLaS: ask the agent "call atlas_discover" and wait until the site header says "N-ATLaS online" (about 30 seconds).
 4. A real medicine label to paste (any box at home, typed out), and optionally a 20-40 s screen recording from an
    external tester (Tobi or your friend) of their own run.
 5. Screen recorder: Windows Snipping Tool (Record) or OBS at 1080p, microphone on. Close other tabs, hide
@@ -33,7 +33,7 @@ sped up with an on-screen label such as "2x" or "skipped 90 s"; nothing else is 
 
 ## If something goes wrong on camera
 
-- `BACKEND_WARMING`: keep recording; the agent retries. Cut the wait and label it ("model starting, about 4 min").
+- `BACKEND_WARMING`: keep recording; the agent retries. Cut the wait and label it ("model starting, about 30 s").
 - A wrong or odd Hausa answer: keep it. Say "verified means genuine N-ATLaS; answer quality is the model's, and
   we test it". Honesty is part of the product.
 - Sign-in error in Codex: `codex mcp logout atlas-one`, then `codex mcp login atlas-one`.

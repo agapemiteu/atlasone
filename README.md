@@ -42,7 +42,7 @@ The agent finishes with `verified: true` and offers a signed receipt (`ATLAS_VER
 | **Test** | Real inference with request id, weights revision and latency; nonce proof that *your app's route* reached N-ATLaS |
 | **Adapt** | Structured output (JSON Schema, grammar-enforced), function calling, streaming, grounding guidance |
 | **Deploy** | Same base URL and key in production; verify the live URL the same way; rotate and revoke keys |
-| **Operate** | Per-project usage, latency and errors; wake-on-demand GPU with live progress; clear errors, never a substitute model |
+| **Operate** | Per-project usage, latency and errors; GPU that sleeps when idle and wakes on demand in about 30 seconds, with live progress; clear errors, never a substitute model |
 
 ## MCP server
 
@@ -101,7 +101,7 @@ npm run deploy    # builds web/, deploys the Worker
 |---|---|
 | `src/` | Cloudflare Worker: OAuth and MCP (`index.ts`, `mcp.ts`, `tools/`), inference core (`lib/`), API (`routes/`), server pages (`web/`), recipes |
 | `web/` | Website: home, guide, docs (React, shadcn/ui), served by the same Worker |
-| `inference/` | The N-ATLaS model server (llama.cpp, 2x T4), started on demand |
+| `inference/` | The N-ATLaS model server (llama.cpp, F16): `modal_serve.py` (one L4 or A10G, the live setup) or `kaggle_serve.py` (free 2x T4) |
 | `migrations/`, `test/` | D1 schema; tests |
 | `scripts/` | Live end-to-end checks, seed, evidence snapshot and verifier |
 | `docs/` | [How it works](docs/ARCHITECTURE.md) (architecture and decisions), [evidence](docs/EVIDENCE.md), [PRD](docs/PRD.md), video script |

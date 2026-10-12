@@ -145,7 +145,7 @@ The same base URL and key work in production; nothing changes but where the two 
 
 | Code | Meaning | What to do |
 |---|---|---|
-| MODEL_OFFLINE | No N-ATLaS backend is running (free GPU outside its window) | Tell the developer; retry later. Do not fake output. |
+| MODEL_OFFLINE | No N-ATLaS backend is reachable | Tell the developer; retry later. Do not fake output. |
 | BACKEND_WARMING | Backend is loading the model | Retry after `retry_after_s` |
 | BACKEND_BUSY / RATE_LIMITED | Capacity or project quota reached | Retry after `retry_after_s` |
 | INVALID_KEY / KEY_REVOKED | Wrong or revoked project key | Get a new key via `atlas_bind_project` |

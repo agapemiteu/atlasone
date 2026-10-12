@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { MAX_BODY_BYTES, MAX_TOKENS_CAP, MODEL_CARD } from "@atlas/chat.ts";
 import { ERRORS } from "@atlas/errors.ts";
-import { LIMITS } from "@atlas/limits.ts";
+import { AVAILABILITY, LIMITS } from "@atlas/limits.ts";
 import { CodeTabs } from "@/components/code-tabs";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -167,7 +167,7 @@ export function Docs({ origin }: { origin: string }) {
             <H2 id="errors">Errors and limits</H2>
             <p>
               Errors look like <C>{'{ "error": { "code", "message", "retryable", "retry_after_s", "request_id" } }'}</C>. Retry only when{" "}
-              <C>retryable</C> is true. N-ATLaS sleeps after 40 idle minutes; the next request wakes it (about 4 minutes) and gets{" "}
+              <C>retryable</C> is true. N-ATLaS sleeps after {AVAILABILITY.idleMinutes} idle minutes; the next request wakes it ({AVAILABILITY.coldStart}) and gets{" "}
               <C>BACKEND_WARMING</C> until then. Never fall back to another model.
             </p>
             <Table

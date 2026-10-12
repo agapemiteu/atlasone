@@ -13,6 +13,7 @@ import { sha256Hex } from "../lib/credentials.ts";
 import { AtlasError } from "../lib/errors.ts";
 import { newRequestId, runInference } from "../lib/inference.ts";
 import { type ProjectSummary, resolveProject } from "../lib/projects.ts";
+import { AVAILABILITY } from "../lib/limits.ts";
 import { checkKaggleRun, latestWake, requestWake, retryAfterFor, settleWake, STAGE_TEXT, wakeInFlight } from "../lib/wake.ts";
 import type { ToolDeps } from "./context.ts";
 
@@ -126,7 +127,7 @@ async function inference(deps: ToolDeps, projectId: string, args: TestArgs, prog
     if (backend.state !== "ready" && wake && wake.stage !== "failed") {
       throw new AtlasError(
         "BACKEND_WARMING",
-        `N-ATLaS is waking up (${STAGE_TEXT[wake.stage]}). A cold start takes a few minutes; call atlas_test again shortly.`,
+        `N-ATLaS is waking up (${STAGE_TEXT[wake.stage]}). A cold start takes ${AVAILABILITY.coldStart}; call atlas_test again shortly.`,
         { retryAfterS: retryAfterFor(wake) },
       );
     }

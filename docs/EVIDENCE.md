@@ -10,7 +10,7 @@ and (2) independent developers used Atlas One and their apps reached it.
 | Model | `NCAIR1/N-ATLaS` (Llama-3 8B fine-tune; English, Hausa, Igbo, Yoruba) |
 | Revision | `e294476928aca9030e924ca27bb8e085e8581273`, pinned in `inference/kaggle_serve.py` and checked at registration |
 | Precision | F16 GGUF converted from the original BF16 weights with llama.cpp's converter; no quantisation |
-| Runtime | llama.cpp `b11552` (CUDA), 2x NVIDIA T4, 4 slots x 4096 tokens, the model's own chat template |
+| Runtime | llama.cpp `b11552` (CUDA), 4 slots x 4096 tokens, the model's own chat template. GPU: Modal, one L4 or A10G (24 GB), since 12 Oct 2026; before that Kaggle, 2x T4. Same release and weights on both |
 | Settings | From the N-ATLaS model card, applied server-side: repetition penalty 1.12, temperature 0.1, current date |
 
 Check it in the code: the only weights `inference/kaggle_serve.py` downloads are the pinned revision; the only
@@ -26,7 +26,7 @@ Live results (11-12 Oct 2026, request ids from the logs):
 | Claude Code over OAuth, existing Next.js app (PRD Test 2) | Agent added a Hausa support route in about 2 minutes; `atlas_test` `req_91d6bec6fdbd44acaa01237a` 1,110 ms; app route `req_714d166c70154f5ba50b47d5`; `verify_app` **true**, same id. Key absent from all browser bundles |
 | Codex | Igbo "Isi obodo Naịjirịa bụ Abuja." `req_3db406b183a0405a868238e0`, 1,364 ms (after Codex's own approval prompt for a non-read-only tool) |
 | Official MCP client, both protocol eras | All passed, including progress notifications and nonce verification |
-| Wake-on-demand | Asleep → online in about 4 minutes with no manual step; then `req_5e46287db16d4cfe8e22dce2` in 1,099 ms. Later runs: about 3 minutes |
+| Wake-on-demand | Modal (12 Oct): container stopped, then online in 24 s; 191 Hausa tokens at 27.6 tokens/s (`req_5eba2c98f8814bc0acddc710`), so on the GPU. Kaggle (11 Oct): about 3-4 minutes, then `req_5e46287db16d4cfe8e22dce2` in 1,099 ms |
 | Signed receipt | `verify_app` on `req_c50b86bc65444d9d8ce4b979` issued a receipt that verifies; a tampered copy fails |
 | Structured output | Hausa review to schema-valid JSON, `req_e77d8a9a9b4647799d092fb5`; medicine label to dosing JSON plus Hausa, `req_a6cfb6957a9c428d8605d95b` (9.1 s) |
 | Function calling | The model called `track_order({"order_id": "KF-1042"})` (`req_b4714f8393c04836aa6dbaa3`), then answered in Hausa from the result (`req_c20473f1dfdc4683b860865c`) |

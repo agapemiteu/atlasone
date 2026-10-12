@@ -34,6 +34,12 @@ export async function publicStatus(db: D1Database, fetcher: typeof fetch, comput
     updated_at: wake ? new Date(wake.updated_at).toISOString() : null,
     last_failure:
       backend.state !== "ready" && wake?.stage === "failed" && Date.now() - wake.updated_at < 30 * 60_000 ? (wake.detail ?? "unknown error") : null,
-    stages: WAKE_STAGES.map((id, i) => ({ id, text: STAGE_TEXT[id], done: i < current || (i === current && id === "ready"), current: i === current && id !== "ready" })),
+    stages: stagesFor(compute).map((id) => ({ id, i: WAKE_STAGES.indexOf(id) })).map(({ id, i }) => ({ id, text: STAGE_TEXT[id], done: i < current || (i === current && id === "ready"), current: i === current && id !== "ready" })),
   };
+}
+
+/** Modal's server does not report its own steps: only the stages a health probe can observe. */
+const MODAL_STAGES = ["gpu_requested", "loading_weights", "ready"] as const;
+function stagesFor(compute: ComputeConfig | null): readonly (typeof WAKE_STAGES)[number][] {
+  return compute?.provider === "modal" ? MODAL_STAGES : WAKE_STAGES;
 }

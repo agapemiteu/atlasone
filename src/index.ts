@@ -35,7 +35,6 @@ export interface AtlasProps {
 // (e.g. deps.fetcher(...)). Wrap it once so every injected fetcher is safe to call either way.
 const fetcher: typeof fetch = (input, init) => fetch(input, init);
 
-/** Wake-on-demand is on only when the Kaggle key secret is set. */
 /** COMPUTE picks where N-ATLaS runs (D27): "modal" (stable URL, starts in 1-2 min) or "kaggle" (free, can queue). */
 function computeConfig(env: Env): ComputeConfig | null {
   if ((env.COMPUTE as string) === "modal" && env.MODAL_URL) return { provider: "modal", url: env.MODAL_URL };
